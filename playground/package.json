@@ -1,0 +1,27 @@
+{
+  "name": "forge-playground",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "artisan": "tsx node_modules/@forge/cli/src/index.ts"
+  },
+  "dependencies": {
+    "@forge/core": "workspace:*",
+    "@forge/middleware": "workspace:*",
+    "@forge/router": "workspace:*",
+    "@forge/server": "workspace:*",
+    "@forge/server-hono": "workspace:*",
+    "@forge/validation": "workspace:*",
+    "reflect-metadata": "^0.2.2",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@forge/cli": "workspace:*",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.0"
+  }
+}

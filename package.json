@@ -1,0 +1,18 @@
+{
+  "name": "forge-framework",
+  "private": true,
+  "packageManager": "pnpm@10.29.3",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "artisan": "tsx packages/cli/src/index.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}

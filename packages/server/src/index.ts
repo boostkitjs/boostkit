@@ -1,0 +1,73 @@
+// ─── Request & Response ────────────────────────────────────
+
+export interface ForgeRequest {
+  method:  string
+  url:     string
+  path:    string
+  query:   Record<string, string>
+  params:  Record<string, string>
+  headers: Record<string, string>
+  body:    unknown
+  raw:     unknown  // the original server-specific request object
+}
+
+export interface ForgeResponse {
+  status:  (code: number) => ForgeResponse
+  header:  (key: string, value: string) => ForgeResponse
+  json:    (data: unknown) => void
+  send:    (data: string) => void
+  redirect:(url: string, code?: number) => void
+  raw:     unknown  // the original server-specific response object
+}
+
+// ─── Handler & Middleware ──────────────────────────────────
+
+export type RouteHandler = (
+  req: ForgeRequest,
+  res: ForgeResponse
+) => unknown | Promise<unknown>
+
+export type MiddlewareHandler = (
+  req: ForgeRequest,
+  res: ForgeResponse,
+  next: () => Promise<void>
+) => void | Promise<void>
+
+// ─── HTTP Methods ──────────────────────────────────────────
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD'
+
+// ─── Route Definition ──────────────────────────────────────
+
+export interface RouteDefinition {
+  method:     HttpMethod
+  path:       string
+  handler:    RouteHandler
+  middleware: MiddlewareHandler[]
+}
+
+// ─── Server Adapter Contract ───────────────────────────────
+
+export interface ServerAdapter {
+  /** Register a single route */
+  registerRoute(route: RouteDefinition): void
+
+  /** Apply a global middleware */
+  applyMiddleware(middleware: MiddlewareHandler): void
+
+  /** Start listening on a port */
+  listen(port: number, callback?: () => void): void
+
+  /** Return the underlying native server instance (Hono/Express/etc) */
+  getNativeServer(): unknown
+}
+
+// ─── Server Adapter Config ─────────────────────────────────
+
+export interface ServerAdapterFactory<TConfig = unknown> {
+  (config?: TConfig): ServerAdapterProvider
+}
+
+export interface ServerAdapterProvider {
+  create(): ServerAdapter
+}
