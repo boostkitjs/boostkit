@@ -65,6 +65,12 @@ importers:
       '@forge/di':
         specifier: workspace:*
         version: link:../di
+      '@forge/router':
+        specifier: workspace:*
+        version: link:../router
+      '@forge/server':
+        specifier: workspace:*
+        version: link:../server
       '@forge/support':
         specifier: workspace:*
         version: link:../support
@@ -203,9 +209,6 @@ importers:
 
   packages/router:
     dependencies:
-      '@forge/core':
-        specifier: workspace:*
-        version: link:../core
       '@forge/server':
         specifier: workspace:*
         version: link:../server
@@ -224,10 +227,6 @@ importers:
         version: 5.9.3
 
   packages/server:
-    dependencies:
-      '@forge/core':
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -334,6 +333,12 @@ importers:
       '@forge/middleware':
         specifier: workspace:*
         version: link:../packages/middleware
+      '@forge/orm':
+        specifier: workspace:*
+        version: link:../packages/orm
+      '@forge/orm-prisma':
+        specifier: workspace:*
+        version: link:../packages/orm-prisma
       '@forge/router':
         specifier: workspace:*
         version: link:../packages/router
@@ -352,6 +357,9 @@ importers:
       '@photonjs/hono':
         specifier: ^0.1.12
         version: 0.1.12(@hono/node-server@1.19.9(hono@4.12.3))(hono@4.12.3)(srvx@0.9.8)(vite@7.3.1(@types/node@20.19.35)(tsx@4.21.0)(yaml@2.8.2))
+      '@prisma/client':
+        specifier: ^5.0.0
+        version: 5.22.0(prisma@5.22.0)
       '@universal-middleware/core':
         specifier: ^0.4.16
         version: 0.4.17(hono@4.12.3)(srvx@0.9.8)
@@ -398,6 +406,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@7.3.1(@types/node@20.19.35)(tsx@4.21.0)(yaml@2.8.2))
+      prisma:
+        specifier: ^5.0.0
+        version: 5.22.0
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
