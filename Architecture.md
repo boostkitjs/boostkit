@@ -9,9 +9,9 @@
 |-----------|-------------|
 | **Modular** | Every feature is an opt-in package. Core stays lean. |
 | **Convention over config** | Sensible defaults, but fully escapable. |
-| **Framework-agnostic UI** | React, Vue, Solid — first-class support for all. |
+| **Framework-agnostic UI** | React, Vue, Solid — first-class support for all via Vike. |
 | **Fullstack-first** | Server and client code live together, co-located by feature. |
-| **Laravel DX** | Familiar patterns: service container, eloquent-style ORM, artisan CLI, middleware, form requests. |
+| **Laravel DX** | Familiar patterns: service container, Eloquent-style ORM, Artisan CLI, middleware, form requests. |
 
 ---
 
@@ -21,13 +21,13 @@
 |-------|-----------|
 | Build / Dev server | Vite |
 | SSR / File routing | Vike |
-| UI | React / Vue / Solid (adapters) |
-| Language | TypeScript |
+| UI | React / Vue / Solid (via vike-react, vike-vue, vike-solid) |
+| Language | TypeScript (strict, ESM, NodeNext) |
 | Runtime | Node.js 20+ / Bun |
 | HTTP server | Hono / Express / Fastify / H3 (developer's choice via adapter) |
-| ORM | Prisma adapter / Drizzle adapter (swappable) |
+| ORM | Prisma adapter / Drizzle adapter (swappable via `@forge/orm-prisma`) |
 | Queues | Inngest (default) / BullMQ adapter |
-| Validation | Zod (internal) with a Laravel-style Form Request wrapper |
+| Validation | Zod with a Laravel-style Form Request wrapper |
 | DI Container | Custom (inspired by tsyringe / InversifyJS — lighter) |
 
 ---
@@ -35,30 +35,29 @@
 ## Monorepo Structure
 
 ```
-framework-root/
+forge/
 ├── packages/
-│   ├── core/               # Bootstrapper, kernel, app lifecycle
-│   ├── router/             # Vike wrapper + decorator-based routing
+│   ├── core/               # Bootstrapper, Application, Forge, ServiceProvider, artisan registry
+│   ├── router/             # Global router singleton + decorator-based routing
 │   ├── di/                 # Service container / dependency injection
-│   ├── orm/                # ORM contract + base query builder
-│   ├── orm-prisma/         # Prisma adapter
-│   ├── orm-drizzle/        # Drizzle adapter
-│   ├── server-hono/        # Hono server adapter
-│   ├── server-express/     # Express server adapter
-│   ├── server-fastify/     # Fastify server adapter
-│   ├── server-h3/          # H3 server adapter (Nitro-compatible)
-│   ├── middleware/         # Middleware pipeline
-│   ├── validation/         # Form request + Zod integration
-│   ├── queue/              # Queue contract
+│   ├── orm/                # ORM contract + base Model + ModelRegistry
+│   ├── orm-prisma/         # Prisma adapter (multi-driver: pg, libsql, default)
+│   ├── orm-drizzle/        # Drizzle adapter (stub)
+│   ├── server/             # ServerAdapter contract, HttpMethod, FetchHandler
+│   ├── server-hono/        # Hono adapter (HonoConfig, unified logger, CORS)
+│   ├── server-express/     # Express adapter (stub)
+│   ├── server-fastify/     # Fastify adapter (stub)
+│   ├── server-h3/          # H3 adapter (stub)
+│   ├── middleware/         # Middleware pipeline + built-ins (CORS, Logger, Throttle)
+│   ├── validation/         # FormRequest + Zod integration
+│   ├── queue/              # Queue contract + Job base class
 │   ├── queue-inngest/      # Inngest adapter
-│   ├── queue-bullmq/       # BullMQ adapter
-│   ├── auth/               # Auth module (sessions, JWT, OAuth)
-│   ├── cli/                # Artisan-style CLI (forge CLI)
-│   ├── config/             # Config loader + env helper
-│   ├── support/            # Helpers, macros, collection class
-│   └── testing/            # Testing utilities
+│   ├── queue-bullmq/       # BullMQ adapter (stub)
+│   ├── auth/               # Auth module (stub)
+│   ├── cli/                # Artisan-style CLI (make:*, module:*, user commands via artisan)
+│   └── support/            # Helpers, Collection, Env, defineEnv, ConfigRepository
 ├── create-forge-app/       # CLI scaffolder (like create-next-app)
-└── docs/                   # Documentation site (built with the framework itself)
+└── playground/             # Canonical demo app — primary integration reference
 ```
 
 ---
@@ -68,70 +67,54 @@ framework-root/
 ```
 my-app/
 ├── app/
-│   ├── Http/
-│   │   ├── Controllers/        # Page & API controllers
-│   │   │   ├── UserController.ts
-│   │   │   └── PostController.ts
-│   │   ├── Middleware/         # Custom middleware
-│   │   │   ├── AuthMiddleware.ts
-│   │   │   └── ThrottleMiddleware.ts
-│   │   └── Requests/           # Form request / validation classes
-│   │       ├── CreateUserRequest.ts
-│   │       └── UpdatePostRequest.ts
-│   ├── Models/                 # ORM models (Eloquent-style)
+│   ├── Models/                 # ORM models (extends Model)
 │   │   ├── User.ts
 │   │   └── Post.ts
-│   ├── Jobs/                   # Queue jobs
-│   │   ├── SendWelcomeEmail.ts
-│   │   └── ProcessUpload.ts
-│   ├── Services/               # Business logic / service classes
+│   ├── Services/               # Business logic
 │   │   └── UserService.ts
-│   ├── Providers/              # Service providers (registered in DI container)
-│   │   ├── AppServiceProvider.ts
-│   │   └── AuthServiceProvider.ts
-│   └── Events/                 # Event & listener system
-│       ├── UserRegistered.ts
-│       └── SendVerificationEmail.ts
+│   ├── Providers/              # Service providers
+│   │   ├── DatabaseServiceProvider.ts   # connects ORM, sets ModelRegistry
+│   │   ├── AppServiceProvider.ts        # app bindings
+│   │   └── AuthServiceProvider.ts       # gates, guards, policies
+│   ├── Http/
+│   │   ├── Controllers/        # Decorator-based controllers
+│   │   ├── Middleware/         # Custom middleware
+│   │   └── Requests/           # Form request / validation classes
+│   └── Jobs/                   # Queue jobs
 │
-├── pages/                      # Vike file-based routing
+├── pages/                      # Vike file-based routing (SSR pages)
 │   ├── index/
 │   │   ├── +Page.tsx           # UI component
 │   │   ├── +data.ts            # Server-side data loader
-│   │   └── +guard.ts           # Route guard (auth check, redirect)
-│   ├── users/
-│   │   ├── +Page.tsx
-│   │   ├── +data.ts
-│   │   └── @id/                # Dynamic segment
-│   │       ├── +Page.tsx
-│   │       └── +data.ts
-│   └── api/                    # API routes (no UI)
-│       └── users/
-│           ├── +handler.ts     # GET/POST/PUT/DELETE handlers
-│           └── @id/
-│               └── +handler.ts
+│   │   └── +config.ts          # Page config (layout, title, etc.)
+│   └── users/
+│       └── @id/
+│           ├── +Page.tsx
+│           └── +data.ts
+│
+├── routes/
+│   ├── api.ts                  # HTTP routes (router.get/post/all) — side-effect file
+│   └── console.ts              # Artisan commands (artisan.command()) — side-effect file
 │
 ├── config/
-│   ├── app.ts                  # App config (name, env, debug)
-│   ├── database.ts             # ORM / DB connection config
+│   ├── app.ts                  # APP_NAME, APP_ENV, APP_DEBUG
+│   ├── server.ts               # PORT, CORS_ORIGIN, TRUST_PROXY
+│   ├── database.ts             # DB_CONNECTION, DATABASE_URL
 │   ├── queue.ts                # Queue driver config
-│   └── auth.ts                 # Auth guards & providers config
-│
-├── database/
-│   ├── migrations/             # DB migrations
-│   ├── seeders/                # DB seeders
-│   └── schema.ts               # Drizzle schema OR prisma/schema.prisma
+│   ├── mail.ts                 # Mailer config
+│   └── index.ts                # Barrel re-export
 │
 ├── bootstrap/
-│   ├── app.ts                  # App bootstrapper (register providers)
-│   └── kernel.ts               # HTTP kernel (global middleware stack)
+│   ├── app.ts                  # Application.configure()...create() — app wiring
+│   └── providers.ts            # Default export: ordered providers array
 │
-├── public/                     # Static assets
-├── storage/                    # Logs, cache, uploads
-├── tests/
-│   ├── Unit/
-│   └── Feature/
+├── prisma/
+│   └── schema.prisma           # Prisma schema (SQLite / PostgreSQL / MySQL)
 │
-├── bootstrap/app.ts            # App wiring (server, providers, routes)
+├── src/
+│   └── index.ts                # WinterCG entry point — export default { fetch }
+│
+├── .env                        # DATABASE_URL, PORT, APP_* env vars
 ├── vite.config.ts              # Vite + Vike config (UI framework plugins)
 ├── tsconfig.json
 └── package.json
@@ -141,81 +124,228 @@ my-app/
 
 ## Key Concepts
 
-### Routing — Two Styles
+### Bootstrap — Laravel 11-style Fluent API
 
-**File-based (Vike conventions):**
-```
-pages/users/@id/+data.ts  →  GET /users/:id
-pages/api/posts/+handler.ts  →  API route
-```
+`bootstrap/app.ts` is the single wiring point for the whole application:
 
-**Decorator-based (in controllers):**
 ```ts
-@Controller('/users')
-export class UserController {
-  @Get('/:id')
-  @Middleware([AuthMiddleware])
-  async show({ params }: Context) {
-    return User.find(params.id)
-  }
+import 'reflect-metadata'
+import 'dotenv/config'
+import { Application } from '@forge/core'
+import { hono } from '@forge/server-hono'
+import configs from '../config/index.ts'
+import providers from './providers.ts'
+
+export default Application.configure({
+  server:    hono(configs.server),  // server adapter + runtime config
+  config:    configs,               // all config/ files
+  providers,                        // ordered provider array
+})
+  .withRouting({
+    api:      () => import('../routes/api.ts'),      // loads HTTP routes
+    commands: () => import('../routes/console.ts'),  // loads artisan commands
+  })
+  .withMiddleware((_m) => {
+    // _m.use(new CorsMiddleware().toHandler())
+  })
+  .withExceptions((_e) => {})
+  .create()                         // returns Forge instance
+```
+
+`bootstrap/providers.ts`:
+```ts
+export default [
+  DatabaseServiceProvider,   // first — sets ModelRegistry for all models
+  AppServiceProvider,
+  AuthServiceProvider,
+] satisfies (new (app: Application) => ServiceProvider)[]
+```
+
+**Provider lifecycle:**
+1. All `register()` methods run first (bind into container)
+2. All `boot()` methods run after (can use container, call DB, etc.)
+
+---
+
+### Entry Point — WinterCG
+
+`src/index.ts` is a single line — Forge bootstraps lazily on first request:
+```ts
+import forge from '../bootstrap/app.ts'
+
+export default {
+  fetch: (request: Request, env?: unknown, ctx?: unknown) =>
+    forge.handleRequest(request, env, ctx),
 }
 ```
+
+---
+
+### HTTP Routes — `routes/api.ts`
+
+Side-effect file — just import and register, no exports needed:
+```ts
+import { router } from '@forge/router'
+import { resolve } from '@forge/core'
+import { UserService } from '../app/Services/UserService.js'
+
+router.get('/api/users', async (_req, res) => {
+  const users = await resolve(UserService).findAll()
+  return res.json({ data: users })
+})
+
+router.post('/api/users', async (req, res) => {
+  const user = await resolve(UserService).create(req.body)
+  return res.status(201).json({ data: user })
+})
+
+router.get('/api/users/:id', async (req, res) => {
+  const user = await resolve(UserService).findById(req.params['id']!)
+  if (!user) return res.status(404).json({ message: 'User not found.' })
+  return res.json({ data: user })
+})
+
+// Catch-all: prevent unmatched /api/* from falling through to Vike
+router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Route not found.' }))
+```
+
+---
+
+### Console Routes — `routes/console.ts`
+
+Side-effect file — register artisan commands, no exports needed:
+```ts
+import { artisan } from '@forge/core'
+import { User } from '../app/Models/User.js'
+
+artisan.command('inspire', () => {
+  console.log('The best way to predict the future is to create it.')
+}).description('Display an inspiring quote')
+
+artisan.command('db:seed', async () => {
+  await User.create({ name: 'Alice', email: 'alice@example.com', role: 'admin' })
+  console.log('Done.')
+}).description('Seed the database with sample data')
+```
+
+Run with:
+```bash
+pnpm artisan inspire
+pnpm artisan db:seed
+pnpm artisan --help     # lists all built-in + user-defined commands
+```
+
+The CLI boots the full app (`bootstrap/app.ts`) before running any command, so providers (DB connections, etc.) are available inside command handlers.
 
 ---
 
 ### Service Container / DI
 
 ```ts
-// bootstrap/app.ts
-app.bind(UserService, () => new UserService())
-app.singleton(MailService, () => new MailService(config('mail')))
+// In a provider's register()
+this.app.singleton(UserService, () => new UserService())
+this.app.instance('db', adapter)
 
-// In a controller (auto-injected)
+// In a controller / route (auto-resolved)
+const svc = resolve(UserService)
+
+// @Injectable auto-resolution
 @Injectable()
-export class UserController {
-  constructor(private users: UserService) {}
+export class UserService {
+  constructor(private db: DatabaseAdapter) {}
 }
 ```
 
 ---
 
-### Eloquent-style ORM (Prisma Adapter)
+### ORM — Eloquent-style via Prisma
 
+`prisma/schema.prisma`:
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+`app/Models/User.ts`:
 ```ts
-// app/Models/User.ts
-export class User extends Model {
-  static table = 'users'
+import { Model } from '@forge/orm'
 
-  posts() {
-    return this.hasMany(Post)
+export class User extends Model {
+  static table = 'user'   // matches Prisma's accessor (lowercase model name)
+  id!: string; name!: string; email!: string; role!: string
+  createdAt!: Date; updatedAt!: Date
+}
+```
+
+Usage:
+```ts
+const all     = await User.all()
+const one     = await User.find(id)
+const admins  = await User.where('role', 'admin').get()
+const created = await User.create({ name: 'Diana', email: 'diana@example.com' })
+const paged   = await User.query().paginate(1, 15)
+```
+
+`DatabaseServiceProvider` wires it all:
+```ts
+export class DatabaseServiceProvider extends ServiceProvider {
+  async boot(): Promise<void> {
+    const adapter = await prisma().create()  // reads DATABASE_URL from env
+    await adapter.connect()
+    ModelRegistry.set(adapter)               // makes Model.query() work everywhere
+    this.app.instance('db', adapter)
   }
 }
-
-// Usage
-const user = await User.with('posts').where('active', true).first()
 ```
+
+---
+
+### Server Adapter
+
+Developer picks the server in `bootstrap/app.ts`. Runtime config (port, CORS) lives in `config/server.ts`:
+
+```ts
+// config/server.ts
+export default {
+  port:       Env.getNumber('PORT', 3000),
+  trustProxy: Env.getBool('TRUST_PROXY', false),
+  cors: {
+    origin:  Env.get('CORS_ORIGIN', '*'),
+    methods: Env.get('CORS_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS'),
+    headers: Env.get('CORS_HEADERS', 'Content-Type,Authorization'),
+  },
+}
+```
+
+Available adapters: `hono()`, `express()` (stub), `fastify()` (stub), `h3()` (stub).
+
+The Hono adapter includes:
+- Unified request logger with ANSI colors (`[forge]` tag)
+- Automatic CORS middleware when `cors` config is set
+- Vike's HTTP log suppression (no duplicate lines)
 
 ---
 
 ### Validation / Form Requests
 
 ```ts
-// app/Http/Requests/CreateUserRequest.ts
 export class CreateUserRequest extends FormRequest {
   rules() {
-    return {
-      name: z.string().min(2),
+    return z.object({
+      name:  z.string().min(2),
       email: z.string().email(),
-      password: z.string().min(8),
-    }
+    })
   }
 }
 
-// In controller — auto validated before handler runs
-async store({ request }: Context) {
-  const data = await request.validate(CreateUserRequest)
-  return User.create(data)
-}
+// Inline validation
+const data = await validate(z.object({ name: z.string() }), req)
 ```
 
 ---
@@ -223,128 +353,69 @@ async store({ request }: Context) {
 ### Queue / Jobs
 
 ```ts
-// app/Jobs/SendWelcomeEmail.ts
 export class SendWelcomeEmail extends Job {
-  constructor(public user: User) {}
-
-  async handle() {
-    await Mail.to(this.user.email).send(new WelcomeMail(this.user))
-  }
+  constructor(public user: User) { super() }
+  async handle() { /* send email */ }
 }
 
-// Dispatching
-await SendWelcomeEmail.dispatch(user)
-await SendWelcomeEmail.dispatch(user).delay('5 minutes')
+await SendWelcomeEmail.dispatch(user).send()
+await SendWelcomeEmail.dispatch(user).delay(5000).onQueue('emails').send()
 ```
 
 ---
 
-### Middleware Pipeline
-
-```ts
-// bootstrap/kernel.ts
-export class HttpKernel extends Kernel {
-  middleware = [
-    CorsMiddleware,
-    ThrottleMiddleware,
-    SessionMiddleware,
-  ]
-
-  middlewareGroups = {
-    web: [CsrfMiddleware, AuthMiddleware],
-    api: [ApiAuthMiddleware],
-  }
-}
-```
-
----
-
-### CLI (forge — like Artisan)
+### CLI (pnpm artisan — like Artisan)
 
 ```bash
 # Scaffolding
-forge make:controller UserController
-forge make:model Post --migration
-forge make:job SendWelcomeEmail
-forge make:request CreateUserRequest
-forge make:middleware AuthMiddleware
-forge make:provider PaymentServiceProvider
+pnpm artisan make:controller UserController
+pnpm artisan make:model Post
+pnpm artisan make:job SendWelcomeEmail
+pnpm artisan make:request CreateUserRequest
+pnpm artisan make:middleware AuthMiddleware
+pnpm artisan make:provider PaymentServiceProvider
+pnpm artisan make:module Blog         # full module scaffold
 
-# Database
-forge db:migrate
-forge db:seed
-forge db:fresh --seed
+# Module Prisma shards
+pnpm artisan module:publish           # merge *.prisma into prisma/schema.prisma
+pnpm artisan module:publish --generate --migrate --name add_blog
 
-# Queue
-forge queue:work
-forge queue:listen --queue=emails
-
-# Dev
-forge serve
-forge build
-forge routes:list
+# User-defined (from routes/console.ts)
+pnpm artisan inspire
+pnpm artisan db:seed
 ```
 
 ---
 
-## bootstrap/app.ts (App wiring)
-
-```ts
-import 'reflect-metadata'
-import 'dotenv/config'
-import { Application } from '@forge/core'
-import { hono } from '@forge/server-hono'   // or express() / fastify() / h3()
-import { router } from '@forge/router'
-import { providers } from './providers.ts'
-import configs from '../config/index.ts'
-import '../routes/api.ts'
-
-export const server = hono()
-export const app = Application.create({ name: configs.app.name, providers })
-export const handleFetch = await server.createFetchHandler((adapter) => {
-  router.mount(adapter)
-})
-```
-
-UI framework is handled by Vike's ecosystem — install `vike-react`, `vike-vue`, or `vike-solid` and configure in `vite.config.ts` and `pages/+config.ts`.
-
----
-
-## Package Names (npm scope)
+## Dependency Flow
 
 ```
-@forge/core
-@forge/router
-@forge/di
-@forge/orm
-@forge/orm-prisma
-@forge/orm-drizzle
-@forge/middleware
-@forge/validation
-@forge/queue
-@forge/queue-inngest
-@forge/queue-bullmq
-@forge/auth
-@forge/cli
 @forge/support
-@forge/testing
-@forge/server-hono
-@forge/server-express
-@forge/server-fastify
-@forge/server-h3
-create-forge-app
+      ↑
+@forge/di
+      ↑
+@forge/core  ── (dynamic import) ──→ @forge/router
+      │       ── (dynamic import) ──→ @forge/server
+      │
+      ↑ (used by providers in user apps)
+@forge/router   @forge/middleware   @forge/orm        @forge/queue   @forge/validation
+                                         ↑
+                                   @forge/orm-prisma
+                                   @forge/orm-drizzle
 ```
+
+`@forge/core` uses dynamic `import('@forge/router')` inside `Forge._bootstrap()` to avoid a circular dependency (router and server must not depend on core).
 
 ---
 
-## Roadmap (Suggested)
+## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **v0.1** | Core, DI, Router (Vike wrapper), CLI scaffold |
-| **v0.2** | ORM adapters (Prisma + Drizzle), Validation |
-| **v0.3** | Middleware pipeline, HTTP kernel |
-| **v0.4** | Queue (Inngest + BullMQ), Jobs |
-| **v0.5** | Auth module, Sessions |
-| **v0.6** | React + Vue + Solid adapters |
-| **v1.0** | Docs site, create-forge-app CLI, public launch |
+| **v0.1** | ✅ Core, DI, Router, CLI scaffold, Hono adapter, Vike SSR |
+| **v0.2** | ✅ ORM (Prisma), Validation, Middleware, Queue (Inngest) |
+| **v0.3** | ✅ Fluent bootstrap, artisan console routes, DB seeding, multi-provider |
+| **v0.4** | Auth module (sessions, JWT, guards) |
+| **v0.5** | Tests (node:test), Drizzle adapter, BullMQ adapter |
+| **v0.6** | Vue + Solid adapters, create-forge-app CLI |
+| **v1.0** | Docs site, public launch |

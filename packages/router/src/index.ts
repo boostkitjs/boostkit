@@ -93,6 +93,7 @@ export class Router {
   put   (path: string, handler: RouteHandler, middleware?: MiddlewareHandler[]) { return this.add('PUT',    path, handler, middleware) }
   patch (path: string, handler: RouteHandler, middleware?: MiddlewareHandler[]) { return this.add('PATCH',  path, handler, middleware) }
   delete(path: string, handler: RouteHandler, middleware?: MiddlewareHandler[]) { return this.add('DELETE', path, handler, middleware) }
+  all   (path: string, handler: RouteHandler, middleware?: MiddlewareHandler[]) { return this.add('ALL',    path, handler, middleware) }
 
   /** Register all routes from a decorator-based controller class */
   registerController(ControllerClass: new () => any): this {

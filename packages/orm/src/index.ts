@@ -75,38 +75,39 @@ export abstract class Model {
   }
 
   /** Return a query builder for this model */
-  static query<T extends Model>(): QueryBuilder<T> {
-    return ModelRegistry.getAdapter().query<T>(
+  static query<T extends typeof Model>(this: T): QueryBuilder<InstanceType<T>> {
+    return ModelRegistry.getAdapter().query<InstanceType<T>>(
       (this as typeof Model).getTable()
     )
   }
 
+  private static _q<T extends typeof Model>(self: T): QueryBuilder<InstanceType<T>> {
+    return ModelRegistry.getAdapter().query<InstanceType<T>>((self as typeof Model).getTable())
+  }
+
   /** Shorthand — find by primary key */
-  static find<T extends Model>(id: number | string): Promise<T | null> {
-    return (this as typeof Model).query<T>().find(id)
+  static find<T extends typeof Model>(this: T, id: number | string): Promise<InstanceType<T> | null> {
+    return Model._q(this).find(id)
   }
 
   /** Shorthand — get all records */
-  static all<T extends Model>(): Promise<T[]> {
-    return (this as typeof Model).query<T>().all()
+  static all<T extends typeof Model>(this: T): Promise<InstanceType<T>[]> {
+    return Model._q(this).all()
   }
 
   /** Shorthand — where clause */
-  static where<T extends Model>(
-    column: string,
-    value: unknown
-  ): QueryBuilder<T> {
-    return (this as typeof Model).query<T>().where(column, value)
+  static where<T extends typeof Model>(this: T, column: string, value: unknown): QueryBuilder<InstanceType<T>> {
+    return Model._q(this).where(column, value)
   }
 
   /** Shorthand — create a record */
-  static create<T extends Model>(data: Partial<T>): Promise<T> {
-    return (this as typeof Model).query<T>().create(data)
+  static create<T extends typeof Model>(this: T, data: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    return Model._q(this).create(data)
   }
 
   /** Shorthand — eager load relations */
-  static with<T extends Model>(...relations: string[]): QueryBuilder<T> {
-    return (this as typeof Model).query<T>().with(...relations)
+  static with<T extends typeof Model>(this: T, ...relations: string[]): QueryBuilder<InstanceType<T>> {
+    return Model._q(this).with(...relations)
   }
 
   /** Convert model to JSON, respecting hidden fields */

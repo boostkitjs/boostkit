@@ -18,6 +18,9 @@
     "@forge/server": "workspace:*",
     "@forge/server-hono": "workspace:*",
     "@forge/validation": "workspace:*",
+    "@forge/orm": "workspace:*",
+    "@forge/orm-prisma": "workspace:*",
+    "@prisma/client": "^5.0.0",
     "@photonjs/hono": "^0.1.12",
     "dotenv": "^16.4.0",
     "@universal-middleware/core": "^0.4.16",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "@forge/cli": "workspace:*",
+    "prisma": "^5.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

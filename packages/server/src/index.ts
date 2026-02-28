@@ -35,7 +35,7 @@ export type MiddlewareHandler = (
 
 // ─── HTTP Methods ──────────────────────────────────────────
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD'
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'ALL'
 
 // ─── Route Definition ──────────────────────────────────────
 

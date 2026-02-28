@@ -21,6 +21,8 @@
   "dependencies": {
     "@forge/di": "workspace:*",
     "@forge/support": "workspace:*",
+    "@forge/server": "workspace:*",
+    "@forge/router": "workspace:*",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

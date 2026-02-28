@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 import { Container, container } from '@forge/di'
 import { Env, ConfigRepository, setConfigRepository } from '@forge/support'
+import type { ServerAdapterProvider, ServerAdapter, FetchHandler, MiddlewareHandler } from '@forge/server'
 
 // ─── Service Provider ──────────────────────────────────────
 
@@ -137,7 +138,189 @@ export class Application {
   isDevelopment(): boolean {
     return this.env === 'development' || this.env === 'local'
   }
+
+  /** Start building a configured application (Laravel-style fluent bootstrap) */
+  static configure(options: ConfigureOptions): AppBuilder {
+    return new AppBuilder(options)
+  }
 }
+
+// ─── Configure Options ─────────────────────────────────────
+
+export interface ConfigureOptions {
+  server:     ServerAdapterProvider
+  config?:    Record<string, unknown>
+  providers?: (new (app: Application) => ServiceProvider)[]
+}
+
+export interface RoutingOptions {
+  api?:      () => Promise<unknown>
+  commands?: () => Promise<unknown>
+}
+
+// ─── Middleware Configurator ───────────────────────────────
+
+export class MiddlewareConfigurator {
+  private _handlers: MiddlewareHandler[] = []
+
+  use(handler: MiddlewareHandler): this {
+    this._handlers.push(handler)
+    return this
+  }
+
+  getHandlers(): MiddlewareHandler[] { return this._handlers }
+}
+
+// ─── Exception Configurator ────────────────────────────────
+
+export class ExceptionConfigurator {
+  // reserved: report(), render(), ignore(), etc.
+}
+
+// ─── App Builder ───────────────────────────────────────────
+
+export class AppBuilder {
+  private _loaders:  Array<() => Promise<unknown>> = []
+  private _mwFn?:   (m: MiddlewareConfigurator) => void
+  private _excFn?:  (e: ExceptionConfigurator) => void
+
+  constructor(private readonly _options: ConfigureOptions) {}
+
+  withRouting(routes: RoutingOptions): this {
+    if (routes.api)      this._loaders.push(routes.api)
+    if (routes.commands) this._loaders.push(routes.commands)
+    return this
+  }
+
+  withMiddleware(fn: (m: MiddlewareConfigurator) => void): this {
+    this._mwFn = fn
+    return this
+  }
+
+  withExceptions(fn: (e: ExceptionConfigurator) => void): this {
+    this._excFn = fn
+    return this
+  }
+
+  create(): Forge {
+    const app = Application.create({
+      ...(this._options.config    && { config:    this._options.config }),
+      ...(this._options.providers && { providers: this._options.providers }),
+    })
+    return new Forge(app, this._options.server, this._loaders, this._mwFn)
+  }
+}
+
+// ─── Forge (Configured Application) ───────────────────────
+
+export class Forge {
+  private _boot:    Promise<void>
+  private _handler: FetchHandler | null = null
+
+  constructor(
+    private readonly _app:     Application,
+    private readonly _server:  ServerAdapterProvider,
+    private readonly _loaders: Array<() => Promise<unknown>>,
+    private readonly _mwFn?:   (m: MiddlewareConfigurator) => void,
+  ) {
+    // Boot eagerly — like Laravel/AdonisJS. Errors surface at startup,
+    // not on the first request. Serverless still works (promise settles
+    // before or during the first request).
+    this._boot = this._bootstrap()
+  }
+
+  /** Suppress Vike's informational console noise — runs once at boot, adapter-agnostic */
+  private _suppressVikeNoise(): void {
+    const isNoise = (args: unknown[]): boolean => {
+      const msg = args.map(a => String(a ?? '')).join(' ')
+      return msg.includes('[vike]') && (
+        msg.includes('HTTP request')           ||
+        msg.includes('HTTP response')          ||
+        msg.includes("doesn't match the route")
+      )
+    }
+    const _log = console.log;  const _warn = console.warn
+    console.log  = (...a: unknown[]) => { if (!isNoise(a)) _log(...a)  }
+    console.warn = (...a: unknown[]) => { if (!isNoise(a)) _warn(...a) }
+  }
+
+  private async _bootstrap(): Promise<void> {
+    // Silence Vike's duplicate/noisy logs — works regardless of server adapter
+    this._suppressVikeNoise()
+
+    // Load route files — side effects register routes on the global router
+    await Promise.all(this._loaders.map(l => l()))
+
+    // Bootstrap the application (register + boot all service providers)
+    await this._app.bootstrap()
+
+    // Apply global middleware then mount routes onto the server adapter
+    const mw = new MiddlewareConfigurator()
+    this._mwFn?.(mw)
+
+    // Dynamic import avoids a circular-dep between @forge/core and @forge/router
+    const { router } = await import('@forge/router')
+    this._handler = await this._server.createFetchHandler((adapter: ServerAdapter) => {
+      for (const h of mw.getHandlers()) adapter.applyMiddleware(h)
+      router.mount(adapter)
+    })
+  }
+
+  /** Boot the application without starting an HTTP server — used by the CLI */
+  async boot(): Promise<void> {
+    await Promise.all(this._loaders.map(l => l()))
+    await this._app.bootstrap()
+  }
+
+  async handleRequest(request: Request, env?: unknown, ctx?: unknown): Promise<Response> {
+    await this._boot
+    return this._handler!(request, env, ctx)
+  }
+}
+
+// ─── Artisan Registry ──────────────────────────────────────
+
+export type ConsoleHandler = (args: string[], opts: Record<string, unknown>) => void | Promise<void>
+
+export class CommandBuilder {
+  private _description = ''
+
+  constructor(
+    readonly name:    string,
+    readonly handler: ConsoleHandler,
+  ) {}
+
+  description(text: string): this {
+    this._description = text
+    return this
+  }
+
+  /** Alias for description() — matches Laravel's ->purpose() */
+  purpose(text: string): this {
+    this._description = text
+    return this
+  }
+
+  getDescription(): string { return this._description }
+}
+
+export class ArtisanRegistry {
+  private _commands: CommandBuilder[] = []
+
+  command(name: string, handler: ConsoleHandler): CommandBuilder {
+    const cmd = new CommandBuilder(name, handler)
+    this._commands.push(cmd)
+    return cmd
+  }
+
+  getCommands(): CommandBuilder[] { return this._commands }
+}
+
+const _g = globalThis as Record<string, unknown>
+if (!_g['__forge_artisan__']) _g['__forge_artisan__'] = new ArtisanRegistry()
+
+/** Global Artisan command registry — import and call artisan.command() in routes/console.ts */
+export const artisan = _g['__forge_artisan__'] as ArtisanRegistry
 
 // ─── Global helpers ────────────────────────────────────────
 

@@ -1,30 +1,21 @@
 import { Injectable } from '@forge/core'
-
-export interface User {
-  id:    number
-  name:  string
-  email: string
-  role:  'admin' | 'user'
-}
+import { User } from '../Models/User.js'
 
 @Injectable()
 export class UserService {
-  // In a real app this would call the ORM / Prisma
-  private readonly users: User[] = [
-    { id: 1, name: 'Alice',   email: 'alice@example.com',   role: 'admin' },
-    { id: 2, name: 'Bob',     email: 'bob@example.com',     role: 'user'  },
-    { id: 3, name: 'Charlie', email: 'charlie@example.com', role: 'user'  },
-  ]
-
-  findAll(): User[] {
-    return this.users
+  findAll() {
+    return User.all()
   }
 
-  findById(id: number): User | undefined {
-    return this.users.find(u => u.id === id)
+  findById(id: string) {
+    return User.find(id)
   }
 
-  findAdmins(): User[] {
-    return this.users.filter(u => u.role === 'admin')
+  findAdmins() {
+    return User.where('role', 'admin').get()
+  }
+
+  create(data: { name: string; email: string; role?: string }) {
+    return User.create(data)
   }
 }

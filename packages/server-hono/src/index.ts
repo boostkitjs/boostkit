@@ -10,6 +10,21 @@ import type {
   ForgeResponse,
 } from '@forge/server'
 
+// ─── Hono Adapter Config ───────────────────────────────────
+
+export interface HonoConfig {
+  /** Port to listen on when using listen() — default 3000 */
+  port?: number
+  /** Trust X-Forwarded-* headers from proxies */
+  trustProxy?: boolean
+  /** CORS options applied as a global middleware */
+  cors?: {
+    origin?:  string
+    methods?: string
+    headers?: string
+  }
+}
+
 // ─── Request Normalizer ────────────────────────────────────
 
 function normalizeRequest(c: any): ForgeRequest {
@@ -113,8 +128,8 @@ class HonoAdapter implements ServerAdapter {
   }
 
   registerRoute(route: RouteDefinition): void {
-    const method = route.method.toLowerCase() as
-      'get' | 'post' | 'put' | 'patch' | 'delete' | 'options'
+    const method = (route.method === 'ALL' ? 'all' : route.method.toLowerCase()) as
+      'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'all'
 
     this.app[method](route.path, async (c: Context) => {
       const req = normalizeRequest(c)
@@ -154,7 +169,7 @@ class HonoAdapter implements ServerAdapter {
   }
 
   listen(port: number, callback?: () => void): void {
-    serve({ fetch: this.app.fetch, port }, () => {
+    serve({ fetch: this.app.fetch, port: port }, () => {
       callback?.()
       console.log(`[Forge] Server running on http://localhost:${port}`)
     })
@@ -167,7 +182,7 @@ class HonoAdapter implements ServerAdapter {
 
 // ─── Factory ───────────────────────────────────────────────
 
-export function hono(): ServerAdapterProvider {
+export function hono(config: HonoConfig = {}): ServerAdapterProvider {
   return {
     type: 'hono',
 
@@ -184,16 +199,19 @@ export function hono(): ServerAdapterProvider {
       // (virtual: URLs only exist inside Vite's runtime, not during config parsing)
       const { apply, serve: photonServe } = await import('@photonjs/hono')
 
-      // Forge owns all HTTP request logging — silence Vike's duplicate lines.
-      // Only the two HTTP request/response lines are suppressed; errors/warnings pass through.
-      const _log = console.log
-      console.log = (...args: unknown[]) => {
-        const msg = String(args[0] ?? '')
-        if (msg.includes('[vike]') && (msg.includes('HTTP request') || msg.includes('HTTP response'))) return
-        _log(...args)
-      }
-
       const app = new Hono()
+
+      // CORS — applied before routes if configured
+      if (config.cors) {
+        const { cors } = config
+        app.use('*', async (c, next) => {
+          c.header('Access-Control-Allow-Origin',  cors.origin  ?? '*')
+          c.header('Access-Control-Allow-Methods', cors.methods ?? 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+          c.header('Access-Control-Allow-Headers', cors.headers ?? 'Content-Type,Authorization')
+          if (c.req.method === 'OPTIONS') return new Response(null, { status: 204 })
+          await next()
+        })
+      }
 
       // Unified request logger — runs for all requests before routes or Vike SSR.
       // Filters out static assets and Vite internals so only page/API routes appear.

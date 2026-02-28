@@ -8,6 +8,6 @@ export async function data() {
   const userService = resolve<UserService>(UserService)
 
   return {
-    users: userService.findAll(),
+    users: await userService.findAll(),
   }
 }
