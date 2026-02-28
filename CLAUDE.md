@@ -65,16 +65,16 @@ forge/
 │   ├── validation/     # FormRequest + Zod integration
 │   ├── orm/            # ORM contract/interface + Model base class
 │   ├── orm-prisma/     # Prisma adapter (multi-driver)
-│   ├── orm-drizzle/    # Drizzle adapter (stub)
+│   ├── orm-drizzle/    # Drizzle adapter (scaffold — notImplemented stub)
 │   ├── queue/          # Queue contract/interface
 │   ├── queue-inngest/  # Inngest adapter
-│   ├── queue-bullmq/   # BullMQ adapter (stub)
+│   ├── queue-bullmq/   # BullMQ adapter ✅
 │   ├── server/         # Server adapter contract (HttpMethod, FetchHandler)
 │   ├── server-hono/    # Hono adapter ✅ (HonoConfig, logger, CORS)
 │   ├── server-express/ # Express adapter (stub)
 │   ├── server-fastify/ # Fastify adapter (stub)
 │   ├── server-h3/      # H3 adapter (stub)
-│   ├── auth/           # Auth module (stub)
+│   ├── auth/           # Auth module (contracts scaffold — notImplemented stub)
 │   ├── support/        # Helpers, Collection, Env, defineEnv, ConfigRepository
 │   └── cli/            # Forge CLI — make:*, module:*, artisan user commands
 ├── create-forge-app/   # Project scaffolder CLI
@@ -100,9 +100,9 @@ forge/
 | `@forge/orm` | ✅ Complete | Model, QueryBuilder, ModelRegistry |
 | `@forge/orm-prisma` | ✅ Complete | Prisma adapter, multi-driver (pg, libsql, default) |
 | `@forge/cli` | ✅ Complete | make:*, module:*, module:publish, cfonts banner, user artisan commands |
-| `@forge/auth` | 📋 Planned | Sessions, JWT, guards |
-| `@forge/orm-drizzle` | 📋 Planned | Drizzle adapter |
-| `@forge/queue-bullmq` | 📋 Planned | BullMQ adapter |
+| `@forge/auth` | 📋 Planned | Sessions, JWT, guards (contracts + notImplemented scaffold) |
+| `@forge/orm-drizzle` | 📋 Planned | Drizzle adapter (notImplemented scaffold) |
+| `@forge/queue-bullmq` | ✅ Complete | BullMQ adapter, Redis queue dispatching |
 
 ---
 
