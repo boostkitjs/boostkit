@@ -22,7 +22,7 @@ export class TodoService {
   }
 
   update(id: string, input: TodoUpdate): Promise<Todo> {
-    return this.db.query<Todo>('todo').update(id, input)
+    return this.db.query<Todo>('todo').update(id, input as Partial<Todo>)
   }
 
   delete(id: string): Promise<void> {
