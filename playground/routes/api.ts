@@ -2,11 +2,14 @@ import { router } from '@forge/router'
 import { resolve } from '@forge/core'
 import { UserService } from '../app/Services/UserService.js'
 import { AuthMiddleware } from '../app/Middleware/AuthMiddleware.js'
+import { RequestIdMiddleware } from 'app/Middleware/RequestIdMiddleware.js'
 
 // Per-route middleware instance — reused across protected routes
 const auth = new AuthMiddleware().toHandler()
 
 router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+
+// router.get('/id', (_req, res) => res.json({ id: res.header('X-Request-Id') }), [RequestIdMiddleware])  // example of using the RequestIdMiddleware on a specific route
 
 // Public routes — no auth required
 router.get('/api/users', async (_req, res) => {
