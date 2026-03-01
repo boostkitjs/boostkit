@@ -236,12 +236,18 @@ export class Forge {
       return msg.includes('[vike]') && (
         msg.includes('HTTP request')           ||
         msg.includes('HTTP response')          ||
-        msg.includes("doesn't match the route")
+        msg.includes("doesn't match the route")||
+        msg.includes('thrown by')               // guard() / hook throw notifications
       )
     }
-    const _log = console.log;  const _warn = console.warn
-    console.log  = (...a: unknown[]) => { if (!isNoise(a)) _log(...a)  }
-    console.warn = (...a: unknown[]) => { if (!isNoise(a)) _warn(...a) }
+    const _log   = console.log
+    const _warn  = console.warn
+    const _info  = console.info
+    const _error = console.error
+    console.log   = (...a: unknown[]) => { if (!isNoise(a)) _log(...a)   }
+    console.warn  = (...a: unknown[]) => { if (!isNoise(a)) _warn(...a)  }
+    console.info  = (...a: unknown[]) => { if (!isNoise(a)) _info(...a)  }
+    console.error = (...a: unknown[]) => { if (!isNoise(a)) _error(...a) }
   }
 
   private async _bootstrap(): Promise<void> {
