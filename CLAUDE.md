@@ -74,7 +74,8 @@ forge/
 │   ├── server-express/ # Express adapter (stub)
 │   ├── server-fastify/ # Fastify adapter (stub)
 │   ├── server-h3/      # H3 adapter (stub)
-│   ├── auth/           # Auth module (stub)
+│   ├── auth/           # Auth module — shared types (AuthUser, AuthSession, AuthResult)
+│   ├── auth-better-auth/ # better-auth adapter — betterAuth() factory, prismaAdapter wiring
 │   ├── support/        # Helpers, Collection, Env, defineEnv, ConfigRepository
 │   └── cli/            # Forge CLI — make:*, module:*, artisan user commands
 ├── create-forge-app/   # Project scaffolder CLI
@@ -100,7 +101,8 @@ forge/
 | `@forge/orm` | ✅ Complete | Model, QueryBuilder, ModelRegistry |
 | `@forge/orm-prisma` | ✅ Complete | Prisma adapter, multi-driver (pg, libsql, default) |
 | `@forge/cli` | ✅ Complete | make:*, module:*, module:publish, cfonts banner, user artisan commands |
-| `@forge/auth` | 📋 Planned | Sessions, JWT, guards |
+| `@forge/auth` | ✅ Complete | Shared AuthUser, AuthSession, AuthResult types |
+| `@forge/auth-better-auth` | ✅ Complete | better-auth adapter — betterAuth() factory, /api/auth/* mount |
 | `@forge/orm-drizzle` | 📋 Planned | Drizzle adapter |
 | `@forge/queue-bullmq` | 📋 Planned | BullMQ adapter |
 
