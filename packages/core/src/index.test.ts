@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { Application, defineConfig, parseSignature, artisan } from './index.js'
+import { Application, defineConfig, parseSignature, artisan, container } from './index.js'
 
 function resetSingleton(): void {
   ;(Application as unknown as Record<string, unknown>)['instance'] = undefined
@@ -11,12 +11,20 @@ function resetSingleton(): void {
 describe('Application', () => {
   beforeEach(() => {
     resetSingleton()
+    container.reset()
+    artisan.reset()
   })
 
   it('create() returns the same instance on a second call', () => {
-    const app1 = Application.create({ name: 'TestApp' })
-    const app2 = Application.create({ name: 'OtherApp' })
+    const app1 = Application.create({ name: 'TestApp', env: 'production' })
+    const app2 = Application.create({ name: 'OtherApp', env: 'production' })
     assert.strictEqual(app1, app2)
+  })
+
+  it('create() recreates the instance in development when config is provided', () => {
+    const app1 = Application.create({ name: 'First', env: 'local' })
+    const app2 = Application.create({ name: 'Second', env: 'local' })
+    assert.notStrictEqual(app1, app2)
   })
 
   it('bootstrap() runs register then boot in order', async () => {
@@ -48,6 +56,10 @@ describe('Application', () => {
 })
 
 describe('Core contract baseline', () => {
+  beforeEach(() => {
+    artisan.reset()
+  })
+
   it('parseSignature() supports args, optional args, and options', () => {
     const parsed = parseSignature('users:create {name} {email?} {--admin} {--role=}')
 
@@ -69,5 +81,12 @@ describe('Core contract baseline', () => {
     const registered = artisan.getCommands().find(c => c.name === unique)
     assert.strictEqual(registered, cmd)
     assert.strictEqual(registered?.getDescription(), 'contract command')
+  })
+
+  it('artisan.reset() clears registered commands', () => {
+    artisan.command(`test:reset:${Date.now()}`, () => undefined)
+    assert.ok(artisan.getCommands().length > 0)
+    artisan.reset()
+    assert.strictEqual(artisan.getCommands().length, 0)
   })
 })
