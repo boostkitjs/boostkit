@@ -94,4 +94,18 @@ describe('Router contract baseline', () => {
     assert.strictEqual(postRoute.path, '/api/users')
     assert.deepStrictEqual(postRoute.middleware, [classMiddleware, methodMiddleware])
   })
+
+  it('reset() clears routes and global middleware', () => {
+    const middleware = (() => undefined) as MiddlewareHandler
+    router.use(middleware)
+    router.get('/health', () => new Response('ok'))
+
+    router.reset()
+
+    const server = new FakeServerAdapter()
+    router.mount(server)
+    assert.strictEqual(router.list().length, 0)
+    assert.strictEqual(server.middleware.length, 0)
+    assert.strictEqual(server.routes.length, 0)
+  })
 })

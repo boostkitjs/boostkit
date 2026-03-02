@@ -82,6 +82,13 @@ export class Router {
   private routes: RouteDefinition[] = []
   private globalMiddleware: MiddlewareHandler[] = []
 
+  /** Clear registered routes and global middleware */
+  reset(): this {
+    this.routes = []
+    this.globalMiddleware = []
+    return this
+  }
+
   /** Register a global middleware (runs on every route) */
   use(middleware: MiddlewareHandler): this {
     this.globalMiddleware.push(middleware)

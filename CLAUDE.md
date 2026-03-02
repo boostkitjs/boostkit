@@ -357,5 +357,6 @@ Forge uses three distinct config layers — there is **no `forge.config.ts`**:
 - **Prisma DB missing**: Run `pnpm exec prisma db push` from `playground/` to create the SQLite file
 - **Decorator errors**: Ensure `experimentalDecorators` and `emitDecoratorMetadata` in the package's `tsconfig.json`
 - **Circular deps (`@forge/core` ↔ `@forge/router`)**: Resolved via dynamic `import('@forge/router')` inside `Forge._bootstrap()`. Never add `@forge/core` as a dep of `@forge/router` or `@forge/server`.
+- **Provider/route edits not applying in dev**: `playground/bootstrap/providers.ts` and `routes/*.ts` changes are hot-applied; you should not need to restart `pnpm dev`. If behavior looks stale after pulling changes, run `pnpm --filter @forge/di build && pnpm --filter @forge/router build && pnpm --filter @forge/core build` once.
 - **Port in use (EADDRINUSE 24678)**: Kill the stale Vite process — `lsof -ti :24678 -ti :3000 | xargs kill -9`
 - **`artisan` commands not appearing**: CLI must be run from a directory containing `bootstrap/app.ts` (i.e., from `playground/`, not the repo root)
