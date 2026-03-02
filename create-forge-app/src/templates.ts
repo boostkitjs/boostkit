@@ -1,0 +1,1338 @@
+export interface TemplateContext {
+  name:       string
+  db:         'sqlite' | 'postgresql' | 'mysql'
+  withTodo:   boolean
+  authSecret: string
+}
+
+export function getTemplates(ctx: TemplateContext): Record<string, string> {
+  const files: Record<string, string> = {}
+
+  files['package.json']      = packageJson(ctx)
+  files['tsconfig.json']     = tsconfigJson()
+  files['vite.config.ts']    = viteConfig()
+  files['prisma.config.ts']  = prismaConfig()
+  files['.env']              = dotenv(ctx)
+  files['.env.example']      = dotenvExample(ctx)
+  files['.gitignore']        = gitignore()
+
+  files['prisma/schema.prisma'] = prismaSchema(ctx)
+
+  files['src/index.css'] = indexCss()
+
+  files['bootstrap/app.ts']       = bootstrapApp()
+  files['bootstrap/providers.ts'] = bootstrapProviders(ctx)
+
+  files['config/app.ts']      = configApp()
+  files['config/server.ts']   = configServer()
+  files['config/database.ts'] = configDatabase(ctx)
+  files['config/queue.ts']    = configQueue()
+  files['config/mail.ts']     = configMail()
+  files['config/cache.ts']    = configCache()
+  files['config/storage.ts']  = configStorage()
+  files['config/auth.ts']     = configAuth(ctx)
+  files['config/index.ts']    = configIndex()
+
+  files['app/Models/User.ts']                         = userModel()
+  files['app/Providers/DatabaseServiceProvider.ts']   = databaseServiceProvider()
+  files['app/Providers/AppServiceProvider.ts']        = appServiceProvider()
+  files['app/Middleware/RequestIdMiddleware.ts']       = requestIdMiddleware()
+
+  files['routes/api.ts']     = routesApi(ctx)
+  files['routes/web.ts']     = routesWeb()
+  files['routes/console.ts'] = routesConsole()
+
+  files['pages/+config.ts']         = pagesRootConfig()
+  files['pages/index/+config.ts']   = pagesIndexConfig()
+  files['pages/index/+data.ts']     = pagesIndexData()
+  files['pages/index/+Page.tsx']    = pagesIndexPage(ctx)
+  files['pages/_error/+config.ts']  = pagesErrorConfig()
+  files['pages/_error/+Page.tsx']   = pagesErrorPage()
+
+  if (ctx.withTodo) {
+    files['app/Modules/Todo/TodoSchema.ts']          = todoSchema()
+    files['app/Modules/Todo/TodoService.ts']         = todoService()
+    files['app/Modules/Todo/TodoServiceProvider.ts'] = todoServiceProvider()
+    files['pages/todos/+config.ts']                  = todoPageConfig()
+    files['pages/todos/+data.ts']                    = todoPageData()
+    files['pages/todos/+Page.tsx']                   = todoPage()
+  }
+
+  return files
+}
+
+// ─── package.json ──────────────────────────────────────────
+
+function packageJson(ctx: TemplateContext): string {
+  const dbDeps: Record<string, Record<string, string>> = {
+    sqlite: {
+      '@prisma/adapter-better-sqlite3': '^7.0.0',
+      'better-sqlite3': '^12.0.0',
+    },
+    postgresql: {
+      '@prisma/adapter-pg': '^7.0.0',
+      'pg': '^8.13.0',
+    },
+    mysql: {
+      '@prisma/adapter-mysql2': '^7.0.0',
+      'mysql2': '^3.13.0',
+    },
+  }
+  const dbDevDeps: Record<string, Record<string, string>> = {
+    sqlite: { '@types/better-sqlite3': '^7.6.0' },
+    postgresql: { '@types/pg': '^8.11.0' },
+    mysql: {},
+  }
+
+  const deps = {
+    '@forge/auth-better-auth': '^0.0.1',
+    '@forge/cache':            '^0.0.1',
+    '@forge/core':             '^0.0.1',
+    '@forge/di':               '^0.0.1',
+    '@forge/middleware':       '^0.0.1',
+    '@forge/orm':              '^0.0.1',
+    '@forge/orm-prisma':       '^0.0.1',
+    '@forge/queue':            '^0.0.1',
+    '@forge/rate-limit':       '^0.0.1',
+    '@forge/router':           '^0.0.1',
+    '@forge/schedule':         '^0.0.1',
+    '@forge/server':           '^0.0.1',
+    '@forge/server-hono':      '^0.0.1',
+    '@forge/storage':          '^0.0.1',
+    '@forge/support':          '^0.0.1',
+    '@forge/validation':       '^0.0.1',
+    '@forge/mail':             '^0.0.1',
+    '@photonjs/hono':          '^0.1.12',
+    '@prisma/client':          '^7.0.0',
+    '@tailwindcss/vite':       '^4.2.1',
+    '@universal-middleware/core': '^0.4.16',
+    'class-variance-authority': '^0.7.1',
+    'clsx':                    '^2.1.1',
+    'dotenv':                  '^16.4.0',
+    'hono':                    '^4.6.0',
+    'lucide-react':            '^0.575.0',
+    'react':                   '^19.0.0',
+    'react-dom':               '^19.0.0',
+    'reflect-metadata':        '^0.2.2',
+    'tailwind-merge':          '^3.5.0',
+    'tailwindcss':             '^4.2.1',
+    'vike':                    '^0.4.239',
+    'vike-photon':             '^0.1.24',
+    'vike-react':              '^0.6.20',
+    'zod':                     '^4.0.0',
+    ...dbDeps[ctx.db],
+  }
+
+  const devDeps = {
+    '@forge/cli':          '^0.0.1',
+    '@types/node':         '^20.0.0',
+    '@types/react':        '^19.0.0',
+    '@types/react-dom':    '^19.0.0',
+    '@vitejs/plugin-react': '^4.3.4',
+    'prisma':              '^7.0.0',
+    'tsx':                 '^4.21.0',
+    'tw-animate-css':      '^1.4.0',
+    'typescript':          '^5.4.0',
+    'vite':                '^7.1.0',
+    ...dbDevDeps[ctx.db],
+  }
+
+  return JSON.stringify({
+    name:    ctx.name,
+    version: '0.0.1',
+    private: true,
+    type:    'module',
+    scripts: {
+      dev:          'vike dev',
+      'dev:clean':  'pids=$(lsof -ti :24678 -ti :3000 2>/dev/null); if [ -n "$pids" ]; then kill -9 $pids; fi; vike dev',
+      build:        'vike build',
+      start:        'node ./dist/server/index.mjs',
+      preview:      'node ./dist/server/index.mjs',
+      typecheck:    'tsc --noEmit',
+      artisan:      'tsx node_modules/@forge/cli/src/index.ts',
+    },
+    dependencies: deps,
+    devDependencies: devDeps,
+  }, null, 2) + '\n'
+}
+
+// ─── tsconfig.json ─────────────────────────────────────────
+
+function tsconfigJson(): string {
+  return JSON.stringify({
+    extends: '../tsconfig.base.json',
+    compilerOptions: {
+      baseUrl: '.',
+      paths: { '@/*': ['./src/*'] },
+      module: 'ESNext',
+      moduleResolution: 'bundler',
+      outDir: 'dist',
+      noEmit: true,
+      jsx: 'react-jsx',
+      lib: ['ES2022', 'DOM', 'DOM.Iterable'],
+      allowImportingTsExtensions: true,
+    },
+    include: ['src/**/*', 'pages/**/*', 'app/**/*', 'bootstrap/**/*', 'routes/**/*', 'config/**/*', '*.ts', '*.tsx'],
+  }, null, 2) + '\n'
+}
+
+// ─── vite.config.ts ────────────────────────────────────────
+
+function viteConfig(): string {
+  return `import path from 'path'
+import { defineConfig } from 'vite'
+import vike from 'vike/plugin'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [vike(), react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  ssr: {
+    external: [
+      '@forge/queue-inngest',
+      '@forge/queue-bullmq',
+      '@forge/mail-nodemailer',
+      '@forge/cache-redis',
+      '@forge/storage-s3',
+      '@forge/server-express',
+      '@forge/server-fastify',
+      '@forge/server-h3',
+      '@forge/orm-drizzle',
+    ],
+  },
+  build: {
+    rollupOptions: {
+      external: (id) =>
+        ['@forge/queue-inngest', '@forge/queue-bullmq', '@forge/mail-nodemailer',
+         '@forge/cache-redis', '@forge/storage-s3', '@forge/orm-drizzle',
+         '@forge/server-express', '@forge/server-fastify', '@forge/server-h3'].includes(id),
+    },
+  },
+})
+`
+}
+
+// ─── prisma.config.ts ──────────────────────────────────────
+
+function prismaConfig(): string {
+  return `import { defineConfig } from 'prisma/config'
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  datasource: {
+    url: process.env['DATABASE_URL'] ?? 'file:./dev.db',
+  },
+})
+`
+}
+
+// ─── .env ──────────────────────────────────────────────────
+
+function dotenv(ctx: TemplateContext): string {
+  const dbUrl = ctx.db === 'sqlite'
+    ? 'DATABASE_URL="file:./dev.db"'
+    : ctx.db === 'postgresql'
+      ? 'DATABASE_URL="postgresql://user:password@localhost:5432/mydb"'
+      : 'DATABASE_URL="mysql://user:password@localhost:3306/mydb"'
+
+  return `APP_NAME=${ctx.name}
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost:3000
+
+${dbUrl}
+
+PORT=3000
+
+AUTH_SECRET=${ctx.authSecret}
+`
+}
+
+// ─── .env.example ──────────────────────────────────────────
+
+function dotenvExample(ctx: TemplateContext): string {
+  const dbUrl = ctx.db === 'sqlite'
+    ? 'DATABASE_URL="file:./dev.db"'
+    : ctx.db === 'postgresql'
+      ? 'DATABASE_URL="postgresql://user:password@localhost:5432/mydb"'
+      : 'DATABASE_URL="mysql://user:password@localhost:3306/mydb"'
+
+  return `APP_NAME=${ctx.name}
+APP_ENV=development
+APP_DEBUG=false
+APP_URL=http://localhost:3000
+
+${dbUrl}
+
+PORT=3000
+
+AUTH_SECRET=please-set-a-real-32-char-secret-here
+`
+}
+
+// ─── .gitignore ────────────────────────────────────────────
+
+function gitignore(): string {
+  return `node_modules/
+dist/
+.env
+*.db
+*.db-journal
+prisma/generated/
+`
+}
+
+// ─── prisma/schema.prisma ──────────────────────────────────
+
+function prismaSchema(ctx: TemplateContext): string {
+  const provider = ctx.db === 'sqlite' ? 'sqlite'
+    : ctx.db === 'postgresql' ? 'postgresql'
+    : 'mysql'
+
+  const todoModel = ctx.withTodo ? `
+// <forge:modules:start>
+// module: Todo (Todo.prisma)
+model Todo {
+  id        String   @id @default(cuid())
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+// <forge:modules:end>
+` : `
+// <forge:modules:start>
+// <forge:modules:end>
+`
+
+  return `generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "${provider}"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+}
+${todoModel}`
+}
+
+// ─── src/index.css ─────────────────────────────────────────
+
+function indexCss(): string {
+  return `@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
+    --radius-4xl: calc(var(--radius) + 16px);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+    --radius: 0.625rem;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+}
+`
+}
+
+// ─── bootstrap/app.ts ──────────────────────────────────────
+
+function bootstrapApp(): string {
+  return `import 'reflect-metadata'
+import 'dotenv/config'
+import { Application } from '@forge/core'
+import { hono } from '@forge/server-hono'
+import { RateLimit } from '@forge/rate-limit'
+import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.ts'
+import configs from '../config/index.ts'
+import providers from './providers.ts'
+
+export default Application.configure({
+  server:    hono(configs.server),
+  config:    configs,
+  providers,
+})
+  .withRouting({
+    web:      () => import('../routes/web.ts'),
+    api:      () => import('../routes/api.ts'),
+    commands: () => import('../routes/console.ts'),
+  })
+  .withMiddleware((m) => {
+    m.use(RateLimit.perMinute(60).toHandler())
+    m.use(new RequestIdMiddleware().toHandler())
+  })
+  .withExceptions((_e) => {})
+  .create()
+`
+}
+
+// ─── bootstrap/providers.ts ────────────────────────────────
+
+function bootstrapProviders(ctx: TemplateContext): string {
+  const todoImport = ctx.withTodo
+    ? `import { TodoServiceProvider } from '../app/Modules/Todo/TodoServiceProvider.js'\n`
+    : ''
+  const todoProvider = ctx.withTodo ? `  TodoServiceProvider,\n` : ''
+
+  return `import type { Application, ServiceProvider } from '@forge/core'
+import { betterAuth } from '@forge/auth-better-auth'
+import { queue } from '@forge/queue'
+import { mail } from '@forge/mail'
+import { cache } from '@forge/cache'
+import { storage } from '@forge/storage'
+import { scheduler } from '@forge/schedule'
+import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
+import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
+${todoImport}import configs from '../config/index.js'
+
+export default [
+  betterAuth(configs.auth),
+  queue(configs.queue),
+  mail(configs.mail),
+  cache(configs.cache),
+  storage(configs.storage),
+  scheduler(),
+  DatabaseServiceProvider,
+  AppServiceProvider,
+${todoProvider}] satisfies (new (app: Application) => ServiceProvider)[]
+`
+}
+
+// ─── config files ──────────────────────────────────────────
+
+function configApp(): string {
+  return `import { Env } from '@forge/support'
+
+export default {
+  name:  Env.get('APP_NAME',  'Forge'),
+  env:   Env.get('APP_ENV',   'development'),
+  debug: Env.getBool('APP_DEBUG', false),
+  url:   Env.get('APP_URL', 'http://localhost:3000'),
+}
+`
+}
+
+function configServer(): string {
+  return `import { Env } from '@forge/support'
+
+export default {
+  port:       Env.getNumber('PORT', 3000),
+  trustProxy: Env.getBool('TRUST_PROXY', false),
+  cors: {
+    origin:  Env.get('CORS_ORIGIN',  '*'),
+    methods: Env.get('CORS_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS'),
+    headers: Env.get('CORS_HEADERS', 'Content-Type,Authorization'),
+  },
+}
+`
+}
+
+function configDatabase(ctx: TemplateContext): string {
+  const defaultConn = ctx.db
+  const connections: Record<string, string> = {
+    sqlite: `    sqlite: {
+      driver: 'sqlite' as const,
+      url:    Env.get('DATABASE_URL', 'file:./dev.db'),
+    },`,
+    postgresql: `    postgresql: {
+      driver: 'postgresql' as const,
+      url:    Env.get('DATABASE_URL', ''),
+    },`,
+    mysql: `    mysql: {
+      driver: 'mysql' as const,
+      url:    Env.get('DATABASE_URL', ''),
+    },`,
+  }
+
+  return `import { Env } from '@forge/support'
+
+export default {
+  default: Env.get('DB_CONNECTION', '${defaultConn}'),
+
+  connections: {
+${connections[ctx.db]}
+  },
+}
+`
+}
+
+function configQueue(): string {
+  return `import { Env } from '@forge/support'
+import type { QueueConfig } from '@forge/queue'
+
+export default {
+  default: Env.get('QUEUE_CONNECTION', 'sync'),
+
+  connections: {
+    sync: {
+      driver: 'sync',
+    },
+
+    inngest: {
+      driver:     'inngest',
+      appId:      Env.get('INNGEST_APP_ID',      'my-app'),
+      eventKey:   Env.get('INNGEST_EVENT_KEY',   ''),
+      signingKey: Env.get('INNGEST_SIGNING_KEY',  ''),
+      jobs: [],
+    },
+  },
+} satisfies QueueConfig
+`
+}
+
+function configMail(): string {
+  return `import { Env } from '@forge/support'
+
+export default {
+  default: Env.get('MAIL_MAILER', 'log'),
+
+  from: {
+    address: Env.get('MAIL_FROM_ADDRESS', 'hello@example.com'),
+    name:    Env.get('MAIL_FROM_NAME',    'Forge'),
+  },
+
+  mailers: {
+    log: {
+      driver: 'log',
+    },
+
+    smtp: {
+      driver:     'smtp',
+      host:       Env.get('MAIL_HOST',     'localhost'),
+      port:       Env.getNumber('MAIL_PORT', 587),
+      username:   Env.get('MAIL_USERNAME', ''),
+      password:   Env.get('MAIL_PASSWORD', ''),
+      encryption: Env.get('MAIL_ENCRYPTION', 'tls'),
+    },
+  },
+}
+`
+}
+
+function configCache(): string {
+  return `import { Env } from '@forge/support'
+import type { CacheConfig } from '@forge/cache'
+
+export default {
+  default: Env.get('CACHE_STORE', 'memory'),
+
+  stores: {
+    memory: {
+      driver: 'memory',
+    },
+
+    redis: {
+      driver:   'redis',
+      url:      Env.get('REDIS_URL', ''),
+      host:     Env.get('REDIS_HOST', '127.0.0.1'),
+      port:     Env.getNumber('REDIS_PORT', 6379),
+      password: Env.get('REDIS_PASSWORD', ''),
+      prefix:   Env.get('CACHE_PREFIX', 'forge:'),
+    },
+  },
+} satisfies CacheConfig
+`
+}
+
+function configStorage(): string {
+  return `import path from 'node:path'
+import { Env } from '@forge/support'
+import type { StorageConfig } from '@forge/storage'
+
+export default {
+  default: Env.get('FILESYSTEM_DISK', 'local'),
+
+  disks: {
+    local: {
+      driver:  'local',
+      root:    path.resolve(process.cwd(), 'storage/app'),
+      baseUrl: '/api/files',
+    },
+
+    public: {
+      driver:  'local',
+      root:    path.resolve(process.cwd(), 'storage/app/public'),
+      baseUrl: Env.get('APP_URL', 'http://localhost:3000') + '/storage',
+    },
+
+    s3: {
+      driver:          's3',
+      bucket:          Env.get('AWS_BUCKET', ''),
+      region:          Env.get('AWS_DEFAULT_REGION', 'us-east-1'),
+      accessKeyId:     Env.get('AWS_ACCESS_KEY_ID', ''),
+      secretAccessKey: Env.get('AWS_SECRET_ACCESS_KEY', ''),
+      endpoint:        Env.get('AWS_ENDPOINT', ''),
+      baseUrl:         Env.get('AWS_URL', ''),
+    },
+  },
+} satisfies StorageConfig
+`
+}
+
+function configAuth(ctx: TemplateContext): string {
+  let dbFactory: string
+  let dbProvider: string
+
+  if (ctx.db === 'sqlite') {
+    dbFactory = `async function createDatabase(): Promise<unknown> {
+  const { PrismaBetterSqlite3 } = await import('@prisma/adapter-better-sqlite3') as any
+  const { PrismaClient }        = await import('@prisma/client') as any
+  const url = Env.get('DATABASE_URL', 'file:./dev.db')
+  return new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) })
+}`
+    dbProvider = `  databaseProvider: 'sqlite' as const,`
+  } else if (ctx.db === 'postgresql') {
+    dbFactory = `async function createDatabase(): Promise<unknown> {
+  const { PrismaPg }     = await import('@prisma/adapter-pg') as any
+  const { PrismaClient } = await import('@prisma/client') as any
+  const connectionString = Env.get('DATABASE_URL', '')
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
+}`
+    dbProvider = `  databaseProvider: 'postgresql' as const,`
+  } else {
+    dbFactory = `async function createDatabase(): Promise<unknown> {
+  const { createPool }   = await import('mysql2/promise') as any
+  const { PrismaMysql2 } = await import('@prisma/adapter-mysql2') as any
+  const { PrismaClient } = await import('@prisma/client') as any
+  const pool = createPool(Env.get('DATABASE_URL', ''))
+  return new PrismaClient({ adapter: new PrismaMysql2(pool) })
+}`
+    dbProvider = `  databaseProvider: 'mysql' as const,`
+  }
+
+  return `import { Env } from '@forge/support'
+import type { BetterAuthConfig } from '@forge/auth-better-auth'
+
+// Dedicated PrismaClient for better-auth's own tables.
+// The ORM adapter uses its own client in DatabaseServiceProvider — keep them separate.
+${dbFactory}
+
+const _prisma = createDatabase()
+
+export default {
+  secret:           Env.get('AUTH_SECRET', 'please-set-AUTH_SECRET-min-32-chars!!'),
+  baseUrl:          Env.get('APP_URL', 'http://localhost:3000'),
+  database:         _prisma,
+${dbProvider}
+  emailAndPassword: { enabled: true },
+} satisfies BetterAuthConfig
+`
+}
+
+function configIndex(): string {
+  return `import app      from './app.js'
+import server   from './server.js'
+import database from './database.js'
+import queue    from './queue.js'
+import mail     from './mail.js'
+import cache    from './cache.js'
+import storage  from './storage.js'
+import auth     from './auth.js'
+
+export default { app, server, database, queue, mail, cache, storage, auth }
+`
+}
+
+// ─── app files ─────────────────────────────────────────────
+
+function userModel(): string {
+  return `import { Model } from '@forge/orm'
+
+export class User extends Model {
+  // Prisma accessor is the model name lowercased
+  static table = 'user'
+
+  id!:            string
+  name!:          string
+  email!:         string
+  emailVerified!: boolean
+  role!:          string
+  createdAt!:     Date
+  updatedAt!:     Date
+}
+`
+}
+
+function databaseServiceProvider(): string {
+  return `import { ServiceProvider } from '@forge/core'
+import { ModelRegistry } from '@forge/orm'
+import { prisma } from '@forge/orm-prisma'
+
+export class DatabaseServiceProvider extends ServiceProvider {
+  register(): void {}
+
+  async boot(): Promise<void> {
+    const adapter = await prisma().create()
+    await adapter.connect()
+
+    ModelRegistry.set(adapter)
+    this.app.instance('db', adapter)
+
+    console.log('[DatabaseServiceProvider] booted — connected to database')
+  }
+}
+`
+}
+
+function appServiceProvider(): string {
+  return `import { ServiceProvider } from '@forge/core'
+
+export class AppServiceProvider extends ServiceProvider {
+  register(): void {
+    // Register your application-level services here:
+    // this.app.singleton(MyService, () => new MyService())
+  }
+
+  boot(): void {
+    console.log(\`[AppServiceProvider] booted — \${this.app.name}\`)
+  }
+}
+`
+}
+
+function requestIdMiddleware(): string {
+  return `import { Middleware } from '@forge/middleware'
+import type { ForgeRequest, ForgeResponse } from '@forge/server'
+
+/**
+ * Attaches a unique X-Request-Id header to every response.
+ * Useful for distributed tracing and log correlation.
+ *
+ * Registered globally in bootstrap/app.ts via withMiddleware().
+ */
+export class RequestIdMiddleware extends Middleware {
+  async handle(req: ForgeRequest, res: ForgeResponse, next: () => Promise<void>): Promise<void> {
+    const id = req.headers['x-request-id'] ?? crypto.randomUUID()
+    ;(req as unknown as Record<string, unknown>)['requestId'] = id
+    await next()
+    res.header('X-Request-Id', id)
+  }
+}
+`
+}
+
+// ─── routes ────────────────────────────────────────────────
+
+function routesApi(ctx: TemplateContext): string {
+  const todoComment = ctx.withTodo
+    ? `\n// Todo routes are registered by TodoServiceProvider — see app/Modules/Todo/TodoServiceProvider.ts\n`
+    : ''
+
+  return `import { router } from '@forge/router'
+import { app } from '@forge/core'
+import type { BetterAuthInstance } from '@forge/auth-better-auth'
+import { RateLimit } from '@forge/rate-limit'
+
+const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.').toHandler()
+
+router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+
+// GET /api/me — returns current session or null
+router.get('/api/me', async (req) => {
+  const auth = app().make<BetterAuthInstance>('auth')
+  const session = await auth.api.getSession({
+    headers: new Headers(req.headers as Record<string, string>),
+  })
+  return Response.json(session ?? { user: null, session: null })
+})
+${todoComment}
+// All /api/auth/* requests are handled by better-auth
+router.all('/api/auth/*', (req) => {
+  const auth    = app().make<BetterAuthInstance>('auth')
+  const honoCtx = req.raw as { req: { raw: Request } }
+  return auth.handler(honoCtx.req.raw)
+}, [authLimit])
+
+// Catch-all: any unmatched /api/* route returns 404
+router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Route not found.' }))
+`
+}
+
+function routesWeb(): string {
+  return `import { router } from '@forge/router'
+
+// Web routes — HTML redirects, guards, and non-API server responses
+// These run before Vike's file-based page routing
+// Use this file for: redirects, server-side auth guards, download routes, sitemaps, etc.
+
+// Example: redirect root to /todos
+// router.get('/', (_req, res) => res.redirect('/todos'))
+`
+}
+
+function routesConsole(): string {
+  return `import { artisan } from '@forge/core'
+
+artisan.command('inspire', () => {
+  const quotes = [
+    'The best way to predict the future is to create it.',
+    'Build something people want.',
+    'Stay hungry, stay foolish.',
+    'Code is poetry.',
+    'Simplicity is the soul of efficiency.',
+  ]
+  const quote = quotes[Math.floor(Math.random() * quotes.length)]!
+  console.log(\`\\n  "\${quote}"\\n\`)
+}).description('Display an inspiring quote')
+
+artisan.command('db:seed', async () => {
+  // TODO: add your seed data here
+  console.log('No seed data configured. Edit routes/console.ts to add seed logic.')
+}).description('Seed the database with sample data')
+`
+}
+
+// ─── pages ─────────────────────────────────────────────────
+
+function pagesRootConfig(): string {
+  return `import type { Config } from 'vike/types'
+import vikePhoton from 'vike-photon/config'
+
+export default {
+  extends: [vikePhoton],
+  photon: {
+    server: 'bootstrap/app.ts',
+  },
+} as unknown as Config
+`
+}
+
+function pagesIndexConfig(): string {
+  return `import type { Config } from 'vike/types'
+import vikeReact from 'vike-react/config'
+
+export default {
+  extends: vikeReact,
+} as unknown as Config
+`
+}
+
+function pagesIndexData(): string {
+  return `import { app } from '@forge/core'
+import type { BetterAuthInstance } from '@forge/auth-better-auth'
+
+export type Data = {
+  user: { id: string; name: string; email: string } | null
+}
+
+export async function data(pageContext: unknown): Promise<Data> {
+  const auth    = app().make<BetterAuthInstance>('auth')
+  const ctx     = pageContext as { headers?: Record<string, string> }
+  const session = await auth.api.getSession({
+    headers: new Headers(ctx.headers ?? {}),
+  })
+  return { user: session?.user ?? null }
+}
+`
+}
+
+function pagesIndexPage(ctx: TemplateContext): string {
+  const todosLink = ctx.withTodo
+    ? `          <a href="/todos" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">View Todos</a>`
+    : ''
+
+  return `import '@/index.css'
+import { useState } from 'react'
+import { useData } from 'vike-react/useData'
+import type { Data } from './+data.js'
+
+export default function Page() {
+  const data         = useData<Data>()
+  const [user, setUser] = useState(data.user)
+
+  async function signOut() {
+    await fetch('/api/auth/sign-out', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    '{}',
+    })
+    window.location.href = '/'
+  }
+
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-4">
+      <h1 className="text-4xl font-bold tracking-tight">${ctx.name}</h1>
+      <p className="text-muted-foreground">Built with Forge — Laravel-inspired Node.js framework.</p>
+
+      {user ? (
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            Signed in as <span className="font-medium text-foreground">{user.name}</span>
+          </p>
+          <div className="flex gap-2">
+${todosLink}
+            <button
+              onClick={signOut}
+              className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+${todosLink}
+          <a
+            href="/api/auth/sign-in/email"
+            className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
+          >
+            Sign in
+          </a>
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-3 text-xs text-muted-foreground">
+        <a href="/api/health" className="underline hover:text-foreground">API Health</a>
+        <a href="/api/me" className="underline hover:text-foreground">Session Info</a>
+      </div>
+    </div>
+  )
+}
+`
+}
+
+function pagesErrorConfig(): string {
+  return `import type { Config } from 'vike/types'
+import vikeReact from 'vike-react/config'
+
+export default {
+  extends: vikeReact,
+} as unknown as Config
+`
+}
+
+function pagesErrorPage(): string {
+  return `import '@/index.css'
+import { usePageContext } from 'vike-react/usePageContext'
+
+export default function Page() {
+  const { is404, abortReason, abortStatusCode } = usePageContext() as {
+    is404: boolean
+    abortStatusCode?: number
+    abortReason?: string
+  }
+
+  if (is404) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-2">
+        <h1 className="text-2xl font-bold">404 — Page Not Found</h1>
+        <p className="text-muted-foreground">This page could not be found.</p>
+        <a href="/" className="mt-4 text-sm underline">Go home</a>
+      </div>
+    )
+  }
+
+  if (abortStatusCode === 401) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-2">
+        <h1 className="text-2xl font-bold">401 — Unauthorized</h1>
+        <p className="text-muted-foreground">{abortReason ?? 'You must be logged in to view this page.'}</p>
+        <a href="/" className="mt-4 text-sm underline">Go home</a>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center gap-2">
+      <h1 className="text-2xl font-bold">Something went wrong</h1>
+      <p className="text-muted-foreground">{abortReason ?? 'An unexpected error occurred.'}</p>
+      <a href="/" className="mt-4 text-sm underline">Go home</a>
+    </div>
+  )
+}
+`
+}
+
+// ─── Todo module ───────────────────────────────────────────
+
+function todoSchema(): string {
+  return `import { z } from 'zod'
+
+export const TodoInputSchema = z.object({
+  title:     z.string().min(1, 'Title is required'),
+  completed: z.boolean().optional().default(false),
+})
+
+export const TodoUpdateSchema = z.object({
+  title:     z.string().min(1).optional(),
+  completed: z.boolean().optional(),
+})
+
+export type TodoInput  = z.infer<typeof TodoInputSchema>
+export type TodoUpdate = z.infer<typeof TodoUpdateSchema>
+
+export interface Todo {
+  id:        string
+  title:     string
+  completed: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+`
+}
+
+function todoService(): string {
+  return `import { Injectable } from '@forge/di'
+import { resolve } from '@forge/core'
+import type { OrmAdapter } from '@forge/orm'
+import type { Todo, TodoInput, TodoUpdate } from './TodoSchema.js'
+
+@Injectable()
+export class TodoService {
+  private get db(): OrmAdapter { return resolve<OrmAdapter>('db') }
+
+  findAll(): Promise<Todo[]> {
+    return this.db.query<Todo>('todo').orderBy('createdAt', 'DESC').get()
+  }
+
+  findById(id: string): Promise<Todo | null> {
+    return this.db.query<Todo>('todo').find(id)
+  }
+
+  create(input: TodoInput): Promise<Todo> {
+    return this.db.query<Todo>('todo').create(input as Partial<Todo>)
+  }
+
+  update(id: string, input: TodoUpdate): Promise<Todo> {
+    return this.db.query<Todo>('todo').update(id, input as Partial<Todo>)
+  }
+
+  delete(id: string): Promise<void> {
+    return this.db.query<Todo>('todo').delete(id)
+  }
+}
+`
+}
+
+function todoServiceProvider(): string {
+  return `import { ServiceProvider } from '@forge/core'
+import { router } from '@forge/router'
+import { TodoService } from './TodoService.js'
+import { TodoInputSchema, TodoUpdateSchema } from './TodoSchema.js'
+
+export class TodoServiceProvider extends ServiceProvider {
+  register(): void {
+    this.app.singleton(TodoService, () => new TodoService())
+  }
+
+  override async boot(): Promise<void> {
+    const service = this.app.make<TodoService>(TodoService)
+
+    router.get('/api/todos', async (_req, res) => {
+      const todos = await service.findAll()
+      res.json({ data: todos })
+    })
+
+    router.post('/api/todos', async (req, res) => {
+      const parsed = TodoInputSchema.safeParse(req.body)
+      if (!parsed.success) {
+        res.status(422).json({ errors: parsed.error.flatten().fieldErrors })
+        return
+      }
+      const todo = await service.create(parsed.data)
+      res.status(201).json({ data: todo })
+    })
+
+    router.patch('/api/todos/:id', async (req, res) => {
+      const parsed = TodoUpdateSchema.safeParse(req.body)
+      if (!parsed.success) {
+        res.status(422).json({ errors: parsed.error.flatten().fieldErrors })
+        return
+      }
+      const todo = await service.update(req.params['id']!, parsed.data)
+      res.json({ data: todo })
+    })
+
+    router.delete('/api/todos/:id', async (req, res) => {
+      await service.delete(req.params['id']!)
+      res.status(204).send('')
+    })
+  }
+}
+`
+}
+
+function todoPageConfig(): string {
+  return `import type { Config } from 'vike/types'
+import vikeReact from 'vike-react/config'
+
+export default {
+  extends: vikeReact,
+} as unknown as Config
+`
+}
+
+function todoPageData(): string {
+  return `import { resolve } from '@forge/core'
+import { TodoService } from '../../app/Modules/Todo/TodoService.js'
+import type { Todo } from '../../app/Modules/Todo/TodoSchema.js'
+
+export type Data = { todos: Todo[] }
+
+export async function data(): Promise<Data> {
+  const service = resolve<TodoService>(TodoService)
+  const todos   = await service.findAll()
+  return { todos }
+}
+`
+}
+
+function todoPage(): string {
+  return `import '@/index.css'
+import { useState } from 'react'
+import { useData } from 'vike-react/useData'
+import type { Data } from './+data.js'
+import type { Todo } from '../../app/Modules/Todo/TodoSchema.js'
+
+export default function Page() {
+  const data            = useData<Data>()
+  const [todos, setTodos] = useState<Todo[]>(data.todos)
+  const [input, setInput] = useState('')
+
+  async function addTodo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!input.trim()) return
+    const res  = await fetch('/api/todos', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ title: input }),
+    })
+    const json = await res.json() as { data: Todo }
+    setTodos([json.data, ...todos])
+    setInput('')
+  }
+
+  async function toggleTodo(id: string, completed: boolean) {
+    await fetch(\`/api/todos/\${id}\`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ completed: !completed }),
+    })
+    setTodos(todos.map(t => t.id === id ? { ...t, completed: !completed } : t))
+  }
+
+  async function deleteTodo(id: string) {
+    await fetch(\`/api/todos/\${id}\`, { method: 'DELETE' })
+    setTodos(todos.filter(t => t.id !== id))
+  }
+
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-4">
+      <h1 className="text-3xl font-bold">Todos</h1>
+
+      <form onSubmit={addTodo} className="flex w-full max-w-md gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Add a new todo..."
+          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Add
+        </button>
+      </form>
+
+      <ul className="w-full max-w-md space-y-2">
+        {todos.map(todo => (
+          <li key={todo.id} className="flex items-center gap-3 rounded-lg border p-3">
+            <input
+              type="checkbox"
+              checked={todo.completed}
+              onChange={() => toggleTodo(todo.id, todo.completed)}
+              className="h-4 w-4 cursor-pointer"
+            />
+            <span className={\`flex-1 text-sm \${todo.completed ? 'line-through text-muted-foreground' : ''}\`}>
+              {todo.title}
+            </span>
+            <button
+              onClick={() => deleteTodo(todo.id)}
+              className="text-xs text-destructive hover:underline"
+            >
+              Delete
+            </button>
+          </li>
+        ))}
+        {todos.length === 0 && (
+          <li className="py-8 text-center text-sm text-muted-foreground">
+            No todos yet. Add one above!
+          </li>
+        )}
+      </ul>
+
+      <a href="/" className="text-sm text-muted-foreground underline hover:text-foreground">
+        ← Back to home
+      </a>
+    </div>
+  )
+}
+`
+}

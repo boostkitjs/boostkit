@@ -123,7 +123,7 @@ forge/
 | `@forge/notification` | 📋 Planned | Multi-channel notifications (mail, database) via Notifiable pattern |
 | `@forge/orm-drizzle` | 📋 Planned | Drizzle adapter |
 | `@forge/queue-bullmq` | 📋 Planned | BullMQ adapter |
-| `create-forge-app` | 📋 Planned | Scaffolder polish — `npm create forge-app@latest` end-to-end |
+| `create-forge-app` | ✅ Complete | Interactive CLI scaffolder — project name, db driver, Todo module option; 33–39 files generated |
 
 ---
 

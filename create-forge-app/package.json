@@ -1,0 +1,28 @@
+{
+  "name": "create-forge-app",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Create a new Forge application",
+  "bin": {
+    "create-forge-app": "./dist/index.js"
+  },
+  "files": ["dist/"],
+  "main": "./dist/index.js",
+  "exports": {
+    ".": { "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
