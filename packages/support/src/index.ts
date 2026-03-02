@@ -237,7 +237,7 @@ import { createRequire } from 'node:module'
 export async function resolveOptionalPeer<T = Record<string, unknown>>(specifier: string): Promise<T> {
   const appRequire = createRequire(process.cwd() + '/package.json')
   const resolved   = appRequire.resolve(specifier)
-  return import(resolved) as Promise<T>
+  return import(/* @vite-ignore */ resolved) as Promise<T>
 }
 
 // ─── defineEnv ─────────────────────────────────────────────
