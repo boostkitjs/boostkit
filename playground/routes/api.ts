@@ -11,8 +11,17 @@ import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.js'
 // Per-route middleware instance — reused across protected routes
 const authMw = new AuthMiddleware().toHandler()
 
-// Stricter limit for expensive endpoints
-const authLimit = RateLimit.perMinute(5).message('Too many auth attempts. Try again later.').toHandler()
+// Auth rate limit — keyed by IP + path so each endpoint (sign-in, sign-out, sign-up)
+// has its own counter per client. Prevents one action from exhausting another's budget.
+const authLimit = RateLimit.perMinute(10)
+  .by(req => {
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+      ?? (req.headers['x-real-ip'] as string | undefined)
+      ?? 'unknown'
+    return `${ip}:${req.path}`
+  })
+  .message('Too many auth attempts. Try again later.')
+  .toHandler()
 
 router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
