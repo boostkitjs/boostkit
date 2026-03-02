@@ -1,13 +1,23 @@
 import { router } from '@forge/router'
-import { resolve } from '@forge/core'
+import { resolve, app } from '@forge/core'
+import type { BetterAuthInstance } from '@forge/auth-better-auth'
 import { UserService } from '../app/Services/UserService.js'
 import { AuthMiddleware } from '../app/Middleware/AuthMiddleware.js'
 import { RequestIdMiddleware } from 'app/Middleware/RequestIdMiddleware.js'
 
 // Per-route middleware instance — reused across protected routes
-const auth = new AuthMiddleware().toHandler()
+const authMw = new AuthMiddleware().toHandler()
 
 router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+
+// GET /api/me — returns current session (null if not logged in)
+router.get('/api/me', async (req) => {
+  const auth = app().make<BetterAuthInstance>('auth')
+  const session = await auth.api.getSession({
+    headers: new Headers(req.headers as Record<string, string>),
+  })
+  return Response.json(session ?? { user: null, session: null })
+})
 
 // router.get('/id', (_req, res) => res.json({ id: res.header('X-Request-Id') }), [RequestIdMiddleware])  // example of using the RequestIdMiddleware on a specific route
 
@@ -15,7 +25,7 @@ router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 router.get('/api/users', async (_req, res) => {
   const users = await resolve<UserService>(UserService).findAll()
   return res.json({ data: users })
-}, [auth])  // optional per-route middleware, e.g. for logging or auth
+}, [authMw])  // optional per-route middleware, e.g. for logging or auth
 
 router.get('/api/users/:id', async (req, res) => {
   const user = await resolve<UserService>(UserService).findById(req.params['id']!)
@@ -27,7 +37,7 @@ router.get('/api/users/:id', async (req, res) => {
 router.post('/api/users', async (req, res) => {
   const user = await resolve<UserService>(UserService).create(req.body as { name: string; email: string; role?: string })
   return res.status(201).json({ data: user })
-}, [auth])
+}, [authMw])
 
 // Catch-all: any unmatched /api/* route returns 404 instead of falling through to Vike
 router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Route not found.' }))
