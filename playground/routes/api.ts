@@ -14,7 +14,7 @@ const authMw = new AuthMiddleware().toHandler()
 // Stricter limit for expensive endpoints
 const authLimit = RateLimit.perMinute(5).message('Too many auth attempts. Try again later.').toHandler()
 
-router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+router.get('/api/health', (_req, res) => res.json({ status: 'ok55' }))
 
 // GET /api/me — returns current session (null if not logged in)
 router.get('/api/me', async (req) => {
@@ -27,15 +27,14 @@ router.get('/api/me', async (req) => {
 
 // router.get('/id', (_req, res) => res.json({ id: res.header('X-Request-Id') }), [RequestIdMiddleware])  // example of using the RequestIdMiddleware on a specific route
 
-// Public routes — no auth required
-// Results are cached for 60 s — subsequent calls skip the DB query
-// Rate-limited to 60 req/min per IP
 router.get('/api/users', async (_req, res) => {
-  const users = await Cache.remember('users:all', 60, () =>
-    resolve<UserService>(UserService).findAll()
-  )
+  const users = await Cache.remember('users:all', 60, () => {
+      console.log('this shoild log only once becouse it cached 1123');
+      return resolve<UserService>(UserService).findAll()
+  })
+
   return res.json({ data: users })
-}, [authMw])
+})
 
 router.get('/api/users/:id', async (req, res) => {
   const user = await resolve<UserService>(UserService).findById(req.params['id']!)
