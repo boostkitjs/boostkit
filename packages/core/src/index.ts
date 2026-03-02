@@ -64,6 +64,15 @@ export class Application {
   /** Create or return the singleton Application instance */
   static create(config?: AppConfig): Application {
     const g = globalThis as Record<string, unknown>
+    const env = config?.env ?? Env.get('APP_ENV', 'production')
+    const isDev = env === 'development' || env === 'local'
+    const shouldRecreate = Boolean(config) && isDev
+
+    if (shouldRecreate) {
+      container.reset()
+      g['__forge_app__'] = undefined
+    }
+
     if (!g['__forge_app__']) {
       g['__forge_app__'] = new Application(config)
     }
@@ -257,6 +266,11 @@ export class Forge {
   /** Phase 1 — boot service providers then load routes. Safe in CLI (no Vike virtual URLs). */
   private async _bootstrapProviders(): Promise<void> {
     this._suppressVikeNoise()
+    if (this._app.isDevelopment()) {
+      artisan.reset()
+      const { router } = await import('@forge/router')
+      router.reset()
+    }
     await this._app.bootstrap()
     await Promise.all(this._loaders.map(l => l()))
     console.log('[Forge] providers boot complete — routes loaded')
@@ -323,6 +337,11 @@ export class CommandBuilder {
 export class ArtisanRegistry {
   private _commands: CommandBuilder[] = []
   private _classes:  (new () => Command)[] = []
+
+  reset(): void {
+    this._commands = []
+    this._classes = []
+  }
 
   command(name: string, handler: ConsoleHandler): CommandBuilder {
     const cmd = new CommandBuilder(name, handler)
