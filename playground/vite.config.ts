@@ -21,9 +21,6 @@ export default defineConfig({
       '@forge/mail-nodemailer',           // optional — only needed when mail driver=smtp
       '@forge/cache-redis',               // optional — only needed when cache driver=redis
       '@forge/storage-s3',               // optional — only needed when storage driver=s3
-      '@forge/server-express',            // optional server adapters
-      '@forge/server-fastify',
-      '@forge/server-h3',
       '@forge/orm-drizzle',              // optional ORM adapters
     ],
   },
@@ -34,8 +31,7 @@ export default defineConfig({
       external: (id) =>
         id.startsWith('@clack/') ||
         ['@forge/queue-inngest', '@forge/queue-bullmq', '@forge/mail-nodemailer',
-         '@forge/cache-redis', '@forge/storage-s3', '@forge/orm-drizzle',
-         '@forge/server-express', '@forge/server-fastify', '@forge/server-h3'].includes(id),
+         '@forge/cache-redis', '@forge/storage-s3', '@forge/orm-drizzle'].includes(id),
     },
   },
 })

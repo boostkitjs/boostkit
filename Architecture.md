@@ -45,9 +45,6 @@ forge/
 │   ├── orm-drizzle/        # Drizzle adapter (stub)
 │   ├── server/             # ServerAdapter contract, HttpMethod, FetchHandler
 │   ├── server-hono/        # Hono adapter (HonoConfig, unified logger, CORS)
-│   ├── server-express/     # Express adapter (stub)
-│   ├── server-fastify/     # Fastify adapter (stub)
-│   ├── server-h3/          # H3 adapter (stub)
 │   ├── middleware/         # Middleware pipeline + built-ins (CORS, Logger, Throttle)
 │   ├── validation/         # FormRequest + Zod integration
 │   ├── queue/              # Queue contract + Job base class

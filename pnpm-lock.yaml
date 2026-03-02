@@ -430,45 +430,6 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
-  packages/server-express:
-    dependencies:
-      '@forge/server':
-        specifier: workspace:*
-        version: link:../server
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-
-  packages/server-fastify:
-    dependencies:
-      '@forge/server':
-        specifier: workspace:*
-        version: link:../server
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-
-  packages/server-h3:
-    dependencies:
-      '@forge/server':
-        specifier: workspace:*
-        version: link:../server
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-
   packages/server-hono:
     dependencies:
       '@forge/server':
