@@ -4,7 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { makeCommand } from './commands/make.js'
 import { moduleCommand } from './commands/module.js'
-import { artisan } from '@forge/core'
+import { artisan, parseSignature } from '@forge/core'
 
 async function renderBanner(): Promise<void> {
   if (!process.stdout.isTTY) return
@@ -107,16 +107,51 @@ async function main(): Promise<void> {
 
   // Boot the app (providers + route files) so commands can use DB, etc.
   await bootApp()
+
+  // Inline commands (artisan.command())
   for (const cmd of artisan.getCommands()) {
     program
       .command(cmd.name)
       .description(cmd.getDescription())
       .allowUnknownOption()
       .action(async (...comArgs: unknown[]) => {
-        // Commander passes parsed args then the Command instance last
         const commanderCmd = comArgs[comArgs.length - 1] as { args: string[]; opts: () => Record<string, unknown> }
         await cmd.handler(commanderCmd.args, commanderCmd.opts())
       })
+  }
+
+  // Class-based commands (artisan.register())
+  for (const CommandClass of artisan.getClasses()) {
+    const instance = new CommandClass()
+    const { name, args, opts } = parseSignature(instance.signature)
+
+    const sub = program.command(name).description(instance.description)
+
+    for (const arg of args) {
+      const token = arg.variadic
+        ? `[${arg.name}...]`
+        : arg.required
+          ? `<${arg.name}>`
+          : `[${arg.name}]`
+      sub.argument(token, '', arg.defaultValue)
+    }
+
+    for (const opt of opts) {
+      const flag = opt.shorthand
+        ? `-${opt.shorthand}, --${opt.name}${opt.hasValue ? ' <value>' : ''}`
+        : `--${opt.name}${opt.hasValue ? ' <value>' : ''}`
+      sub.option(flag, '', opt.defaultValue)
+    }
+
+    sub.action(async (...comArgs: unknown[]) => {
+      // Commander passes: arg0, arg1, ..., CommandInstance
+      const commanderCmd = comArgs[comArgs.length - 1] as { opts: () => Record<string, unknown> }
+      const parsedArgs: Record<string, unknown> = {}
+      args.forEach((a, i) => { parsedArgs[a.name] = comArgs[i] })
+      const fresh = new CommandClass()
+      fresh._setContext(parsedArgs, commanderCmd.opts())
+      await fresh.handle()
+    })
   }
 
   program.action(() => program.help())

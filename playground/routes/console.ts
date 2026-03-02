@@ -1,5 +1,9 @@
 import { artisan } from '@forge/core'
 import { User } from '../app/Models/User.js'
+import { SendEmails } from '../app/Commands/SendEmails.js'
+
+// Class-based commands (Laravel-style)
+artisan.register(SendEmails)
 
 artisan.command('inspire', () => {
   const quotes = [

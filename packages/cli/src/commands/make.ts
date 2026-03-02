@@ -5,6 +5,7 @@ import { makeJob } from './make/job.js'
 import { makeMiddleware } from './make/middleware.js'
 import { makeRequest } from './make/request.js'
 import { makeProvider } from './make/provider.js'
+import { makeCommandCmd } from './make/command.js'
 
 export function makeCommand(program: Command): void {
   makeController(program)
@@ -13,4 +14,5 @@ export function makeCommand(program: Command): void {
   makeMiddleware(program)
   makeRequest(program)
   makeProvider(program)
+  makeCommandCmd(program)
 }
