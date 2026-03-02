@@ -199,9 +199,6 @@ export default defineConfig({
       '@forge/mail-nodemailer',
       '@forge/cache-redis',
       '@forge/storage-s3',
-      '@forge/server-express',
-      '@forge/server-fastify',
-      '@forge/server-h3',
       '@forge/orm-drizzle',
     ],
   },
@@ -209,8 +206,7 @@ export default defineConfig({
     rollupOptions: {
       external: (id) =>
         ['@forge/queue-inngest', '@forge/queue-bullmq', '@forge/mail-nodemailer',
-         '@forge/cache-redis', '@forge/storage-s3', '@forge/orm-drizzle',
-         '@forge/server-express', '@forge/server-fastify', '@forge/server-h3'].includes(id),
+         '@forge/cache-redis', '@forge/storage-s3', '@forge/orm-drizzle'].includes(id),
     },
   },
 })

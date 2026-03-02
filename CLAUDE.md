@@ -71,9 +71,6 @@ forge/
 │   ├── queue-bullmq/   # BullMQ adapter ✅
 │   ├── server/         # Server adapter contract (HttpMethod, FetchHandler)
 │   ├── server-hono/    # Hono adapter ✅ (HonoConfig, logger, CORS)
-│   ├── server-express/ # Express adapter (stub)
-│   ├── server-fastify/ # Fastify adapter (stub)
-│   ├── server-h3/      # H3 adapter (stub)
 │   ├── auth/           # Auth module — shared types (AuthUser, AuthSession, AuthResult)
 │   ├── auth-better-auth/ # better-auth adapter — betterAuth() factory, prismaAdapter wiring
 │   ├── storage/        # Storage facade, LocalAdapter (built-in), storage() factory, storage:link
