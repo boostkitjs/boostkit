@@ -1,5 +1,5 @@
 import { ServiceProvider, type Application } from '@forge/core'
-import { createRequire } from 'node:module'
+import { resolveOptionalPeer } from '@forge/support'
 
 // ─── Mail Message ──────────────────────────────────────────
 
@@ -152,15 +152,12 @@ export function mail(config: MailConfig): new (app: Application) => ServiceProvi
 
       MailRegistry.setFrom(config.from)
 
-      const appRequire = createRequire(process.cwd() + '/package.json')
-
       let adapter: MailAdapter
 
       if (driver === 'log') {
         adapter = new LogAdapter(config.from)
       } else if (driver === 'smtp') {
-        // @ts-ignore — @forge/mail-nodemailer is an optional peer
-        const { nodemailer } = await import(appRequire.resolve('@forge/mail-nodemailer')) as any
+        const { nodemailer } = await resolveOptionalPeer<any>('@forge/mail-nodemailer')
         adapter = (nodemailer as (c: unknown, from: unknown) => MailAdapterProvider)(
           mailerConfig, config.from,
         ).create()

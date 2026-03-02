@@ -1,5 +1,5 @@
 import { ServiceProvider, artisan, type Application } from '@forge/core'
-import { createRequire } from 'node:module'
+import { resolveOptionalPeer } from '@forge/support'
 import nodePath from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -179,9 +179,7 @@ export function storage(config: StorageConfig): new (app: Application) => Servic
         } else if (driver === 's3') {
           let s3Mod: any
           try {
-            // @ts-ignore — @forge/storage-s3 is an optional peer; resolve from the app's CWD
-            const appRequire = createRequire(process.cwd() + '/package.json')
-            s3Mod = await import(appRequire.resolve('@forge/storage-s3'))
+            s3Mod = await resolveOptionalPeer('@forge/storage-s3')
           } catch {
             // Any import failure means @forge/storage-s3 isn't available (not installed or not built).
             // Vite's module runner wraps ERR_MODULE_NOT_FOUND in a RunnerError without .code,

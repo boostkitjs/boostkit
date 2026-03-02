@@ -1,5 +1,5 @@
 import { ServiceProvider, artisan, type Application } from '@forge/core'
-import { createRequire } from 'node:module'
+import { resolveOptionalPeer } from '@forge/support'
 
 // ─── Job Contract ──────────────────────────────────────────
 
@@ -159,21 +159,13 @@ export function queue(config: QueueConfig): new (app: Application) => ServicePro
 
       let adapter: QueueAdapter
 
-      // Resolve optional peer packages from the user's app directory (process.cwd()),
-      // not from @forge/queue's own node_modules. This is required because
-      // @forge/queue-bullmq and @forge/queue-inngest are installed in the user's
-      // app, not in @forge/queue itself.
-      const appRequire = createRequire(process.cwd() + '/package.json')
-
       if (driver === 'sync') {
         adapter = new SyncAdapter()
       } else if (driver === 'inngest') {
-        // @ts-ignore — @forge/queue-inngest is an optional peer
-        const { inngest } = await import(appRequire.resolve('@forge/queue-inngest')) as any
+        const { inngest } = await resolveOptionalPeer<any>('@forge/queue-inngest')
         adapter = (inngest as (c: unknown) => QueueAdapterProvider)(connectionConfig).create()
       } else if (driver === 'bullmq') {
-        // @ts-ignore — @forge/queue-bullmq is an optional peer
-        const { bullmq } = await import(appRequire.resolve('@forge/queue-bullmq')) as any
+        const { bullmq } = await resolveOptionalPeer<any>('@forge/queue-bullmq')
         adapter = (bullmq as (c: unknown) => QueueAdapterProvider)(connectionConfig).create()
       } else {
         throw new Error(`[Forge Queue] Unknown driver "${driver}". Available: sync, inngest, bullmq`)

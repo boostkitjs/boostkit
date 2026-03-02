@@ -68,6 +68,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/support':
+        specifier: workspace:*
+        version: link:../support
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -203,6 +206,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/support':
+        specifier: workspace:*
+        version: link:../support
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -327,6 +333,9 @@ importers:
       '@forge/router':
         specifier: workspace:*
         version: link:../router
+      '@forge/support':
+        specifier: workspace:*
+        version: link:../support
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -457,6 +466,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/support':
+        specifier: workspace:*
+        version: link:../support
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
