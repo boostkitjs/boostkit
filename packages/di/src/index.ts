@@ -34,6 +34,14 @@ export class Container {
   private instances = new Map<string | symbol, unknown>()
   private aliases   = new Map<string, string | symbol>()
 
+  /** Clear all bindings, instances, and aliases */
+  reset(): this {
+    this.bindings.clear()
+    this.instances.clear()
+    this.aliases.clear()
+    return this
+  }
+
   // ── Registration ──────────────────────────────────────────
 
   /** Register a factory binding (new instance every call) */

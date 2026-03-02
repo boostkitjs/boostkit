@@ -177,6 +177,8 @@ export default [
 1. All `register()` methods run first (bind into container)
 2. All `boot()` methods run after (can use container, call DB, etc.)
 
+**Dev hot-reload note:** changes to `bootstrap/providers.ts` and `routes/*.ts` are hot-applied in development; restarting `pnpm dev` is not required. If state appears stale after pulling updates, run `pnpm --filter @forge/di build && pnpm --filter @forge/router build && pnpm --filter @forge/core build` once.
+
 ---
 
 ### Entry Point — WinterCG

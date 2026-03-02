@@ -77,4 +77,17 @@ describe('Container', () => {
     c.forget('x')
     assert.strictEqual(c.has('x'), false)
   })
+
+  it('reset() clears all bindings, instances, and aliases', () => {
+    const c = new Container()
+    c.bind('svc', () => ({ id: 1 }))
+    c.instance('value', 42)
+    c.alias('alias', 'value')
+
+    c.reset()
+
+    assert.strictEqual(c.has('svc'), false)
+    assert.strictEqual(c.has('value'), false)
+    assert.strictEqual(c.has('alias'), false)
+  })
 })
