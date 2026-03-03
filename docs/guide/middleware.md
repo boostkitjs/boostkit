@@ -54,7 +54,7 @@ Register middleware that runs on every request in `bootstrap/app.ts`:
 
 ```ts
 import { CorsMiddleware, LoggerMiddleware } from '@boostkit/middleware'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 Application.configure({ ... })
   .withMiddleware((m) => {
@@ -120,7 +120,7 @@ import { ThrottleMiddleware } from '@boostkit/middleware'
 const throttle = new ThrottleMiddleware({ max: 60, windowMs: 60_000 })
 ```
 
-For production rate limiting with Redis persistence, use `@boostkit/rate-limit` instead.
+For production rate limiting with Redis persistence, use `@boostkit/middleware` instead.
 
 ## The Pipeline
 

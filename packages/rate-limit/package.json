@@ -1,5 +1,6 @@
 {
   "name": "@boostkit/rate-limit",
+  "private": true,
   "version": "0.0.1",
   "license": "MIT",
   "repository": {

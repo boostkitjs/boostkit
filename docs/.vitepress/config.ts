@@ -122,7 +122,7 @@ export default defineConfig({
           items: [
             { text: '@boostkit/events', link: '/packages/events' },
             { text: '@boostkit/schedule', link: '/packages/schedule' },
-            { text: '@boostkit/rate-limit', link: '/packages/rate-limit' },
+            { text: 'Rate Limiting', link: '/packages/rate-limit' },
             { text: '@boostkit/notification', link: '/packages/notification' },
             { text: '@boostkit/artisan', link: '/packages/artisan' },
           ],

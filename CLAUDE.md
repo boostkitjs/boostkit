@@ -122,7 +122,7 @@ boostkit/
 | `@boostkit/events` | ✅ Complete | EventDispatcher, Listener interface, dispatch(), events() factory |
 | `@boostkit/mail` | ✅ Complete | Mailable, Mail facade, LogAdapter (built-in dev), mail() factory |
 | `@boostkit/mail-nodemailer` | ✅ Complete | Nodemailer SMTP adapter — optional peer for smtp driver |
-| `@boostkit/rate-limit` | ✅ Complete | Cache-backed rate limiting — RateLimit.perMinute/Hour/Day, X-RateLimit-* headers |
+| `@boostkit/middleware` | ✅ Complete | Cache-backed rate limiting — RateLimit.perMinute/Hour/Day, X-RateLimit-* headers |
 | `create-boostkit-app` | ✅ Complete | Interactive CLI scaffolder — project name, db driver, Todo module option |
 | `@boostkit/notification` | ✅ Complete | Multi-channel notifications (mail, database) — Notifiable, Notification, ChannelRegistry, notify() |
 | `@boostkit/orm-drizzle` | ✅ Complete | Drizzle adapter — multi-driver (sqlite, postgresql, libsql), DrizzleTableRegistry |
@@ -139,7 +139,7 @@ boostkit/
       ├── (resolveOptionalPeer) ──→ @boostkit/router   (loaded at runtime, avoids Turbo cycle)
       │
       ↑ (peer dep, types only)
-@boostkit/router   @boostkit/orm   @boostkit/queue   @boostkit/rate-limit
+@boostkit/router   @boostkit/orm   @boostkit/queue   @boostkit/middleware
       ↑               ↑              ↑
 @boostkit/server-hono  orm-prisma   queue-bullmq / queue-inngest
 ```

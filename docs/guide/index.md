@@ -79,7 +79,7 @@ Forge is structured as a clean DAG — no circular dependencies:
  orm-prisma        queue-bullmq    cache-redis      storage-s3
  orm-drizzle       queue-inngest
        │
-@boostkit/auth   @boostkit/events   @boostkit/mail   @boostkit/schedule   @boostkit/rate-limit
+@boostkit/auth   @boostkit/events   @boostkit/mail   @boostkit/schedule   @boostkit/middleware
        │
 @boostkit/notification
 ```

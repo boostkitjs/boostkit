@@ -155,7 +155,7 @@ Level 1 (parallel — no framework deps):
           ┌────────────────┼──────────────────────────┐
           ▼                ▼                          ▼
    @boostkit/router    @boostkit/middleware         @boostkit/server-hono
-   @boostkit/validation @boostkit/rate-limit
+   @boostkit/validation @boostkit/middleware
           │
           └──────────────────┐
                              ▼
@@ -526,7 +526,7 @@ pnpm artisan schedule:list    # show all scheduled tasks
 ### Rate Limiting
 
 ```ts
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 const apiLimit = RateLimit.perMinute(60)
   .by(req => req.headers['x-forwarded-for'] ?? 'unknown')

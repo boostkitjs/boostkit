@@ -72,5 +72,5 @@ All `@boostkit/*` packages are published to npm individually. Install only what 
 |---|---|---|
 | [@boostkit/events](./events) | EventDispatcher, Listener interface, `dispatch()` helper, and `events()` factory. | `pnpm add @boostkit/events` |
 | [@boostkit/schedule](./schedule) | Task scheduler — `schedule` singleton, `scheduler()` factory, and `schedule:run/work/list` commands. | `pnpm add @boostkit/schedule` |
-| [@boostkit/rate-limit](./rate-limit) | Cache-backed rate limiting — `RateLimit.perMinute/Hour/Day` and `X-RateLimit-*` headers. | `pnpm add @boostkit/rate-limit` |
+| [@boostkit/middleware](./rate-limit) | Cache-backed rate limiting — `RateLimit.perMinute/Hour/Day` and `X-RateLimit-*` headers. | `pnpm add @boostkit/middleware` |
 | [@boostkit/notification](./notification) | Multi-channel notifications (mail, database) — Notifiable, Notification, ChannelRegistry, `notify()`. | `pnpm add @boostkit/notification` |

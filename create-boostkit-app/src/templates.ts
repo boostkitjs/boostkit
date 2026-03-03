@@ -95,7 +95,6 @@ function packageJson(ctx: TemplateContext): string {
     '@boostkit/orm':              '^0.0.1',
     '@boostkit/orm-prisma':       '^0.0.1',
     '@boostkit/queue':            '^0.0.1',
-    '@boostkit/rate-limit':       '^0.0.1',
     '@boostkit/router':           '^0.0.1',
     '@boostkit/schedule':         '^0.0.1',
     '@boostkit/server-hono':      '^0.0.1',
@@ -520,7 +519,7 @@ function bootstrapApp(): string {
 import 'dotenv/config'
 import { Application } from '@boostkit/core'
 import { hono } from '@boostkit/server-hono'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.ts'
 import configs from '../config/index.ts'
 import providers from './providers.ts'
@@ -903,7 +902,7 @@ function routesApi(ctx: TemplateContext): string {
   return `import { router } from '@boostkit/router'
 import { app } from '@boostkit/core'
 import type { BetterAuthInstance } from '@boostkit/auth'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.').toHandler()
 

@@ -131,6 +131,6 @@ type MiddlewareHandler = (
 
 ## Notes
 
-- `ThrottleMiddleware` uses an in-memory store. It does not persist across process restarts and is not shared between multiple instances. For distributed rate limiting use `@boostkit/rate-limit` with the Redis cache adapter.
+- `ThrottleMiddleware` uses an in-memory store. It does not persist across process restarts and is not shared between multiple instances. For distributed rate limiting use `@boostkit/middleware` with the Redis cache adapter.
 - `@boostkit/middleware` depends on `@boostkit/contracts` only. It does not depend on `@boostkit/core`, so it can be used in adapters and edge middleware without pulling in the full framework.
 - `sideEffects: false` — fully tree-shakable.
