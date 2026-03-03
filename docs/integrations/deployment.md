@@ -45,7 +45,7 @@ pnpm build       # Compile TypeScript → dist/
 ### Start the server
 
 ```bash
-node dist/server/index.js
+node dist/server/index.mjs
 ```
 
 ### Environment Variables
@@ -65,7 +65,7 @@ For persistent Node.js processes:
 ```bash
 pnpm add -g pm2
 
-pm2 start dist/server/index.js --name forge-app
+pm2 start dist/server/index.mjs --name forge-app
 pm2 save
 pm2 startup   # Configure auto-start on reboot
 ```
@@ -76,7 +76,7 @@ pm2 startup   # Configure auto-start on reboot
 module.exports = {
   apps: [{
     name:       'forge-app',
-    script:     'dist/server/index.js',
+    script:     'dist/server/index.mjs',
     env_production: {
       NODE_ENV:     'production',
       PORT:         '3000',
@@ -109,7 +109,7 @@ RUN pnpm exec prisma generate
 
 EXPOSE 3000
 
-CMD ["node", "dist/server/index.js"]
+CMD ["node", "dist/server/index.mjs"]
 ```
 
 ### `docker-compose.yml`
@@ -169,7 +169,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 RUN pnpm exec prisma generate
 EXPOSE 3000
-CMD ["node", "dist/server/index.js"]
+CMD ["node", "dist/server/index.mjs"]
 ```
 
 ## Cloudflare Workers
@@ -186,7 +186,7 @@ pnpm add -D wrangler
 
 ```toml
 name       = "my-forge-app"
-main       = "dist/src/index.js"
+main       = "dist/server/index.mjs"
 compatibility_date = "2024-01-01"
 
 [vars]
@@ -220,13 +220,13 @@ These platforms can deploy directly from a `Dockerfile` or by detecting Node.js.
 1. Connect your GitHub repo
 2. Set environment variables in the Railway dashboard
 3. Railway auto-detects `pnpm build` and runs it
-4. Set the start command: `node dist/server/index.js`
+4. Set the start command: `node dist/server/index.mjs`
 
 ### Render
 
 1. Create a new Web Service
 2. Build command: `pnpm install && pnpm build`
-3. Start command: `node dist/server/index.js`
+3. Start command: `node dist/server/index.mjs`
 4. Add environment variables in Render's dashboard
 
 ### Fly.io
@@ -253,7 +253,7 @@ pnpm exec prisma migrate deploy
 In Docker/CI, run migrations as a separate step before starting the app:
 
 ```bash
-pnpm exec prisma migrate deploy && node dist/server/index.js
+pnpm exec prisma migrate deploy && node dist/server/index.mjs
 ```
 
 ## Production Checklist

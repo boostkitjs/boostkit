@@ -191,7 +191,7 @@ The `Forge` instance is the app entry point:
 
 ```ts
 // routes/console.ts
-import { artisan } from '@forge/core'
+import { artisan } from '@forge/artisan'
 
 artisan.command('db:seed', async () => {
   await User.create({ name: 'Alice', email: 'alice@example.com' })

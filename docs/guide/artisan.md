@@ -24,7 +24,7 @@ The CLI **must be run from a directory containing `bootstrap/app.ts`** — it lo
 Register commands in `routes/console.ts` using the `artisan` singleton:
 
 ```ts
-import { artisan } from '@forge/core'
+import { artisan } from '@forge/artisan'
 
 artisan.command('db:seed', async () => {
   const { User } = await import('../app/Models/User.js')
@@ -69,7 +69,7 @@ export class SeedCommand extends Command {
 Register it:
 
 ```ts
-import { artisan } from '@forge/core'
+import { artisan } from '@forge/artisan'
 import { SeedCommand } from '../app/Commands/SeedCommand.js'
 
 artisan.register(SeedCommand)
