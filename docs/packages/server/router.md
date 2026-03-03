@@ -1,6 +1,6 @@
 # @boostkit/router
 
-Fluent HTTP router and decorator-based controller support for Forge.
+Fluent HTTP router and decorator-based controller support for BoostKit.
 
 ```bash
 pnpm add @boostkit/router

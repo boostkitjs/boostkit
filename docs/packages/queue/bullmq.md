@@ -1,6 +1,6 @@
 # @boostkit/queue-bullmq
 
-BullMQ Redis-backed queue adapter for Forge.
+BullMQ Redis-backed queue adapter for BoostKit.
 
 ## Installation
 
@@ -26,7 +26,7 @@ export default {
       host:     Env.get('REDIS_HOST', '127.0.0.1'),
       port:     Env.getNumber('REDIS_PORT', 6379),
       password: Env.get('REDIS_PASSWORD', ''),
-      prefix:   Env.get('QUEUE_PREFIX', 'forge'),
+      prefix:   Env.get('QUEUE_PREFIX', 'boostkit'),
       jobs: [
         SendEmailJob,
         ProcessImageJob,
@@ -81,7 +81,7 @@ Dispatching it:
 ```ts
 import { SendEmailJob } from './app/Jobs/SendEmailJob.js'
 
-await SendEmailJob.dispatch('alice@example.com', 'Welcome to Forge', '<p>Hello!</p>')
+await SendEmailJob.dispatch('alice@example.com', 'Welcome to BoostKit', '<p>Hello!</p>')
   .onQueue('mail')
   .delay(2000)
   .send()
@@ -96,7 +96,7 @@ await SendEmailJob.dispatch('alice@example.com', 'Welcome to Forge', '<p>Hello!<
 | `host` | `string` | `'127.0.0.1'` | Redis host |
 | `port` | `number` | `6379` | Redis port |
 | `password` | `string` | `''` | Redis password (empty = no auth) |
-| `prefix` | `string` | `'forge'` | Key prefix used for all BullMQ keys in Redis |
+| `prefix` | `string` | `'boostkit' for all BullMQ keys in Redis |
 | `jobs` | `Job[]` | `[]` | Array of Job classes the worker can resolve by name |
 
 ## API

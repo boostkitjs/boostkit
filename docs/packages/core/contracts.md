@@ -60,7 +60,7 @@ const myAdapter: ServerAdapterFactory = (config) => ({
 | `ServerAdapter` | Interface | Runtime server adapter returned by an adapter factory — `createServer(handler)`, `listen(port)`, `close()`. |
 | `ServerAdapterFactory` | Type alias | `(config: unknown) => ServerAdapter` — the shape of `hono()`, `express()`, etc. |
 | `ServerAdapterProvider` | Interface | Used internally by `Application.configure()` to wire the adapter into the bootstrap. |
-| `FetchHandler` | Type alias | `(req: Request) => Promise<Response>` — WinterCG-compatible fetch handler, used by `Forge.handleRequest`. |
+| `FetchHandler` | Type alias | `(req: Request) => Promise<Response>` — WinterCG-compatible fetch handler, used by `BoostKit.handleRequest`. |
 
 ---
 

@@ -20,7 +20,7 @@ export default {
   default: Env.get('MAIL_MAILER', 'smtp'),
   from: {
     address: Env.get('MAIL_FROM_ADDRESS', 'hello@example.com'),
-    name: Env.get('MAIL_FROM_NAME', 'Forge App'),
+    name: Env.get('MAIL_FROM_NAME', 'BoostKit App'),
   },
   mailers: {
     log: {
@@ -61,7 +61,7 @@ No changes are needed in `bootstrap/providers.ts` — `@boostkit/mail` dynamical
 import { nodemailer } from '@boostkit/mail-nodemailer'
 
 // Registered automatically via @boostkit/mail dynamic loading.
-const provider = nodemailer(smtpConfig, { address: 'hello@example.com', name: 'Forge App' })
+const provider = nodemailer(smtpConfig, { address: 'hello@example.com', name: 'BoostKit App' })
 ```
 
 The `from` parameter sets the default sender envelope for all messages delivered through this adapter.

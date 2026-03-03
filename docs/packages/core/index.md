@@ -41,7 +41,7 @@ export default Application.configure({
 ```
 
 ```ts
-// pages/+config.ts  (wires Vike to the Forge instance)
+// pages/+config.ts  (wires Vike to the BoostKit instance)
 import type { Config } from 'vike/types'
 import vikePhoton from 'vike-photon/config'
 
@@ -64,13 +64,13 @@ export default {
 | `withRouting` | `(options: { api?, commands? }) => AppBuilder` | Registers lazy route loader functions. Each loader is a dynamic import returning a side-effect module. |
 | `withMiddleware` | `(fn: (m: MiddlewareRegistry) => void) => AppBuilder` | Registers global middleware that runs on every request before route handlers. |
 | `withExceptions` | `(fn: (e: ExceptionHandler) => void) => AppBuilder` | Registers a custom exception handler for unhandled errors. |
-| `create` | `() => Forge` | Finalises configuration and returns a `Forge` instance. Does not boot providers yet. |
+| `create` | `() => BoostKit` | Finalises configuration and returns a `BoostKit` instance. Does not boot providers yet. |
 
 ---
 
-## Forge Instance API
+## BoostKit Instance API
 
-`create()` returns a `Forge` instance, which is your application handle.
+`create()` returns a `BoostKit` instance, which is your application handle.
 
 | Method | Signature | Description |
 |---|---|---|
@@ -152,7 +152,7 @@ export default [
 
 | Import | Contents |
 |---|---|
-| `@boostkit/core` | Everything — Application, ServiceProvider, Forge, artisan, re-exports |
+| `@boostkit/core` | Everything — Application, ServiceProvider, BoostKit, artisan, re-exports |
 | `@boostkit/core/support` | Env, Collection, ConfigRepository, resolveOptionalPeer, helpers |
 | `@boostkit/core/di` | Container, Injectable, Inject |
 | `@boostkit/core/server` | ServerAdapter, ForgeRequest, ForgeResponse, HttpMethod, FetchHandler |
@@ -163,7 +163,7 @@ export default [
 
 ## Notes
 
-- `Application.configure().create()` is singleton-based — calling `create()` twice returns the same `Forge` instance.
-- `Forge.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear before `AppServiceProvider` so `ModelRegistry` is set before any provider that uses ORM models calls `boot()`.
-- `Forge.handleRequest()` calls `boot()` automatically on the first HTTP request. Subsequent calls skip the boot phase.
+- `Application.configure().create()` is singleton-based — calling `create()` twice returns the same `BoostKit` instance.
+- `BoostKit.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear before `AppServiceProvider` so `ModelRegistry` is set before any provider that uses ORM models calls `boot()`.
+- `BoostKit.handleRequest()` calls `boot()` automatically on the first HTTP request. Subsequent calls skip the boot phase.
 - Route loaders passed to `withRouting()` are dynamic imports and are side-effect modules — they register routes by calling `router.get/post/...` and do not need to export anything.

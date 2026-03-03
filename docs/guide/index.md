@@ -1,16 +1,16 @@
-# What is Forge?
+# What is BoostKit?
 
-Forge is a **Laravel-inspired, framework-agnostic Node.js meta-framework** built on top of [Vike](https://vike.dev) and [Vite](https://vitejs.dev). It brings Laravel's developer ergonomics — service providers, dependency injection, an Eloquent-style ORM, an Artisan CLI, queues, scheduling, and more — to the Node.js ecosystem, while remaining modular and UI-agnostic.
+BoostKit is a **Laravel-inspired, framework-agnostic Node.js meta-framework** built on top of [Vike](https://vike.dev) and [Vite](https://vitejs.dev). It brings Laravel's developer ergonomics — service providers, dependency injection, an Eloquent-style ORM, an Artisan CLI, queues, scheduling, and more — to the Node.js ecosystem, while remaining modular and UI-agnostic.
 
 ## Philosophy
 
 ### Laravel's DX, TypeScript's Safety
 
-Laravel has earned its reputation for developer happiness. Forge takes the patterns that make Laravel productive — expressive APIs, convention over configuration, clear lifecycle hooks — and rebuilds them in TypeScript from the ground up, without the PHP runtime or Composer ecosystem.
+Laravel has earned its reputation for developer happiness. BoostKit takes the patterns that make Laravel productive — expressive APIs, convention over configuration, clear lifecycle hooks — and rebuilds them in TypeScript from the ground up, without the PHP runtime or Composer ecosystem.
 
 ### Modular by Design
 
-Every Forge feature lives in its own npm package under the `@boostkit/*` scope. Use only what you need:
+Every BoostKit feature lives in its own npm package under the `@boostkit/*` scope. Use only what you need:
 
 ```bash
 pnpm add @boostkit/core @boostkit/server-hono @boostkit/orm-prisma
@@ -20,7 +20,7 @@ There is no monolithic "install everything" step. Queue support, caching, auth, 
 
 ### Framework-Agnostic UI
 
-Forge uses [Vike](https://vike.dev) as its SSR/routing layer, which means you can pair it with any UI framework:
+BoostKit uses [Vike](https://vike.dev) as its SSR/routing layer, which means you can pair it with any UI framework:
 
 - **React** — the playground default
 - **Vue** — first-class support
@@ -29,7 +29,7 @@ Forge uses [Vike](https://vike.dev) as its SSR/routing layer, which means you ca
 
 ### WinterCG-Compatible Runtime
 
-Forge exposes a standard [WinterCG Fetch handler](https://wintercg.org/) through `bootstrap/app.ts`. Vike's `vike-photon` plugin wires it directly as the SSR server — no separate entry file needed:
+BoostKit exposes a standard [WinterCG Fetch handler](https://wintercg.org/) through `bootstrap/app.ts`. Vike's `vike-photon` plugin wires it directly as the SSR server — no separate entry file needed:
 
 ```ts
 // pages/+config.ts
@@ -60,7 +60,7 @@ This means you can deploy to Node.js, Cloudflare Workers, Deno Deploy, Bun, or a
 
 ## Dependency Architecture
 
-Forge is structured as a clean DAG — no circular dependencies:
+BoostKit is structured as a clean DAG — no circular dependencies:
 
 ```
 @boostkit/contracts   (pure types, no runtime)
@@ -88,7 +88,7 @@ This means you can use `@boostkit/di` in isolation without pulling in the entire
 
 ## Status
 
-Forge is in **early development (v0.0.1)**. All packages are functional, the playground is a working full-stack app, and the API is settling down. We are targeting a stable v1.0 release soon.
+BoostKit is in **early development (v0.0.1)**. All packages are functional, the playground is a working full-stack app, and the API is settling down. We are targeting a stable v1.0 release soon.
 
 - All 28 packages are implemented and type-check cleanly
 - The playground demonstrates all major features end-to-end
@@ -96,6 +96,6 @@ Forge is in **early development (v0.0.1)**. All packages are functional, the pla
 
 ## Next Steps
 
-- [Installation](/guide/installation) — set up your first Forge project
+- [Installation](/guide/installation) — set up your first BoostKit project
 - [Your First App](/guide/your-first-app) — build a working API endpoint in under 5 minutes
 - [Package Catalog](/packages/) — explore all available packages

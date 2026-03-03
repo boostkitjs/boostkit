@@ -1,6 +1,6 @@
 # @boostkit/auth
 
-better-auth service provider factory for Forge.
+better-auth service provider factory for BoostKit.
 
 ## Installation
 
@@ -61,7 +61,7 @@ export default [
 
 ### `betterAuth(config)`
 
-Returns a Forge `ServiceProvider` class that:
+Returns a BoostKit `ServiceProvider` class that:
 
 1. Wraps the provided `database` with `prismaAdapter` (or uses the adapter directly if provided).
 2. Initializes the better-auth instance and binds it in the DI container as `'auth'`.

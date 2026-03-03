@@ -72,7 +72,7 @@ export class WelcomeNotification extends Notification {
   toMail(notifiable: Notifiable): MailMessage {
     return {
       to:      notifiable.email!,
-      subject: 'Welcome to Forge',
+      subject: 'Welcome to BoostKit',
       text:    `Hi ${notifiable.name ?? 'there'}, your account is ready. Verify here: /verify?token=${this.token}`,
       html:    `<p>Hi ${notifiable.name ?? 'there'},</p><p>Your account is ready.</p><p><a href="/verify?token=${this.token}">Verify your email</a></p>`,
     }

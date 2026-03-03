@@ -1,13 +1,13 @@
 # Authentication
 
-This guide walks through setting up full user authentication in a Forge app using `@boostkit/auth` and [better-auth](https://better-auth.com).
+This guide walks through setting up full user authentication in a BoostKit app using `@boostkit/auth` and [better-auth](https://better-auth.com).
 
 ## Overview
 
-Forge's auth integration:
+BoostKit's auth integration:
 
 1. **`@boostkit/auth`** — shared `AuthUser`, `AuthSession`, `AuthResult` types
-2. **`@boostkit/auth`** — service provider factory that wires better-auth into Forge
+2. **`@boostkit/auth`** — service provider factory that wires better-auth into BoostKit
 3. **better-auth** — the underlying auth library (handles sessions, OAuth, etc.)
 
 ## Installation

@@ -10,7 +10,7 @@ pnpm add @boostkit/validation
 
 ## Usage
 
-There are three ways to validate incoming requests in Forge. All three use Zod schemas and throw a `ValidationError` on failure.
+There are three ways to validate incoming requests in BoostKit. All three use Zod schemas and throw a `ValidationError` on failure.
 
 ### 1. validate(schema, req)
 

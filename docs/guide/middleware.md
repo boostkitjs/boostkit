@@ -1,6 +1,6 @@
 # Middleware
 
-Forge middleware provides a powerful pipeline for intercepting HTTP requests and responses. Built on `@boostkit/middleware`, the system supports class-based middleware, a pipeline runner, and several built-in implementations.
+BoostKit middleware provides a powerful pipeline for intercepting HTTP requests and responses. Built on `@boostkit/middleware`, the system supports class-based middleware, a pipeline runner, and several built-in implementations.
 
 ## Writing Middleware
 
@@ -101,7 +101,7 @@ const cors = new CorsMiddleware({
 Logs incoming requests with method, path, status, and duration:
 
 ```
-[forge] GET /api/users 200 12ms
+[boostkit] GET /api/users 200 12ms
 ```
 
 ```ts

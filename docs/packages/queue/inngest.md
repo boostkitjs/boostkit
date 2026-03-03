@@ -1,6 +1,6 @@
 # @boostkit/queue-inngest
 
-Inngest serverless queue adapter for Forge.
+Inngest serverless queue adapter for BoostKit.
 
 ## Installation
 
@@ -22,7 +22,7 @@ export default {
   connections: {
     inngest: {
       driver:     'inngest',
-      appId:      Env.get('INNGEST_APP_ID', 'my-forge-app'),
+      appId:      Env.get('INNGEST_APP_ID', 'my-boostkit-app'),
       signingKey: Env.get('INNGEST_SIGNING_KEY', ''),
       eventKey:   Env.get('INNGEST_EVENT_KEY', ''),
       baseUrl:    Env.get('APP_URL', 'http://localhost:3000'),
@@ -59,7 +59,7 @@ export class SendEmailJob extends Job {
 }
 ```
 
-Dispatching works the same as any Forge queue adapter:
+Dispatching works the same as any BoostKit queue adapter:
 
 ```ts
 await SendEmailJob.dispatch('alice@example.com', 'Welcome!')
@@ -71,7 +71,7 @@ Inngest receives a `forge/job.SendEmailJob` event and invokes the registered fun
 
 ## Event Naming Convention
 
-Forge maps each job class to an Inngest event using the pattern:
+BoostKit maps each job class to an Inngest event using the pattern:
 
 ```
 forge/job.<JobName>
@@ -114,7 +114,7 @@ Returns a `QueueAdapterProvider` that integrates with the `queue()` factory:
 import { inngest } from '@boostkit/queue-inngest'
 
 const provider = inngest({
-  appId: 'my-forge-app',
+  appId: 'my-boostkit-app',
   jobs:  [SendEmailJob, ProcessImageJob],
 })
 ```
@@ -151,7 +151,7 @@ The Inngest Dev Server runs at `http://localhost:8288` by default. It automatica
 In production, set the following environment variables:
 
 ```bash
-INNGEST_APP_ID=my-forge-app
+INNGEST_APP_ID=my-boostkit-app
 INNGEST_SIGNING_KEY=signkey-prod-xxxxxxxxxxxx
 INNGEST_EVENT_KEY=xxxxxxxxxxxxxxxxxx
 APP_URL=https://api.myapp.com

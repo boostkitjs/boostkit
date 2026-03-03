@@ -7,10 +7,10 @@
 
 ## Option 1: create-boostkit-app (Recommended)
 
-The fastest way to start a new Forge project is with the official scaffolder:
+The fastest way to start a new BoostKit project is with the official scaffolder:
 
 ```bash
-pnpm create forge-app my-app
+pnpm create boostkit-app my-app
 ```
 
 Or with npx:
@@ -38,7 +38,7 @@ Your app will be running at `http://localhost:3000`.
 
 ## Option 2: Manual Installation
 
-If you prefer to set up manually or add Forge to an existing Vite project:
+If you prefer to set up manually or add BoostKit to an existing Vite project:
 
 ### 1. Install the core packages
 
@@ -118,7 +118,7 @@ export default {
 } as unknown as Config
 ```
 
-This is the only wiring needed — `vike-photon` consumes the exported `Forge` instance directly as the HTTP server.
+This is the only wiring needed — `vike-photon` consumes the exported `BoostKit` instance directly as the HTTP server.
 
 ### 5. Config files
 

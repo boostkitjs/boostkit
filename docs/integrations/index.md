@@ -1,6 +1,6 @@
 # Integrations
 
-Step-by-step guides for connecting Forge to common infrastructure.
+Step-by-step guides for connecting BoostKit to common infrastructure.
 
 ## Guides
 
@@ -14,4 +14,4 @@ Send multi-channel notifications (mail + database) using `@boostkit/notification
 
 ### [Deployment](/integrations/deployment)
 
-Deploy Forge apps to Node.js, Docker, Railway, Render, Fly.io, and Cloudflare Workers. Covers production builds, database migrations, environment variables, and PM2 process management.
+Deploy BoostKit apps to Node.js, Docker, Railway, Render, Fly.io, and Cloudflare Workers. Covers production builds, database migrations, environment variables, and PM2 process management.

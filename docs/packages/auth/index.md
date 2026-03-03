@@ -1,6 +1,6 @@
 # @boostkit/auth
 
-Shared authentication types for Forge applications.
+Shared authentication types for BoostKit applications.
 
 ## Installation
 
@@ -81,4 +81,4 @@ interface AuthResult {
 
 - `@boostkit/auth` contains **types and interfaces only** — there is no runtime code.
 - It is used by `@boostkit/auth` as the shared contract between auth adapters and application code.
-- When building a custom auth provider, implement your resolved user/session data against these interfaces to stay compatible with the Forge auth ecosystem.
+- When building a custom auth provider, implement your resolved user/session data against these interfaces to stay compatible with the BoostKit auth ecosystem.

@@ -106,7 +106,7 @@ const chunks = users.chunk(2)
 import { config } from '@boostkit/support'
 
 const port    = config<number>('server.port', 3000)
-const appName = config<string>('app.name', 'Forge')
+const appName = config<string>('app.name', 'BoostKit')
 ```
 
 ### ConfigRepository API

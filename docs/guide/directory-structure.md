@@ -1,6 +1,6 @@
 # Directory Structure
 
-A scaffolded Forge application has the following layout:
+A scaffolded BoostKit application has the following layout:
 
 ```
 my-app/
@@ -95,7 +95,7 @@ Side-effect files — they run for their side effects (registering routes/comman
 - `web.ts` — Non-API server routes: redirects, server-side auth guards, download endpoints, sitemaps
 - `console.ts` — Artisan commands via `artisan.command()`
 
-These are loaded lazily by Forge via the `withRouting()` configuration.
+These are loaded lazily by BoostKit via the `withRouting()` configuration.
 
 ### `pages/`
 
@@ -107,7 +107,7 @@ Contains `schema.prisma`. Run `pnpm exec prisma generate` after any schema chang
 
 ### `bootstrap/app.ts` — The Entry Point
 
-`bootstrap/app.ts` is both the bootstrap and the HTTP entry point. It must have `import 'reflect-metadata'` at the top, and it `export default`s the `Forge` instance returned by `.create()`.
+`bootstrap/app.ts` is both the bootstrap and the HTTP entry point. It must have `import 'reflect-metadata'` at the top, and it `export default`s the `BoostKit` instance returned by `.create()`.
 
 `pages/+config.ts` wires Vike to use it via `vike-photon`:
 
@@ -122,7 +122,7 @@ export default {
 } as unknown as Config
 ```
 
-No separate `src/index.ts` is needed — `vike-photon` consumes the `Forge` instance directly.
+No separate `src/index.ts` is needed — `vike-photon` consumes the `BoostKit` instance directly.
 
 ## Module Structure (optional)
 

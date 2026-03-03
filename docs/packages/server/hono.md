@@ -1,6 +1,6 @@
 # @boostkit/server-hono
 
-Hono-based HTTP server adapter for Forge applications.
+Hono-based HTTP server adapter for BoostKit applications.
 
 ## Installation
 
@@ -90,12 +90,12 @@ The returned provider exposes three methods used internally by `@boostkit/core`:
 
 ### Unified Request Logger
 
-Every incoming HTTP request is logged to stdout with the `[forge]` tag using ANSI colors. The log line includes the HTTP method, path, status code, and response time:
+Every incoming HTTP request is logged to stdout with the `[boostkit]` tag using ANSI colors. The log line includes the HTTP method, path, status code, and response time:
 
 ```
-[forge] GET /api/users 200 4ms
-[forge] POST /api/users 201 12ms
-[forge] GET /api/missing 404 1ms
+[boostkit] GET /api/users 200 4ms
+[boostkit] POST /api/users 201 12ms
+[boostkit] GET /api/missing 404 1ms
 ```
 
 Colors are applied per status range: green for 2xx, yellow for 3xx, red for 4xx/5xx.

@@ -1,6 +1,6 @@
 # @boostkit/orm
 
-ORM contracts and base Model abstraction for Forge adapters.
+ORM contracts and base Model abstraction for BoostKit adapters.
 
 ## Installation
 

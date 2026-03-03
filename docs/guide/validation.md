@@ -1,6 +1,6 @@
 # Validation
 
-Forge provides Zod-powered request validation through `@boostkit/validation`. You can validate inline with `validate()`, use middleware factories with `validateWith()`, or extend `FormRequest` for class-based validation.
+BoostKit provides Zod-powered request validation through `@boostkit/validation`. You can validate inline with `validate()`, use middleware factories with `validateWith()`, or extend `FormRequest` for class-based validation.
 
 ## Quick Inline Validation
 

@@ -1,6 +1,6 @@
-# Forge CLI
+# BoostKit CLI
 
-The Forge CLI (`@boostkit/cli`) provides code generators and artisan command dispatch. It is the bridge between the terminal and your Forge application.
+The BoostKit CLI (`@boostkit/cli`) provides code generators and artisan command dispatch. It is the bridge between the terminal and your BoostKit application.
 
 ## Installation
 
@@ -28,7 +28,7 @@ pnpm artisan <command>      # Run a command
 pnpm artisan <command> -h   # Command-specific help
 ```
 
-**Important**: The CLI must be run from a directory containing `bootstrap/app.ts`. It boots the Forge application (calling `forge.boot()`) before dispatching commands, which means all service providers are active — database connections, DI bindings, and configuration are all available.
+**Important**: The CLI must be run from a directory containing `bootstrap/app.ts`. It boots the BoostKit application (calling `forge.boot()`) before dispatching commands, which means all service providers are active — database connections, DI bindings, and configuration are all available.
 
 ## How It Works
 

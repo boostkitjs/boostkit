@@ -1,6 +1,6 @@
 # Dependency Injection
 
-Forge includes a lightweight but powerful DI container (`@boostkit/di`) with support for constructor injection using TypeScript decorators.
+BoostKit includes a lightweight but powerful DI container (`@boostkit/di`) with support for constructor injection using TypeScript decorators.
 
 ## Quick Start
 
@@ -127,7 +127,7 @@ container.reset()
 
 ## Global Container
 
-Forge exports a **global container singleton** that is the same instance used by the application. Use `app()` to access it anywhere after boot:
+BoostKit exports a **global container singleton** that is the same instance used by the application. Use `app()` to access it anywhere after boot:
 
 ```ts
 import { app } from '@boostkit/core'
