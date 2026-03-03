@@ -57,7 +57,7 @@ This means your custom commands in `routes/console.ts` have full access to the D
 In `routes/console.ts`:
 
 ```ts
-import { artisan } from '@forge/core'
+import { artisan } from '@forge/artisan'
 
 artisan.command('hello {name}', async (args) => {
   console.log(`Hello, ${args.name}!`)

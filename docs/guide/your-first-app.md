@@ -176,7 +176,7 @@ curl http://localhost:3000/api/users/<id>
 Create a seed command in `routes/console.ts`:
 
 ```ts
-import { artisan } from '@forge/core'
+import { artisan } from '@forge/artisan'
 import { User } from '../app/Models/User.js'
 
 artisan.command('db:seed', async () => {

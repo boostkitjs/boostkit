@@ -29,6 +29,7 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  role          String    @default("user")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
@@ -36,37 +37,41 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
+  id        String   @id
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id                    String    @id @default(cuid())
-  userId                String
+  id                    String    @id
   accountId             String
   providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
-  expiresAt             DateTime?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime
+  updatedAt             DateTime
 }
 
 model Verification {
-  id         String   @id @default(cuid())
+  id         String    @id
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime?
+  updatedAt  DateTime?
 }
 ```
 
@@ -82,17 +87,16 @@ pnpm exec prisma db push
 Create `config/auth.ts`:
 
 ```ts
-import { Env } from '@forge/core/support'
+import { Env } from '@forge/support'
 import { PrismaClient } from '@prisma/client'
-
-const prismaClient = new PrismaClient()
+import type { BetterAuthConfig } from '@forge/auth-better-auth'
 
 export default {
-  secret:  Env.require('AUTH_SECRET'),
-  baseUrl: Env.get('APP_URL', 'http://localhost:3000'),
+  secret:   Env.get('AUTH_SECRET'),
+  baseUrl:  Env.get('APP_URL', 'http://localhost:3000'),
 
-  // Pass the Prisma client — better-auth auto-detects and wraps it
-  database: prismaClient,
+  // Async factory — better-auth auto-detects and wraps PrismaClient
+  database: async () => new PrismaClient(),
 
   emailAndPassword: {
     enabled: true,
@@ -101,7 +105,7 @@ export default {
   trustedOrigins: [
     Env.get('APP_URL', 'http://localhost:3000'),
   ],
-}
+} satisfies BetterAuthConfig
 ```
 
 Add to `.env`:
@@ -113,7 +117,7 @@ APP_URL=http://localhost:3000
 
 ## 3. Wire the Provider
 
-In `bootstrap/providers.ts`, add `betterAuth()` after `DatabaseServiceProvider`:
+In `bootstrap/providers.ts`, add `betterAuth()` before `DatabaseServiceProvider` — it does not depend on the ORM and registers `/api/auth/*` routes during its own `boot()`:
 
 ```ts
 import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
@@ -122,8 +126,9 @@ import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 import configs from '../config/index.js'
 
 export default [
-  DatabaseServiceProvider,        // DB must boot first
   betterAuth(configs.auth),       // Registers auth + mounts /api/auth/*
+  // ...other providers
+  DatabaseServiceProvider,        // must appear before AppServiceProvider — sets ModelRegistry
   AppServiceProvider,
 ]
 ```
