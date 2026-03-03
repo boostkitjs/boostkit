@@ -155,6 +155,114 @@ export class AppServiceProvider extends ServiceProvider {
 }
 ```
 
+### `make:command`
+
+Generates a class-based Artisan command.
+
+```bash
+pnpm artisan make:command SendDigest
+# → app/Commands/SendDigest.ts
+```
+
+Generated file:
+
+```ts
+import { Command } from '@forge/artisan'
+
+export class SendDigest extends Command {
+  readonly signature   = 'send:digest {--force : Force the operation}'
+  readonly description = 'Description of SendDigest'
+
+  async handle(): Promise<void> {
+    this.info('Running SendDigest...')
+
+    const force = this.option('force')
+    if (force) this.comment('  Force flag is set')
+
+    // TODO: implement
+
+    this.info('Done.')
+  }
+}
+```
+
+Register it in `routes/console.ts`:
+
+```ts
+import { artisan } from '@forge/artisan'
+import { SendDigest } from '../app/Commands/SendDigest.ts'
+
+artisan.register(SendDigest)
+```
+
+### `make:event`
+
+Generates an event class.
+
+```bash
+pnpm artisan make:event UserRegistered
+# → app/Events/UserRegistered.ts
+```
+
+Generated file:
+
+```ts
+export class UserRegistered {
+  constructor(
+    // public readonly userId: string,
+  ) {}
+}
+```
+
+### `make:listener`
+
+Generates an event listener class.
+
+```bash
+pnpm artisan make:listener SendWelcomeEmail
+# → app/Listeners/SendWelcomeEmail.ts
+```
+
+Generated file:
+
+```ts
+import type { Listener } from '@forge/events'
+
+export class SendWelcomeEmail implements Listener {
+  async handle(event: unknown): Promise<void> {
+    // TODO: implement listener logic
+  }
+}
+```
+
+### `make:mail`
+
+Generates a Mailable class for sending email.
+
+```bash
+pnpm artisan make:mail WelcomeMail
+# → app/Mail/WelcomeMail.ts
+```
+
+Generated file:
+
+```ts
+import { Mailable } from '@forge/mail'
+
+export class WelcomeMail extends Mailable {
+  constructor(/* inject data here */) {
+    super()
+  }
+
+  build(): this {
+    return this
+      .subject('Your subject here')
+      .html('<p>Your HTML content here</p>')
+      .text('Your plain text content here')
+  }
+}
+```
+
 ## Summary Table
 
 | Command | Output | Description |
@@ -165,6 +273,10 @@ export class AppServiceProvider extends ServiceProvider {
 | `make:middleware <Name>` | `app/Http/Middleware/<Name>Middleware.ts` | Middleware class |
 | `make:request <Name>` | `app/Http/Requests/<Name>Request.ts` | FormRequest class |
 | `make:provider <Name>` | `app/Providers/<Name>ServiceProvider.ts` | ServiceProvider class |
+| `make:command <Name>` | `app/Commands/<Name>.ts` | Class-based Artisan command |
+| `make:event <Name>` | `app/Events/<Name>.ts` | Event class |
+| `make:listener <Name>` | `app/Listeners/<Name>.ts` | Event listener class |
+| `make:mail <Name>` | `app/Mail/<Name>.ts` | Mailable email class |
 
 ## Tips
 
