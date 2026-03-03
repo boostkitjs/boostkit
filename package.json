@@ -1,5 +1,5 @@
 {
-  "name": "forge-framework",
+  "name": "boostkit",
   "private": true,
   "packageManager": "pnpm@10.29.3",
   "scripts": {
@@ -12,7 +12,10 @@
     "test": "turbo run test",
     "docs:dev": "turbo run docs:dev --filter=@boostkit/docs",
     "docs:build": "turbo run docs:build --filter=@boostkit/docs",
-    "docs:preview": "cd docs && pnpm preview"
+    "docs:preview": "cd docs && pnpm preview",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "release": "pnpm build && pnpm -r publish --access public --no-git-checks"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -24,6 +27,7 @@
     ]
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.0",
     "tsx": "^4.21.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"

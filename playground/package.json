@@ -27,7 +27,6 @@
     "@boostkit/orm-prisma": "workspace:*",
     "@boostkit/queue": "workspace:*",
     "@boostkit/queue-bullmq": "workspace:*",
-    "@boostkit/rate-limit": "workspace:*",
     "@boostkit/router": "workspace:*",
     "@boostkit/schedule": "workspace:*",
     "@boostkit/server-hono": "workspace:*",

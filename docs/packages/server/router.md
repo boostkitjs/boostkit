@@ -43,7 +43,7 @@ router.all('/api/*', (_req: ForgeRequest, res: ForgeResponse) => {
 Pass an optional middleware array as the third argument:
 
 ```ts
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 const authLimit = RateLimit.perMinute(10).toHandler()
 

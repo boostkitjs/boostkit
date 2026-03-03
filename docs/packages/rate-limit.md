@@ -1,16 +1,16 @@
-# @boostkit/rate-limit
+# Rate Limiting
 
-Cache-backed rate limiting middleware with standard X-RateLimit-* headers.
+`@boostkit/middleware` includes cache-backed rate limiting with standard X-RateLimit-* headers.
 
 ## Installation
 
 ```bash
-pnpm add @boostkit/rate-limit
+pnpm add @boostkit/middleware
 ```
 
 ## Usage
 
-`@boostkit/rate-limit` requires `@boostkit/cache` to be registered in your providers first, as it uses the cache store to track request counts per key.
+`@boostkit/middleware` requires `@boostkit/cache` to be registered in your providers first, as it uses the cache store to track request counts per key.
 
 ### Global Middleware
 
@@ -19,7 +19,7 @@ Apply rate limiting to all API requests in `bootstrap/app.ts`:
 ```ts
 // bootstrap/app.ts
 import { Application } from '@boostkit/core'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 import { hono } from '@boostkit/server-hono'
 import configs from '../config/index.js'
 import providers from './providers.js'
@@ -45,7 +45,7 @@ Apply a stricter limit to a specific controller action:
 
 ```ts
 import { Controller, Post, Middleware } from '@boostkit/router'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 @Controller('/api/auth')
 export class AuthController {
@@ -61,7 +61,7 @@ export class AuthController {
 
 ```ts
 import { router } from '@boostkit/router'
-import { RateLimit } from '@boostkit/rate-limit'
+import { RateLimit } from '@boostkit/middleware'
 
 router.post(
   '/api/auth/login',
