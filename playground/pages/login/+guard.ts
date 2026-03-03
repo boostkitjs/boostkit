@@ -1,6 +1,6 @@
 import { redirect } from 'vike/abort'
 import type { GuardAsync } from 'vike/types'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 
 export const guard: GuardAsync = async (pageContext): ReturnType<GuardAsync> => {
   // import.meta.env.SSR is a Vite compile-time constant — this entire block is

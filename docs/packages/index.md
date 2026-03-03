@@ -43,7 +43,7 @@ All `@boostkit/*` packages are published to npm individually. Install only what 
 | Package | Description | Install |
 |---|---|---|
 | [@boostkit/auth](./auth/) | Shared authentication types — AuthUser, AuthSession, AuthResult. | `pnpm add @boostkit/auth` |
-| [@boostkit/auth-better-auth](./auth/better-auth) | better-auth adapter — `betterAuth()` factory, Prisma wiring, `/api/auth/*` mount. | `pnpm add @boostkit/auth-better-auth` |
+| [@boostkit/auth](./auth/better-auth) | better-auth adapter — `betterAuth()` factory, Prisma wiring, `/api/auth/*` mount. | `pnpm add @boostkit/auth` |
 
 ## Cache
 

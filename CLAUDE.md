@@ -77,8 +77,7 @@ boostkit/
 │   ├── server-express/ # Express adapter (stub)
 │   ├── server-fastify/ # Fastify adapter (stub)
 │   ├── server-h3/      # H3 adapter (stub)
-│   ├── auth/           # Auth module — shared types (AuthUser, AuthSession, AuthResult)
-│   ├── auth-better-auth/ # better-auth adapter — betterAuth() factory, prismaAdapter wiring
+│   ├── auth/           # Auth module — shared types (AuthUser, AuthSession, AuthResult) + better-auth adapter — betterAuth() factory, prismaAdapter wiring
 │   ├── storage/        # Storage facade, LocalAdapter (built-in), storage() factory, storage:link
 │   ├── storage-s3/     # S3 adapter via @aws-sdk/client-s3 (optional peer)
 │   ├── schedule/       # Task scheduler — schedule singleton, scheduler() factory, schedule:run/work/list
@@ -114,8 +113,7 @@ boostkit/
 | `@boostkit/orm` | ✅ Complete | Model, QueryBuilder, ModelRegistry |
 | `@boostkit/orm-prisma` | ✅ Complete | Prisma adapter, multi-driver (pg, libsql, default) |
 | `@boostkit/cli` | ✅ Complete | make:*, module:*, module:publish, cfonts banner, user artisan commands |
-| `@boostkit/auth` | ✅ Complete | Shared AuthUser, AuthSession, AuthResult types |
-| `@boostkit/auth-better-auth` | ✅ Complete | better-auth adapter — betterAuth() factory, /api/auth/* mount |
+| `@boostkit/auth` | ✅ Complete | Shared AuthUser, AuthSession, AuthResult types + better-auth adapter — betterAuth() factory, /api/auth/* mount |
 | `@boostkit/storage` | ✅ Complete | Storage facade, LocalAdapter (built-in), storage() factory, storage:link |
 | `@boostkit/storage-s3` | ✅ Complete | S3/R2/MinIO adapter via @aws-sdk/client-s3 — optional peer |
 | `@boostkit/schedule` | ✅ Complete | Task scheduler, schedule:run / schedule:work / schedule:list |

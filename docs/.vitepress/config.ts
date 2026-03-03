@@ -93,7 +93,7 @@ export default defineConfig({
           text: 'Auth',
           items: [
             { text: '@boostkit/auth', link: '/packages/auth/' },
-            { text: '@boostkit/auth-better-auth', link: '/packages/auth/better-auth' },
+            { text: '@boostkit/auth (better-auth)', link: '/packages/auth/better-auth' },
           ],
         },
         {

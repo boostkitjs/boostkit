@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@boostkit/artisan": "workspace:*",
-    "@boostkit/auth-better-auth": "workspace:*",
+    "@boostkit/auth": "workspace:*",
     "@boostkit/cache": "workspace:*",
     "@boostkit/contracts": "workspace:*",
     "@boostkit/core": "workspace:*",

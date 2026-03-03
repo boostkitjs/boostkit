@@ -1,5 +1,5 @@
 import { resolve, app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 import { GreetingService } from '../../app/Services/GreetingService.js'
 import type { PageContextServer } from 'vike/types'
 

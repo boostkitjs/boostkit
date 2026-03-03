@@ -1,19 +1,19 @@
 # Authentication
 
-This guide walks through setting up full user authentication in a Forge app using `@boostkit/auth-better-auth` and [better-auth](https://better-auth.com).
+This guide walks through setting up full user authentication in a Forge app using `@boostkit/auth` and [better-auth](https://better-auth.com).
 
 ## Overview
 
 Forge's auth integration:
 
 1. **`@boostkit/auth`** — shared `AuthUser`, `AuthSession`, `AuthResult` types
-2. **`@boostkit/auth-better-auth`** — service provider factory that wires better-auth into Forge
+2. **`@boostkit/auth`** — service provider factory that wires better-auth into Forge
 3. **better-auth** — the underlying auth library (handles sessions, OAuth, etc.)
 
 ## Installation
 
 ```bash
-pnpm add @boostkit/auth-better-auth better-auth @prisma/client
+pnpm add @boostkit/auth better-auth @prisma/client
 ```
 
 ## 1. Configure the Database
@@ -89,7 +89,7 @@ Create `config/auth.ts`:
 ```ts
 import { Env } from '@boostkit/support'
 import { PrismaClient } from '@prisma/client'
-import type { BetterAuthConfig } from '@boostkit/auth-better-auth'
+import type { BetterAuthConfig } from '@boostkit/auth'
 
 export default {
   secret:   Env.get('AUTH_SECRET'),
@@ -121,7 +121,7 @@ In `bootstrap/providers.ts`, add `betterAuth()` before `DatabaseServiceProvider`
 
 ```ts
 import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
-import { betterAuth } from '@boostkit/auth-better-auth'
+import { betterAuth } from '@boostkit/auth'
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 import configs from '../config/index.js'
 
@@ -187,7 +187,7 @@ Create an `AuthMiddleware` that validates the session:
 // app/Http/Middleware/AuthMiddleware.ts
 import { Middleware } from '@boostkit/middleware'
 import { app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 import type { ForgeRequest, ForgeResponse } from '@boostkit/contracts'
 
 export class AuthMiddleware extends Middleware {
@@ -233,7 +233,7 @@ Anywhere after boot:
 
 ```ts
 import { app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 
 const auth = app().make<BetterAuthInstance>('auth')
 

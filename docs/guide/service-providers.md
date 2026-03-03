@@ -50,7 +50,7 @@ List provider classes (not instances) in `bootstrap/providers.ts`:
 
 ```ts
 import type { Application, ServiceProvider } from '@boostkit/core'
-import { betterAuth }              from '@boostkit/auth-better-auth'
+import { betterAuth }              from '@boostkit/auth'
 import { queue }                   from '@boostkit/queue'
 import { cache }                   from '@boostkit/cache'
 import { mail }                    from '@boostkit/mail'
@@ -100,7 +100,7 @@ const service = app().make(UserService)
 | `mail(config)` | `@boostkit/mail` | Mail adapter |
 | `events(listenMap)` | `@boostkit/events` | Event dispatcher, listener registration |
 | `scheduler()` | `@boostkit/schedule` | Schedule instance, `schedule:*` commands |
-| `betterAuth(config)` | `@boostkit/auth-better-auth` | Auth instance, `/api/auth/*` routes |
+| `betterAuth(config)` | `@boostkit/auth` | Auth instance, `/api/auth/*` routes |
 | `notifications()` | `@boostkit/notification` | Mail + database channels |
 
 ## DatabaseServiceProvider Pattern

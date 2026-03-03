@@ -61,19 +61,6 @@ importers:
       '@boostkit/core':
         specifier: workspace:*
         version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-
-  packages/auth-better-auth:
-    dependencies:
-      '@boostkit/core':
-        specifier: workspace:*
-        version: link:../core
       '@boostkit/router':
         specifier: workspace:*
         version: link:../router
@@ -593,9 +580,9 @@ importers:
       '@boostkit/artisan':
         specifier: workspace:*
         version: link:../packages/artisan
-      '@boostkit/auth-better-auth':
+      '@boostkit/auth':
         specifier: workspace:*
-        version: link:../packages/auth-better-auth
+        version: link:../packages/auth
       '@boostkit/cache':
         specifier: workspace:*
         version: link:../packages/cache
