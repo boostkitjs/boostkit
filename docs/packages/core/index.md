@@ -14,10 +14,12 @@ pnpm add @forge/core
 
 ```ts
 // bootstrap/app.ts
+import 'reflect-metadata'
+import 'dotenv/config'
 import { Application } from '@forge/core'
 import { hono } from '@forge/server-hono'
-import configs from '../config/index.js'
-import providers from './providers.js'
+import configs from '../config/index.ts'
+import providers from './providers.ts'
 
 export default Application.configure({
   server:    hono(configs.server),
@@ -25,8 +27,9 @@ export default Application.configure({
   providers,
 })
   .withRouting({
-    api:      () => import('../routes/api.js'),
-    commands: () => import('../routes/console.js'),
+    web:      () => import('../routes/web.ts'),
+    api:      () => import('../routes/api.ts'),
+    commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
     // m.use(new CorsMiddleware().toHandler())
@@ -123,7 +126,7 @@ import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvide
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 
 export default [
-  DatabaseServiceProvider,   // must be first — sets ModelRegistry before other providers boot
+  DatabaseServiceProvider,   // must appear before AppServiceProvider — sets ModelRegistry
   AppServiceProvider,
 ]
 ```
@@ -161,6 +164,6 @@ export default [
 ## Notes
 
 - `Application.configure().create()` is singleton-based — calling `create()` twice returns the same `Forge` instance.
-- `Forge.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear first so `ModelRegistry` is set before other providers call `boot()`.
+- `Forge.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear before `AppServiceProvider` so `ModelRegistry` is set before any provider that uses ORM models calls `boot()`.
 - `Forge.handleRequest()` calls `boot()` automatically on the first HTTP request. Subsequent calls skip the boot phase.
 - Route loaders passed to `withRouting()` are dynamic imports and are side-effect modules — they register routes by calling `router.get/post/...` and do not need to export anything.

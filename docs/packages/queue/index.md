@@ -73,7 +73,7 @@ export default [
 Define the queue config in `config/queue.ts`:
 
 ```ts
-import { Env } from '@forge/core'
+import { Env } from '@forge/support'
 
 export default {
   default: Env.get('QUEUE_CONNECTION', 'sync'),
