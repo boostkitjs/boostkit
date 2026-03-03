@@ -48,7 +48,7 @@ pnpm dev
 | `@boostkit/cache` | Cache facade, in-memory adapter |
 | `@boostkit/cache-redis` | Redis cache adapter |
 | `@boostkit/storage` | Storage facade, local filesystem adapter |
-| `@boostkit/storage-s3` | S3/R2/MinIO adapter |
+| `@boostkit/storage` (s3 driver) | S3/R2/MinIO via `@aws-sdk/client-s3` |
 | `@boostkit/mail` | Mailable, Mail facade, log adapter |
 | `@boostkit/mail-nodemailer` | Nodemailer SMTP adapter |
 | `@boostkit/events` | EventDispatcher, Listener interface |

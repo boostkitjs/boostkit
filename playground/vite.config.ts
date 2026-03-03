@@ -31,7 +31,6 @@ export default defineConfig({
       '@boostkit/queue-bullmq',              // optional — only needed when driver=bullmq
       '@boostkit/mail-nodemailer',           // optional — only needed when mail driver=smtp
       '@boostkit/cache-redis',               // optional — only needed when cache driver=redis
-      '@boostkit/storage-s3',               // optional — only needed when storage driver=s3
       '@boostkit/orm-drizzle',              // optional ORM adapters
     ],
   },
@@ -42,7 +41,7 @@ export default defineConfig({
       external: (id) =>
         id.startsWith('@clack/') ||
         ['@boostkit/queue-inngest', '@boostkit/queue-bullmq', '@boostkit/mail-nodemailer',
-         '@boostkit/cache-redis', '@boostkit/storage-s3', '@boostkit/orm-drizzle'].includes(id),
+         '@boostkit/cache-redis', '@boostkit/orm-drizzle'].includes(id),
     },
   },
 })

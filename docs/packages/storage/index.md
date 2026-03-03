@@ -143,4 +143,4 @@ Configure the link targets in your storage config or use the defaults. The local
 
 - The `Storage` facade always operates on the `default` disk unless you call `Storage.disk(name)`.
 - `url()` prepends `baseUrl` when configured. If `baseUrl` is not set, it returns the relative file path.
-- For S3-compatible object storage (AWS S3, Cloudflare R2, MinIO), use the [`@boostkit/storage-s3`](./s3) adapter.
+- For S3-compatible object storage (AWS S3, Cloudflare R2, MinIO), see the [S3 driver](./s3) — built into `@boostkit/storage`, requires `@aws-sdk/client-s3`.

@@ -1,5 +1,4 @@
 import { ServiceProvider, artisan, type Application } from '@boostkit/core'
-import { resolveOptionalPeer } from '@boostkit/core'
 import nodePath from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -128,6 +127,114 @@ class LocalAdapter implements StorageAdapter {
   path(filePath: string): string { return this.abs(filePath) }
 }
 
+// ─── S3 Driver ─────────────────────────────────────────────
+
+export interface S3DiskConfig {
+  driver:           's3'
+  bucket:           string
+  region?:          string
+  endpoint?:        string    // S3-compatible endpoint (MinIO, Cloudflare R2, etc.)
+  accessKeyId?:     string
+  secretAccessKey?: string
+  baseUrl?:         string    // public base URL override
+  forcePathStyle?:  boolean   // required for MinIO
+}
+
+class S3Adapter implements StorageAdapter {
+  private client:  unknown
+  private readonly bucket:  string
+  private readonly baseUrl: string
+
+  constructor(private readonly config: S3DiskConfig) {
+    this.bucket  = config.bucket
+    this.baseUrl = config.baseUrl?.replace(/\/$/, '') ?? ''
+  }
+
+  private async getClient(): Promise<{
+    send: (cmd: unknown) => Promise<unknown>
+  }> {
+    if (!this.client) {
+      const {
+        S3Client, GetObjectCommand, PutObjectCommand,
+        DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command,
+      } = await import('@aws-sdk/client-s3') as typeof import('@aws-sdk/client-s3')
+      this.client = new S3Client({
+        region: this.config.region ?? 'us-east-1',
+        ...(this.config.endpoint       && { endpoint:       this.config.endpoint }),
+        ...(this.config.forcePathStyle && { forcePathStyle: this.config.forcePathStyle }),
+        ...(this.config.accessKeyId    && {
+          credentials: { accessKeyId: this.config.accessKeyId, secretAccessKey: this.config.secretAccessKey ?? '' },
+        }),
+      })
+      ;(this as any)._cmds = { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command }
+    }
+    return this.client as { send: (cmd: unknown) => Promise<unknown> }
+  }
+
+  private cmds(): {
+    GetObjectCommand:      typeof import('@aws-sdk/client-s3').GetObjectCommand
+    PutObjectCommand:      typeof import('@aws-sdk/client-s3').PutObjectCommand
+    DeleteObjectCommand:   typeof import('@aws-sdk/client-s3').DeleteObjectCommand
+    HeadObjectCommand:     typeof import('@aws-sdk/client-s3').HeadObjectCommand
+    ListObjectsV2Command:  typeof import('@aws-sdk/client-s3').ListObjectsV2Command
+  } { return (this as any)._cmds }
+
+  async put(filePath: string, contents: Buffer | string): Promise<void> {
+    const client = await this.getClient()
+    await client.send(new (this.cmds().PutObjectCommand)({
+      Bucket: this.bucket, Key: filePath,
+      Body: typeof contents === 'string' ? Buffer.from(contents) : contents,
+    }))
+  }
+
+  async get(filePath: string): Promise<Buffer | null> {
+    try {
+      const client = await this.getClient()
+      const res = await client.send(new (this.cmds().GetObjectCommand)({ Bucket: this.bucket, Key: filePath })) as any
+      if (!res.Body) return null
+      const chunks: Uint8Array[] = []
+      for await (const chunk of res.Body as AsyncIterable<Uint8Array>) chunks.push(chunk)
+      return Buffer.concat(chunks)
+    } catch { return null }
+  }
+
+  async text(filePath: string): Promise<string | null> {
+    const buf = await this.get(filePath)
+    return buf ? buf.toString('utf8') : null
+  }
+
+  async delete(filePath: string): Promise<void> {
+    const client = await this.getClient()
+    await client.send(new (this.cmds().DeleteObjectCommand)({ Bucket: this.bucket, Key: filePath }))
+  }
+
+  async exists(filePath: string): Promise<boolean> {
+    try {
+      const client = await this.getClient()
+      await client.send(new (this.cmds().HeadObjectCommand)({ Bucket: this.bucket, Key: filePath }))
+      return true
+    } catch { return false }
+  }
+
+  async list(directory = ''): Promise<string[]> {
+    const prefix = directory ? `${directory.replace(/\/$/, '')}/` : ''
+    const client = await this.getClient()
+    const res = await client.send(new (this.cmds().ListObjectsV2Command)({ Bucket: this.bucket, Prefix: prefix })) as any
+    return (res.Contents ?? []).map((o: any) => o.Key ?? '').filter(Boolean)
+  }
+
+  url(filePath: string): string {
+    if (this.baseUrl) return `${this.baseUrl}/${filePath.replace(/^\//, '')}`
+    const endpoint = this.config.endpoint?.replace(/\/$/, '')
+    if (endpoint && this.config.forcePathStyle) return `${endpoint}/${this.bucket}/${filePath}`
+    return `https://${this.bucket}.s3.${this.config.region ?? 'us-east-1'}.amazonaws.com/${filePath}`
+  }
+
+  path(_filePath: string): string {
+    throw new Error('[BoostKit Storage] path() is not available for S3 disks.')
+  }
+}
+
 // ─── Config ────────────────────────────────────────────────
 
 export interface StorageDiskConfig {
@@ -155,8 +262,7 @@ function makeUnavailableAdapter(msg: string): StorageAdapter {
 /**
  * Returns a StorageServiceProvider that boots all configured disks.
  *
- * Built-in drivers:  local (writes to filesystem)
- * Plugin drivers:    s3 (@boostkit/storage-s3) — AWS S3 + S3-compatible (MinIO, R2)
+ * Built-in drivers:  local (writes to filesystem), s3 (AWS S3, MinIO, Cloudflare R2)
  *
  * Usage in bootstrap/providers.ts:
  *   import { storage } from '@boostkit/storage'
@@ -177,18 +283,7 @@ export function storage(config: StorageConfig): new (app: Application) => Servic
         if (driver === 'local') {
           adapter = new LocalAdapter(diskConfig as unknown as LocalDiskConfig)
         } else if (driver === 's3') {
-          let s3Mod: any
-          try {
-            s3Mod = await resolveOptionalPeer('@boostkit/storage-s3')
-          } catch {
-            // Any import failure means @boostkit/storage-s3 isn't available (not installed or not built).
-            // Vite's module runner wraps ERR_MODULE_NOT_FOUND in a RunnerError without .code,
-            // so we catch broadly and mark the disk as unavailable instead of crashing.
-            const msg = `[BoostKit Storage] Disk "${name}" requires @boostkit/storage-s3. Install it: pnpm add @boostkit/storage-s3`
-            StorageRegistry.set(name, makeUnavailableAdapter(msg))
-            continue
-          }
-          adapter = await (s3Mod.s3 as (c: unknown) => StorageAdapterProvider)(diskConfig).create()
+          adapter = new S3Adapter(diskConfig as unknown as S3DiskConfig)
         } else {
           throw new Error(`[BoostKit Storage] Unknown driver "${driver}" for disk "${name}". Available: local, s3`)
         }

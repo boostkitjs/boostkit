@@ -200,7 +200,6 @@ export default defineConfig({
       '@boostkit/queue-bullmq',
       '@boostkit/mail-nodemailer',
       '@boostkit/cache-redis',
-      '@boostkit/storage-s3',
       '@boostkit/orm-drizzle',
     ],
   },
@@ -208,7 +207,7 @@ export default defineConfig({
     rollupOptions: {
       external: (id) =>
         ['@boostkit/queue-inngest', '@boostkit/queue-bullmq', '@boostkit/mail-nodemailer',
-         '@boostkit/cache-redis', '@boostkit/storage-s3', '@boostkit/orm-drizzle'].includes(id),
+         '@boostkit/cache-redis', '@boostkit/orm-drizzle'].includes(id),
     },
   },
 })
