@@ -79,9 +79,9 @@ And add the routes to `bootstrap/app.ts`:
 
 ```ts
 .withRouting({
-  api:  () => import('../routes/api.js'),
-  blog: () => import('../routes/blog.js'),    // ← add here
-  commands: () => import('../routes/console.js'),
+  api:      () => import('../routes/api.ts'),
+  blog:     () => import('../routes/blog.ts'),    // ← add here
+  commands: () => import('../routes/console.ts'),
 })
 ```
 
