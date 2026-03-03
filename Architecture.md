@@ -26,7 +26,7 @@
 | Runtime | Node.js 20+ / Bun |
 | HTTP server | Hono (default) / Express / Fastify / H3 (via adapter) |
 | ORM | Prisma adapter / Drizzle adapter (swappable via `@boostkit/orm-prisma`) |
-| Auth | better-auth (via `@boostkit/auth-better-auth`) |
+| Auth | better-auth (via `@boostkit/auth`) |
 | Queues | BullMQ (default) / Inngest adapter |
 | Validation | Zod with a Laravel-style Form Request wrapper |
 | DI Container | Custom (inspired by tsyringe / InversifyJS — lighter) |
@@ -58,8 +58,7 @@ forge/
 │   ├── queue/              # Queue contract + Job base class + queue:work artisan command
 │   ├── queue-inngest/      # Inngest adapter
 │   ├── queue-bullmq/       # BullMQ adapter ✅
-│   ├── auth/               # Shared types: AuthUser, AuthSession, AuthResult
-│   ├── auth-better-auth/   # better-auth adapter — betterAuth() factory, /api/auth/* mount
+│   ├── auth/               # Shared types (AuthUser, AuthSession, AuthResult) + better-auth adapter — betterAuth() factory, /api/auth/* mount
 │   ├── storage/            # Storage facade, LocalAdapter, storage() factory, storage:link
 │   ├── storage-s3/         # S3/R2/MinIO adapter (optional peer: @aws-sdk/client-s3)
 │   ├── cache/              # Cache facade, MemoryAdapter, cache() factory
@@ -167,7 +166,6 @@ Level 1 (parallel — no framework deps):
     @boostkit/queue       @boostkit/cache       @boostkit/orm
     @boostkit/mail        @boostkit/storage     @boostkit/events
     @boostkit/schedule    @boostkit/auth        @boostkit/validation
-    @boostkit/auth-better-auth
            │
     orm-prisma   queue-bullmq   queue-inngest
     cache-redis  storage-s3     mail-nodemailer
@@ -209,7 +207,7 @@ export default Application.configure({
 
 `bootstrap/providers.ts`:
 ```ts
-import { betterAuth } from '@boostkit/auth-better-auth'
+import { betterAuth } from '@boostkit/auth'
 import configs from '../config/index.ts'
 
 export default [
@@ -343,7 +341,7 @@ const paged   = await User.query().paginate(1, 15)
 
 ### Auth — better-auth
 
-`@boostkit/auth-better-auth` wraps [better-auth](https://better-auth.com) as a `ServiceProvider`:
+`@boostkit/auth` wraps [better-auth](https://better-auth.com) as a `ServiceProvider`:
 
 ```ts
 // config/auth.ts
@@ -358,7 +356,7 @@ export default {
 
 ```ts
 // bootstrap/providers.ts
-import { betterAuth } from '@boostkit/auth-better-auth'
+import { betterAuth } from '@boostkit/auth'
 betterAuth(configs.auth)  // returns a ServiceProvider class
 ```
 

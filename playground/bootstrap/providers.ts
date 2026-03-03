@@ -1,5 +1,5 @@
 import type { Application, ServiceProvider } from '@boostkit/core'
-import { betterAuth } from '@boostkit/auth-better-auth'
+import { betterAuth } from '@boostkit/auth'
 import { queue } from '@boostkit/queue'
 import { events } from '@boostkit/events'
 import { mail } from '@boostkit/mail'

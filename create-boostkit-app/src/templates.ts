@@ -86,7 +86,7 @@ function packageJson(ctx: TemplateContext): string {
 
   const deps = {
     '@boostkit/artisan':          '^0.0.1',
-    '@boostkit/auth-better-auth': '^0.0.1',
+    '@boostkit/auth': '^0.0.1',
     '@boostkit/cache':            '^0.0.1',
     '@boostkit/contracts':        '^0.0.1',
     '@boostkit/core':             '^0.0.1',
@@ -553,7 +553,7 @@ function bootstrapProviders(ctx: TemplateContext): string {
   const todoProvider = ctx.withTodo ? `  TodoServiceProvider,\n` : ''
 
   return `import type { Application, ServiceProvider } from '@boostkit/core'
-import { betterAuth } from '@boostkit/auth-better-auth'
+import { betterAuth } from '@boostkit/auth'
 import { events } from '@boostkit/events'
 import { queue } from '@boostkit/queue'
 import { mail } from '@boostkit/mail'
@@ -783,7 +783,7 @@ function configAuth(ctx: TemplateContext): string {
   }
 
   return `import { Env } from '@boostkit/support'
-import type { BetterAuthConfig } from '@boostkit/auth-better-auth'
+import type { BetterAuthConfig } from '@boostkit/auth'
 
 // Dedicated PrismaClient for better-auth's own tables.
 // The ORM adapter uses its own client in DatabaseServiceProvider — keep them separate.
@@ -902,7 +902,7 @@ function routesApi(ctx: TemplateContext): string {
 
   return `import { router } from '@boostkit/router'
 import { app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 import { RateLimit } from '@boostkit/rate-limit'
 
 const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.').toHandler()
@@ -991,7 +991,7 @@ export default {
 
 function pagesIndexData(): string {
   return `import { app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 
 export type Data = {
   user: { id: string; name: string; email: string } | null

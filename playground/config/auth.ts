@@ -1,5 +1,5 @@
 import { Env } from '@boostkit/core'
-import type { BetterAuthConfig } from '@boostkit/auth-better-auth'
+import type { BetterAuthConfig } from '@boostkit/auth'
 import { dispatch } from '@boostkit/events'
 import { UserRegistered } from '../app/Events/UserRegistered.js'
 

@@ -1,6 +1,6 @@
 import { router } from '@boostkit/router'
 import { resolve, app } from '@boostkit/core'
-import type { BetterAuthInstance } from '@boostkit/auth-better-auth'
+import type { BetterAuthInstance } from '@boostkit/auth'
 import { Cache } from '@boostkit/cache'
 import { Storage } from '@boostkit/storage'
 import { RateLimit } from '@boostkit/rate-limit'

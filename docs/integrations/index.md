@@ -6,7 +6,7 @@ Step-by-step guides for connecting Forge to common infrastructure.
 
 ### [Authentication](/integrations/auth)
 
-Full walkthrough of email/password and OAuth authentication using `@boostkit/auth-better-auth` and [better-auth](https://better-auth.com). Covers database schema, provider registration, session middleware, and social providers.
+Full walkthrough of email/password and OAuth authentication using `@boostkit/auth` and [better-auth](https://better-auth.com). Covers database schema, provider registration, session middleware, and social providers.
 
 ### [Notifications](/integrations/notifications)
 
