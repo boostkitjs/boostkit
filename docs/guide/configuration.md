@@ -1,6 +1,6 @@
 # Configuration
 
-Forge uses three distinct configuration layers. Understanding which layer handles what prevents confusion and duplication.
+BoostKit uses three distinct configuration layers. Understanding which layer handles what prevents confusion and duplication.
 
 ## The Three Layers
 
@@ -10,7 +10,7 @@ Forge uses three distinct configuration layers. Understanding which layer handle
 | **Runtime config** | `config/*.ts` | Named, typed objects that read from `.env` |
 | **Framework wiring** | `bootstrap/app.ts` | Server adapter, providers, routing loaders |
 
-There is no `forge.config.ts`. The `bootstrap/app.ts` file is where you wire the framework — the equivalent of Laravel's `bootstrap/app.php`.
+There is no `boostkit.config.ts`. The `bootstrap/app.ts` file is where you wire the framework — the equivalent of Laravel's `bootstrap/app.php`.
 
 ## Environment Variables (`.env`)
 

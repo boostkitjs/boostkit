@@ -211,7 +211,7 @@ import type { OrmAdapterProvider, OrmAdapter } from '@boostkit/orm'
 
 function notImplemented(): never {
   throw new Error(
-    '[Forge] @boostkit/orm-drizzle is not yet implemented. ' +
+    '[BoostKit] @boostkit/orm-drizzle is not yet implemented. ' +
     'Use @boostkit/orm-prisma instead.'
   )
 }
@@ -328,7 +328,7 @@ export interface GuardConfig {
 
 function notImplemented(): never {
   throw new Error(
-    '[Forge] @boostkit/auth is not yet implemented. ' +
+    '[BoostKit] @boostkit/auth is not yet implemented. ' +
     'Sessions, JWT, and guard support are coming in a future release.'
   )
 }

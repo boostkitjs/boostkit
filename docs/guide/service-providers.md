@@ -1,10 +1,10 @@
 # Service Providers
 
-Service providers are the central place to bootstrap and wire up your application's features. They are Forge's equivalent of Laravel's service providers.
+Service providers are the central place to bootstrap and wire up your application's features. They are BoostKit's equivalent of Laravel's service providers.
 
 ## Overview
 
-Every significant piece of Forge functionality — database connections, queue adapters, cache stores, mailers — is registered through a service provider. When you add a new integration, you typically add one provider class to `bootstrap/providers.ts`.
+Every significant piece of BoostKit functionality — database connections, queue adapters, cache stores, mailers — is registered through a service provider. When you add a new integration, you typically add one provider class to `bootstrap/providers.ts`.
 
 ## Lifecycle
 

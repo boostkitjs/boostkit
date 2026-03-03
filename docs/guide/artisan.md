@@ -1,6 +1,6 @@
 # Artisan Console
 
-Forge's Artisan CLI lets you run commands from the terminal. It works similarly to Laravel's Artisan — you define commands in `routes/console.ts` and run them with `pnpm artisan`.
+BoostKit's Artisan CLI lets you run commands from the terminal. It works similarly to Laravel's Artisan — you define commands in `routes/console.ts` and run them with `pnpm artisan`.
 
 ## Running Commands
 

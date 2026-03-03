@@ -1,6 +1,6 @@
 # @boostkit/orm-drizzle
 
-Drizzle ORM adapter for Forge — schema-first, multi-driver.
+Drizzle ORM adapter for BoostKit — schema-first, multi-driver.
 
 ## Installation
 
@@ -158,7 +158,7 @@ drizzle({
 
 ## API Reference
 
-The Drizzle adapter supports the same `OrmAdapter` interface as other Forge ORM adapters. Behaviour differences are noted below:
+The Drizzle adapter supports the same `OrmAdapter` interface as other BoostKit ORM adapters. Behaviour differences are noted below:
 
 | Method | Supported | Notes |
 |---|---|---|

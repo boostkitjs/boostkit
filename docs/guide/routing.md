@@ -1,6 +1,6 @@
 # Routing
 
-Forge supports two routing styles: **fluent** (Laravel-style) and **decorator-based** (NestJS-style). Both use the same global `router` singleton from `@boostkit/router`.
+BoostKit supports two routing styles: **fluent** (Laravel-style) and **decorator-based** (NestJS-style). Both use the same global `router` singleton from `@boostkit/router`.
 
 ## Route Files
 

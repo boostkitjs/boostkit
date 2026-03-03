@@ -177,5 +177,5 @@ const parsed = parseSignature('make:model {name} {--table=users}')
 - The `artisan` singleton is stored on `globalThis.__forge_artisan__` — it is shared across all imports regardless of how many times `@boostkit/artisan` is required, preventing duplicate registries across package boundaries.
 - `parseSignature` supports the full set of Laravel-style argument and option syntaxes described in the table above. Short aliases (`{--N|name}`) are single-character only.
 - Command output helpers (`info`, `error`, `warn`, `line`) use ANSI escape codes for color. Colors are applied unconditionally — redirect output to a file if you need plain text.
-- The Forge CLI (`@boostkit/cli`) loads `bootstrap/app.ts` and calls `forge.boot()` before `program.parse()`, so providers (including the database) are fully initialized when any artisan command runs.
+- The BoostKit CLI (`@boostkit/cli`) loads `bootstrap/app.ts` and calls `forge.boot()` before `program.parse()`, so providers (including the database) are fully initialized when any artisan command runs.
 - Commands must be registered before `artisan.run()` is called. Commands in `routes/console.ts` are loaded by the CLI via the `withRouting({ commands })` loader in `bootstrap/app.ts`.

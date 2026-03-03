@@ -2,22 +2,22 @@
 layout: home
 
 hero:
-  name: "Forge"
+  name: "BoostKit"
   text: "Node.js Full-Stack Framework"
   tagline: "Laravel's developer experience, reimagined for the Node.js ecosystem."
   image:
     src: /logo.svg
-    alt: Forge
+    alt: BoostKit
   actions:
     - theme: brand
       text: Get Started
       link: /guide/installation
     - theme: alt
-      text: Why Forge?
+      text: Why BoostKit?
       link: /guide/
     - theme: alt
       text: View on GitHub
-      link: https://github.com/forgeframework/forge
+      link: https://github.com/boostkitjs/boostkit
 
 features:
   - icon: ⚡

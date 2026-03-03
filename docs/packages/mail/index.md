@@ -20,7 +20,7 @@ export default {
   default: Env.get('MAIL_MAILER', 'log'),
   from: {
     address: Env.get('MAIL_FROM_ADDRESS', 'hello@example.com'),
-    name: Env.get('MAIL_FROM_NAME', 'Forge App'),
+    name: Env.get('MAIL_FROM_NAME', 'BoostKit App'),
   },
   mailers: {
     log: {
@@ -143,7 +143,7 @@ Each mailer entry requires a `driver` field plus any driver-specific options.
 
 ## `mail(config)`
 
-`mail(config)` returns a Forge `ServiceProvider` class that registers the configured mailers and binds the `Mail` facade during `boot()`.
+`mail(config)` returns a BoostKit `ServiceProvider` class that registers the configured mailers and binds the `Mail` facade during `boot()`.
 
 ## Built-in Drivers
 

@@ -1,6 +1,6 @@
 # Notifications
 
-This guide walks through setting up multi-channel notifications in a Forge application using `@boostkit/notification`. Notifications can be sent via email, stored in a database, or dispatched through custom channels (SMS, Slack, push notifications, etc.).
+This guide walks through setting up multi-channel notifications in a BoostKit application using `@boostkit/notification`. Notifications can be sent via email, stored in a database, or dispatched through custom channels (SMS, Slack, push notifications, etc.).
 
 ## Overview
 
@@ -72,7 +72,7 @@ import { Mailable } from '@boostkit/mail'
 class WelcomeMail extends Mailable {
   build() {
     return this
-      .subject('Welcome to Forge!')
+      .subject('Welcome to BoostKit!')
       .text('Thanks for joining. We are glad to have you.')
   }
 }

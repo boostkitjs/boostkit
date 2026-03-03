@@ -127,7 +127,7 @@ Each store entry must include a `driver` field. Additional fields depend on the 
 
 ## `cache(config)`
 
-`cache(config)` returns a Forge `ServiceProvider` class that registers the configured stores and binds the `Cache` facade during `boot()`.
+`cache(config)` returns a BoostKit `ServiceProvider` class that registers the configured stores and binds the `Cache` facade during `boot()`.
 
 ```ts
 import { cache } from '@boostkit/cache'

@@ -87,7 +87,7 @@ const response = await pipeline.run(req, res, async (req, res) => {
 | Class | Description |
 |---|---|
 | `CorsMiddleware` | Adds `Access-Control-Allow-*` headers to every response. Accepts `origin`, `methods`, and `headers` options. Handles `OPTIONS` preflight requests automatically. |
-| `LoggerMiddleware` | Logs each request and response to the console using ANSI colours. Outputs method, path, status code, and response time. Tagged with `[forge]`. |
+| `LoggerMiddleware` | Logs each request and response to the console using ANSI colours. Outputs method, path, status code, and response time. Tagged with `[boostkit]`. |
 | `ThrottleMiddleware` | In-memory rate limiter. Rejects requests that exceed the configured limit per window with a `429 Too Many Requests` response. Adds `X-RateLimit-*` headers. |
 
 ### CorsMiddleware Options
@@ -117,7 +117,7 @@ const throttle = new ThrottleMiddleware({
 
 ## MiddlewareHandler Type
 
-`MiddlewareHandler` is the canonical function signature for all middleware in Forge. It is exported from `@boostkit/contracts` and re-exported here for convenience.
+`MiddlewareHandler` is the canonical function signature for all middleware in BoostKit. It is exported from `@boostkit/contracts` and re-exported here for convenience.
 
 ```ts
 type MiddlewareHandler = (

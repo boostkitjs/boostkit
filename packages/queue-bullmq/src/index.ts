@@ -12,7 +12,7 @@ export interface BullMQConfig {
   /** Redis port — default: 6379 */
   port?:     number
   password?: string
-  /** Redis key prefix — default: 'forge' */
+  /** Redis key prefix — default: 'boostkit' */
   prefix?:   string
   /** Worker concurrency per queue. Default: 1 */
   concurrency?: number
@@ -72,7 +72,7 @@ class BullMQAdapter implements QueueAdapter {
 
   constructor(config: BullMQConfig) {
     this.connection        = redisOpts(config)
-    this.prefix            = config.prefix           ?? 'forge'
+    this.prefix            = config.prefix          ?? 'boostkit'
     this.concurrency       = config.concurrency      ?? 1
     this.removeOnComplete  = config.removeOnComplete ?? 100
     this.removeOnFail      = config.removeOnFail     ?? 500

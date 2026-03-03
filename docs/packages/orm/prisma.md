@@ -1,6 +1,6 @@
 # @boostkit/orm-prisma
 
-Prisma-backed ORM adapter for Forge.
+Prisma-backed ORM adapter for BoostKit.
 
 ## Installation
 
@@ -113,7 +113,7 @@ model User {
 }
 ```
 
-The Forge `User` model sets `static table = 'user'` to match the Prisma accessor name (lowercase model name):
+The BoostKit `User` model sets `static table = 'user'` to match the Prisma accessor name (lowercase model name):
 
 ```ts
 import { Model } from '@boostkit/orm'

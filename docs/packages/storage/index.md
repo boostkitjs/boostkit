@@ -127,7 +127,7 @@ interface LocalDiskConfig {
 
 ## `storage(config)`
 
-`storage(config)` returns a Forge `ServiceProvider` class that registers the configured disks and binds the `Storage` facade during `boot()`.
+`storage(config)` returns a BoostKit `ServiceProvider` class that registers the configured disks and binds the `Storage` facade during `boot()`.
 
 ## `storage:link` Command
 

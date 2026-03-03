@@ -1,10 +1,10 @@
 # Your First App
 
-This guide walks through building a simple REST API with Forge — a `/api/users` endpoint backed by a database model. By the end you'll have a working Forge application with routing, a service provider, and ORM integration.
+This guide walks through building a simple REST API with BoostKit — a `/api/users` endpoint backed by a database model. By the end you'll have a working BoostKit application with routing, a service provider, and ORM integration.
 
 ## Prerequisites
 
-You should have a Forge project scaffolded already. If not, see [Installation](/guide/installation).
+You should have a BoostKit project scaffolded already. If not, see [Installation](/guide/installation).
 
 ## 1. Define a Model
 

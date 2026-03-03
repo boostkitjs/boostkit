@@ -28,7 +28,7 @@ export default {
       port: Env.getNumber('REDIS_PORT', 6379),
       password: Env.get('REDIS_PASSWORD'),
       db: Env.getNumber('REDIS_DB', 0),
-      prefix: 'forge:cache:',
+      prefix: 'boostkit:cache:',
     },
   },
 } satisfies CacheConfig
