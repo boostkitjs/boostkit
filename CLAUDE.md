@@ -6,12 +6,13 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## Project Overview
 
-**Forge** is a Laravel-inspired, framework-agnostic Node.js meta-framework built on top of **Vike + Vite**. It aims to bring Laravel's developer experience (DI container, Eloquent-style ORM, Artisan CLI, middleware, form requests, queues) to the Node.js ecosystem — while remaining modular and UI-agnostic.
+**BoostKit** is a Laravel-inspired, framework-agnostic Node.js meta-framework built on top of **Vike + Vite**. It brings Laravel's developer experience (DI container, Eloquent-style ORM, Artisan CLI, middleware, form requests, queues) to the Node.js ecosystem — while remaining modular and UI-agnostic.
 
 - **Monorepo**: pnpm workspaces + Turborepo
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@boostkit/*`
-- **Status**: Early development (v0.0.1)
+- **GitHub**: https://github.com/boostkitjs/boostkit
+- **Status**: Early development — 25 packages published to npm
 
 ---
 
@@ -38,7 +39,7 @@ Running the playground (demo app):
 ```bash
 cd playground
 pnpm dev          # vike dev (Vite + SSR)
-pnpm artisan      # Forge CLI (tsx node_modules/@boostkit/cli/src/index.ts)
+pnpm artisan      # BoostKit CLI (tsx node_modules/@boostkit/cli/src/index.ts)
 ```
 
 > Always run `pnpm build` from root before `pnpm dev` in playground — packages must be compiled first.
@@ -53,15 +54,36 @@ pnpm artisan db:seed            # Seed via artisan command
 
 ---
 
+## Publishing
+
+Changesets is set up for release management:
+
+```bash
+pnpm changeset            # Create a changeset (select packages + describe changes)
+pnpm changeset:version    # Bump versions + update CHANGELOGs
+pnpm release              # Build + publish all changed packages to npm
+```
+
+For a single package:
+```bash
+cd packages/<name>
+pnpm publish --access public --no-git-checks
+```
+
+npm requires browser passkey auth — press Enter when prompted to open the browser.
+
+---
+
 ## Monorepo Layout
 
 ```
 boostkit/
-├── packages/           # Core framework packages (@boostkit/*)
+├── packages/           # 25 published packages (@boostkit/*)
 │   ├── contracts/      # Pure TypeScript types: ForgeRequest, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/        # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer, helpers
 │   ├── di/             # DI container: Container, @Injectable, @Inject
-│   ├── middleware/     # Middleware base class, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware
+│   ├── middleware/     # Middleware base, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware
+│   │                   #   + RateLimit / RateLimitBuilder (cache-backed, merged from rate-limit pkg)
 │   ├── validation/     # FormRequest, validate(), validateWith(), ValidationError, z re-export
 │   ├── artisan/        # ArtisanRegistry, Command base class, parseSignature, artisan singleton
 │   ├── core/           # App bootstrapper, ServiceProvider, Forge, AppBuilder
@@ -71,24 +93,23 @@ boostkit/
 │   ├── orm-prisma/     # Prisma adapter (multi-driver)
 │   ├── orm-drizzle/    # Drizzle adapter (multi-driver: sqlite, postgresql, libsql)
 │   ├── queue/          # Queue contract/interface + queue:work artisan command
-│   ├── queue-inngest/  # Inngest adapter
-│   ├── queue-bullmq/   # BullMQ adapter ✅
-│   ├── server-hono/    # Hono adapter ✅ (HonoConfig, logger, CORS)
-│   ├── server-express/ # Express adapter (stub)
-│   ├── server-fastify/ # Fastify adapter (stub)
-│   ├── server-h3/      # H3 adapter (stub)
-│   ├── auth/           # Auth module — shared types (AuthUser, AuthSession, AuthResult) + better-auth adapter — betterAuth() factory, prismaAdapter wiring
-│   ├── storage/        # Storage facade, LocalAdapter (built-in), storage() factory, storage:link
-│   ├── storage-s3/     # S3 adapter via @aws-sdk/client-s3 (optional peer)
-│   ├── schedule/       # Task scheduler — schedule singleton, scheduler() factory, schedule:run/work/list
+│   ├── queue-inngest/  # Inngest adapter — events named boostkit/job.<ClassName>
+│   ├── queue-bullmq/   # BullMQ adapter — default prefix 'boostkit'
+│   ├── server-hono/    # Hono adapter (HonoConfig, logger [boostkit] tag, CORS)
+│   ├── auth/           # Auth types (AuthUser, AuthSession, AuthResult) + betterAuth() factory
+│   │                   #   (merged from auth-better-auth — single package)
+│   ├── storage/        # Storage facade, LocalAdapter + S3Adapter (built-in)
+│   │                   #   S3 driver requires optional dep: @aws-sdk/client-s3
+│   ├── schedule/       # Task scheduler — schedule singleton, scheduler() factory
 │   ├── cache/          # Cache facade, MemoryAdapter (built-in), cache() factory
 │   ├── cache-redis/    # Redis adapter via ioredis (optional peer)
-│   ├── events/         # EventDispatcher, Listener interface, dispatch() helper, events() factory
+│   ├── events/         # EventDispatcher, Listener interface, dispatch() helper
 │   ├── mail/           # Mailable, Mail facade, LogAdapter, mail() factory
-│   ├── mail-nodemailer/ # Nodemailer SMTP adapter (optional peer)
-│   ├── rate-limit/     # Cache-backed rate limiting — RateLimit.perMinute/Hour/Day
-│   └── cli/            # Forge CLI — make:*, module:*, artisan user commands
-├── create-boostkit-app/   # Project scaffolder CLI
+│   ├── mail-nodemailer/ # Nodemailer SMTP adapter
+│   ├── notification/   # Multi-channel notifications (mail, database)
+│   └── cli/            # make:*, module:*, module:publish, artisan user commands
+├── create-boostkit-app/   # Project scaffolder CLI (pnpm create boostkit-app)
+├── docs/               # VitePress documentation site
 └── playground/         # Demo app — primary integration reference
 ```
 
@@ -96,36 +117,38 @@ boostkit/
 
 ## Package Status
 
-| Package | Status | Notes |
+| Package | Version | Notes |
 |---|---|---|
-| `@boostkit/contracts` | ✅ Complete | Pure TypeScript types: ForgeRequest, ForgeResponse, ServerAdapter, MiddlewareHandler, RouteDefinition, FetchHandler |
-| `@boostkit/support` | ✅ Complete | Collection, Env, defineEnv, ConfigRepository, resolveOptionalPeer, helpers — `sideEffects: false` |
-| `@boostkit/di` | ✅ Complete | Container, @Injectable, @Inject, reflect-metadata |
-| `@boostkit/middleware` | ✅ Complete | Middleware base class, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware, fromClass |
-| `@boostkit/validation` | ✅ Complete | FormRequest, validate(), validateWith(), ValidationError, z re-export |
-| `@boostkit/artisan` | ✅ Complete | ArtisanRegistry, Command base class, parseSignature, artisan singleton — no framework deps |
-| `@boostkit/core` | ✅ Complete | Application, ServiceProvider, Forge, AppBuilder — re-exports di + support + contracts types + artisan |
-| `@boostkit/server-hono` | ✅ Complete | Hono adapter, HonoConfig, unified logger, CORS |
-| `@boostkit/router` | ✅ Complete | Decorators + Router singleton, router.all() |
-| `@boostkit/queue` | ✅ Complete | Job, QueueAdapter interface, queue:work command |
-| `@boostkit/queue-inngest` | ✅ Complete | Inngest adapter |
-| `@boostkit/queue-bullmq` | ✅ Complete | BullMQ Redis-backed queue — job registry, graceful shutdown |
-| `@boostkit/orm` | ✅ Complete | Model, QueryBuilder, ModelRegistry |
-| `@boostkit/orm-prisma` | ✅ Complete | Prisma adapter, multi-driver (pg, libsql, default) |
-| `@boostkit/cli` | ✅ Complete | make:*, module:*, module:publish, cfonts banner, user artisan commands |
-| `@boostkit/auth` | ✅ Complete | Shared AuthUser, AuthSession, AuthResult types + better-auth adapter — betterAuth() factory, /api/auth/* mount |
-| `@boostkit/storage` | ✅ Complete | Storage facade, LocalAdapter (built-in), storage() factory, storage:link |
-| `@boostkit/storage-s3` | ✅ Complete | S3/R2/MinIO adapter via @aws-sdk/client-s3 — optional peer |
-| `@boostkit/schedule` | ✅ Complete | Task scheduler, schedule:run / schedule:work / schedule:list |
-| `@boostkit/cache` | ✅ Complete | Cache facade, MemoryAdapter (built-in), cache() factory |
-| `@boostkit/cache-redis` | ✅ Complete | Redis adapter via ioredis — optional peer for redis driver |
-| `@boostkit/events` | ✅ Complete | EventDispatcher, Listener interface, dispatch(), events() factory |
-| `@boostkit/mail` | ✅ Complete | Mailable, Mail facade, LogAdapter (built-in dev), mail() factory |
-| `@boostkit/mail-nodemailer` | ✅ Complete | Nodemailer SMTP adapter — optional peer for smtp driver |
-| `@boostkit/middleware` | ✅ Complete | Cache-backed rate limiting — RateLimit.perMinute/Hour/Day, X-RateLimit-* headers |
-| `create-boostkit-app` | ✅ Complete | Interactive CLI scaffolder — project name, db driver, Todo module option |
-| `@boostkit/notification` | ✅ Complete | Multi-channel notifications (mail, database) — Notifiable, Notification, ChannelRegistry, notify() |
-| `@boostkit/orm-drizzle` | ✅ Complete | Drizzle adapter — multi-driver (sqlite, postgresql, libsql), DrizzleTableRegistry |
+| `@boostkit/contracts` | 0.0.1 | Pure TypeScript types: ForgeRequest, ForgeResponse, ServerAdapter, MiddlewareHandler |
+| `@boostkit/support` | 0.0.1 | Collection, Env, defineEnv, ConfigRepository, resolveOptionalPeer, helpers |
+| `@boostkit/di` | 0.0.2 | Container, @Injectable, @Inject — metadata keys: `boostkit:injectable/inject` |
+| `@boostkit/middleware` | 0.0.2 | Middleware, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware, RateLimit |
+| `@boostkit/validation` | 0.0.1 | FormRequest, validate(), validateWith(), ValidationError, z re-export |
+| `@boostkit/artisan` | 0.0.1 | ArtisanRegistry, Command base, parseSignature, artisan singleton |
+| `@boostkit/core` | 0.0.2 | Application, ServiceProvider, Forge, AppBuilder |
+| `@boostkit/server-hono` | 0.0.2 | Hono adapter, logger `[boostkit]` tag, CORS |
+| `@boostkit/router` | 0.0.2 | Fluent + decorator routing — metadata keys: `boostkit:controller:*/route:*` |
+| `@boostkit/queue` | 0.0.1 | Job, QueueAdapter interface, queue:work command |
+| `@boostkit/queue-inngest` | 0.0.2 | Inngest adapter — events: `boostkit/job.<ClassName>` |
+| `@boostkit/queue-bullmq` | 0.0.2 | BullMQ Redis-backed queue — default prefix: `'boostkit'` |
+| `@boostkit/orm` | 0.0.2 | Model, QueryBuilder, ModelRegistry |
+| `@boostkit/orm-prisma` | 0.0.1 | Prisma adapter, multi-driver |
+| `@boostkit/orm-drizzle` | 0.0.1 | Drizzle adapter — multi-driver (sqlite, postgresql, libsql) |
+| `@boostkit/cli` | 0.0.2 | make:*, module:*, module:publish — markers: `<boostkit:modules:start/end>` |
+| `@boostkit/auth` | 0.0.1 | AuthUser/Session/Result types + betterAuth() factory (merged from auth-better-auth) |
+| `@boostkit/storage` | 0.0.2 | Storage facade, LocalAdapter + S3Adapter built-in (needs `@aws-sdk/client-s3`) |
+| `@boostkit/schedule` | 0.0.1 | Task scheduler, schedule:run/work/list |
+| `@boostkit/cache` | 0.0.1 | Cache facade, MemoryAdapter, cache() factory |
+| `@boostkit/cache-redis` | 0.0.1 | Redis adapter via ioredis |
+| `@boostkit/events` | 0.0.1 | EventDispatcher, Listener, dispatch(), events() factory |
+| `@boostkit/mail` | 0.0.1 | Mailable, Mail facade, LogAdapter, mail() factory |
+| `@boostkit/mail-nodemailer` | 0.0.1 | Nodemailer SMTP adapter |
+| `@boostkit/notification` | 0.0.1 | Notifiable, Notification, ChannelRegistry, notify() |
+
+**Merged/removed packages** (code absorbed, originals deleted):
+- `@boostkit/auth-better-auth` → merged into `@boostkit/auth`
+- `@boostkit/rate-limit` → merged into `@boostkit/middleware`
+- `@boostkit/storage-s3` → merged into `@boostkit/storage`
 
 ---
 
@@ -134,156 +157,99 @@ boostkit/
 ### Dependency Flow
 
 ```
-@boostkit/core  (includes: support · di · server · middleware · validation)
-      │
-      ├── (resolveOptionalPeer) ──→ @boostkit/router   (loaded at runtime, avoids Turbo cycle)
-      │
-      ↑ (peer dep, types only)
-@boostkit/router   @boostkit/orm   @boostkit/queue   @boostkit/middleware
-      ↑               ↑              ↑
-@boostkit/server-hono  orm-prisma   queue-bullmq / queue-inngest
+@boostkit/contracts   (pure types, no runtime)
+       │
+@boostkit/support     (Env, Collection, helpers)
+@boostkit/di          (Container, decorators)
+@boostkit/middleware  (Pipeline, built-ins, RateLimit)
+@boostkit/validation  (FormRequest, z)
+       │
+@boostkit/router      @boostkit/server-hono
+       │
+@boostkit/core        (Application, ServiceProvider, bootstrap)
+       │
+@boostkit/orm    @boostkit/queue    @boostkit/cache    @boostkit/storage
+       │              │                  │                   │
+ orm-prisma      queue-bullmq       cache-redis          (s3 built-in)
+ orm-drizzle     queue-inngest
+       │
+@boostkit/auth   @boostkit/events   @boostkit/mail   @boostkit/schedule
+       │
+@boostkit/notification
 ```
 
-> **Cycle resolution**: `@boostkit/core` has no declared dependency on `@boostkit/router`. It loads router at runtime via `resolveOptionalPeer('@boostkit/router')` (opaque to Rollup static analysis). `@boostkit/router` lists `@boostkit/core` as a `peerDependency` only — Turbo builds core first without detecting a reverse cycle.
+> **Cycle resolution**: `@boostkit/core` loads `@boostkit/router` at runtime via `resolveOptionalPeer('@boostkit/router')`. Never add `@boostkit/core` to router's `dependencies` or `devDependencies`.
 
 ### Core Abstractions
 
-#### `@boostkit/core` — Application + Fluent Bootstrap
+#### Bootstrap Pattern (Laravel 11-style)
 
-Laravel 11-style fluent bootstrap in `bootstrap/app.ts`:
 ```ts
+// bootstrap/app.ts
+import 'reflect-metadata'
+import 'dotenv/config'
+import { Application } from '@boostkit/core'
+import { hono } from '@boostkit/server-hono'
+import { RateLimit } from '@boostkit/middleware'
+import configs from '../config/index.ts'
+import providers from './providers.ts'
+
 export default Application.configure({
-  server:    hono(configs.server),   // server adapter + config
-  config:    configs,                // config/ files
-  providers,                         // service providers array
+  server:    hono(configs.server),
+  config:    configs,
+  providers,
 })
   .withRouting({
-    api:      () => import('../routes/api.ts'),      // side-effect: registers routes
-    commands: () => import('../routes/console.ts'),  // side-effect: registers artisan cmds
+    web:      () => import('../routes/web.ts'),
+    api:      () => import('../routes/api.ts'),
+    commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    // m.use(new CorsMiddleware().toHandler())
+    m.use(RateLimit.perMinute(60).toHandler())
   })
-  .withExceptions((_e) => {})
-  .create()  // returns a Forge instance
+  .create()
 ```
 
-The `Forge` instance is the app entry point:
-- `forge.handleRequest(request)` — lazy-bootstraps on first HTTP request (consumed by `vike-photon` via `pages/+config.ts`)
-- `forge.boot()` — bootstraps providers without starting HTTP (used by CLI)
-
-#### `@boostkit/core` subpath exports
-
-`@boostkit/core` ships five tree-shakable subpaths in addition to the main barrel:
-
-| Import | Contents |
-|--------|----------|
-| `@boostkit/core` | Everything below, plus Application, ServiceProvider, Forge, artisan |
-| `@boostkit/core/support` | Env, Collection, ConfigRepository, resolveOptionalPeer, helpers |
-| `@boostkit/core/di` | Container, Injectable, Inject |
-| `@boostkit/core/server` | ServerAdapter, ForgeRequest, ForgeResponse, HttpMethod, FetchHandler |
-| `@boostkit/core/middleware` | Middleware, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware |
-| `@boostkit/core/validation` | FormRequest, ValidationError, validate, z |
-
-#### `@boostkit/core` — Artisan Registry
+#### `@boostkit/auth` — Auth (better-auth)
 
 ```ts
-// routes/console.ts
-import { artisan } from '@boostkit/artisan'
-
-artisan.command('db:seed', async () => {
-  await User.create({ name: 'Alice', email: 'alice@example.com' })
-}).description('Seed the database')
-```
-
-Commands registered here automatically appear in `pnpm artisan --help` and can be run with `pnpm artisan db:seed`.
-
-#### DI — Service Container
-```ts
-container.bind('key', (c) => new MyService())
-container.singleton(MyService, (c) => new MyService())
-container.make(MyService)   // auto-resolves @Injectable classes
-```
-- Uses `reflect-metadata` — always `import 'reflect-metadata'` at entry point
-- `@Injectable()` marks a class for auto-resolution
-- `@Inject(token)` overrides constructor parameter injection token
-- Import from `@boostkit/core` or `@boostkit/core/di`
-
-#### `@boostkit/router` — Routing
-
-**Fluent (Laravel-style, in `routes/api.ts`):**
-```ts
-import { router } from '@boostkit/router'
-
-router.get('/api/users', async (req, res) => res.json({ data: await UserService.all() }))
-router.post('/api/users', async (req, res) => { ... })
-router.all('/api/*', (req, res) => res.status(404).json({ message: 'Route not found.' }))
-```
-
-**Decorator-based (in controllers):**
-```ts
-@Controller('/users')
-class UserController {
-  @Get('/:id')
-  @Middleware([AuthMiddleware])
-  show({ params }: ForgeRequest) { ... }
-}
-router.registerController(UserController)
-```
-
-#### `@boostkit/server-hono` — Hono Adapter
-
-Server adapter config lives in `config/server.ts` and is passed to `hono()`:
-```ts
-// config/server.ts
-export default {
-  port:       Env.getNumber('PORT', 3000),
-  trustProxy: Env.getBool('TRUST_PROXY', false),
-  cors: {
-    origin:  Env.get('CORS_ORIGIN', '*'),
-    methods: Env.get('CORS_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS'),
-    headers: Env.get('CORS_HEADERS', 'Content-Type,Authorization'),
-  },
-}
-
-// bootstrap/app.ts
-Application.configure({ server: hono(configs.server), ... })
-```
-
-Features: unified request logger (`[forge]` tag, ANSI colors), CORS middleware, Vike log suppression.
-
-#### `@boostkit/orm` + `@boostkit/orm-prisma` — ORM
-
-```ts
-// app/Models/User.ts
-export class User extends Model {
-  static table = 'user'   // Prisma accessor name (lowercase model name)
-  id!: string; name!: string; email!: string; role!: string
-}
+// bootstrap/providers.ts
+import { betterAuth } from '@boostkit/auth'
+export default [betterAuth(configs.auth), ...]
 
 // Usage
-const users = await User.all()
-const user  = await User.find(id)
-const admins = await User.where('role', 'admin').get()
-const created = await User.create({ name: 'Alice', email: 'alice@example.com' })
+import type { BetterAuthInstance } from '@boostkit/auth'
+const auth = app().make<BetterAuthInstance>('auth')
 ```
 
-`ModelRegistry` is set in `DatabaseServiceProvider.boot()`:
+- Wraps PrismaClient with `prismaAdapter` (duck-typed via `$connect`)
+- Mounts `/api/auth/*` — must register before the `/api/*` catch-all
+- Auth bound to DI as `'auth'`
+
+#### `@boostkit/middleware` — Rate Limiting
+
 ```ts
-import { prisma } from '@boostkit/orm-prisma'
-import { ModelRegistry } from '@boostkit/orm'
+import { RateLimit } from '@boostkit/middleware'
 
-async boot() {
-  const adapter = await prisma().create()   // reads DATABASE_URL from env
-  await adapter.connect()
-  ModelRegistry.set(adapter)
-  this.app.instance('db', adapter)
-}
+// Global
+m.use(RateLimit.perMinute(60).toHandler())
+
+// Per-route
+RateLimit.perMinute(10).message('Too many login attempts.').toHandler()
 ```
 
-#### `@boostkit/cli` — Forge CLI
+Requires `@boostkit/cache` to be registered first. Fails open if no cache adapter.
 
-Built-in generators (run from project root or `playground/`):
+#### `@boostkit/storage` — S3 Driver
+
+S3 is built-in — no separate package needed:
+```ts
+import { s3 } from '@boostkit/storage'
+// Also requires: pnpm add @aws-sdk/client-s3
+```
+
+#### `@boostkit/cli` — Artisan CLI
+
 ```bash
 pnpm artisan make:controller UserController
 pnpm artisan make:model Post
@@ -291,88 +257,70 @@ pnpm artisan make:job SendWelcomeEmail
 pnpm artisan make:middleware Auth
 pnpm artisan make:request CreateUser
 pnpm artisan make:provider App
-pnpm artisan make:module Blog     # scaffolds full module (schema, service, controller, provider, test, prisma)
-pnpm artisan module:publish       # merges *.prisma shards into prisma/schema.prisma
+pnpm artisan make:module Blog
+pnpm artisan module:publish   # merges *.prisma shards into prisma/schema.prisma
 ```
 
-User-defined commands in `routes/console.ts` are auto-registered. All commands support `--force`.
+Module scaffold markers in providers.ts: `// <boostkit:modules:start>` / `// <boostkit:modules:end>`
 
 ---
 
 ## Playground Structure
 
-The playground is the canonical reference implementation:
-
 ```
 playground/
 ├── bootstrap/
-│   ├── app.ts          # Application.configure()...create() — app entry wiring
-│   └── providers.ts    # Default export: [DatabaseServiceProvider, betterAuth(...), AppServiceProvider, ...]
-├── config/
-│   ├── app.ts          # APP_NAME, APP_ENV, APP_DEBUG
-│   ├── server.ts       # PORT, CORS, TRUST_PROXY
-│   ├── database.ts     # DB_CONNECTION, DATABASE_URL connections
-│   ├── auth.ts         # AUTH_SECRET, APP_URL, betterAuth config
-│   ├── queue.ts
-│   ├── mail.ts
-│   └── index.ts        # barrel re-export
+│   ├── app.ts          # Application.configure()...create()
+│   └── providers.ts    # [betterAuth, events, queue, mail, notifications, cache, storage, scheduler, DatabaseServiceProvider, AppServiceProvider]
+├── config/             # app, server, database, auth, queue, mail, cache, storage, index
 ├── app/
-│   ├── Models/
-│   │   └── User.ts     # extends Model, static table = 'user'
-│   ├── Services/
-│   │   └── UserService.ts
-│   └── Providers/
-│       ├── DatabaseServiceProvider.ts  # connects Prisma, sets ModelRegistry
-│       └── AppServiceProvider.ts       # binds UserService, GreetingService
+│   ├── Models/User.ts
+│   ├── Services/UserService.ts
+│   └── Providers/DatabaseServiceProvider.ts + AppServiceProvider.ts
 ├── routes/
-│   ├── api.ts          # router.get/post/all() — side-effect file, no export
-│   └── console.ts      # artisan.command() — side-effect file, no export
-├── pages/              # Vike file-based routing (SSR pages)
-├── prisma/
-│   └── schema.prisma   # Prisma schema (SQLite by default) — includes better-auth tables
-├── .env                # DATABASE_URL, PORT, APP_*, AUTH_SECRET vars
-└── vite.config.ts      # Vite + Vike + React config
+│   ├── api.ts          # router.get/post/all()
+│   └── console.ts      # artisan.command()
+├── pages/              # Vike file-based routing
+├── prisma/schema.prisma
+└── vite.config.ts
 ```
 
-**Provider boot order matters** — `DatabaseServiceProvider` must appear before `AppServiceProvider` (and any provider that calls ORM models during `boot()`) so `ModelRegistry` is set in time.
+**Provider boot order**: `DatabaseServiceProvider` must come before any provider that uses ORM models.
 
 ---
 
 ## Configuration Layers
 
-Forge uses three distinct config layers — there is **no `forge.config.ts`**:
-
 | Layer | File(s) | Purpose |
 |---|---|---|
 | Environment | `.env` | Secrets and environment-specific values |
-| Runtime config | `config/*.ts` | Named, typed objects that read from `.env` — like Laravel's `config/` |
-| Framework wiring | `bootstrap/app.ts` | Server adapter, providers, routing — like Laravel's `bootstrap/app.php` |
-| Build config | `vite.config.ts` | Vite + Vike plugins (build-time only) |
+| Runtime config | `config/*.ts` | Named, typed objects reading from `.env` |
+| Framework wiring | `bootstrap/app.ts` | Server adapter, providers, routing |
+| Build config | `vite.config.ts` | Vite + Vike plugins |
 
-`bootstrap/app.ts` is the equivalent of what other frameworks call a root config file. It is where you wire the server adapter (`hono()`), register providers, and declare route loaders. Runtime values (port, URLs, credentials) belong in `config/` files — never hardcoded in `bootstrap/app.ts`.
+There is **no `boostkit.config.ts`** — `bootstrap/app.ts` is the framework wiring file.
 
 ---
 
 ## TypeScript Conventions
 
 - All packages extend `../../tsconfig.base.json`
-- `experimentalDecorators: true` + `emitDecoratorMetadata: true` — required for DI and routing decorators
-- Always `import 'reflect-metadata'` at the **entry point** of any app using decorators
-- `module: "NodeNext"` — use `.js` extensions in all imports even for `.ts` source files
+- `experimentalDecorators: true` + `emitDecoratorMetadata: true` — required for DI and routing
+- Always `import 'reflect-metadata'` at the **entry point**
+- `module: "NodeNext"` — use `.js` extensions in all imports
 - `strict: true`, `exactOptionalPropertyTypes: true`, `noUncheckedIndexedAccess: true`
-- Package `exports` always point to `dist/index.js` and must include `"default": "./dist/index.js"` for CJS resolver compat
-- Turbo respects `^build` — changing a package auto-rebuilds all dependents
+
+---
 
 ## Common Pitfalls
 
-- **Missing `reflect-metadata`**: Add `import 'reflect-metadata'` to the entry point; install as a dep (not devDep)
+- **Missing `reflect-metadata`**: Add `import 'reflect-metadata'` to entry point; install as dep (not devDep)
 - **`workspace:*` not resolving**: Run `pnpm install` from root after adding a new local dependency
 - **Stale `dist/`**: Run `pnpm build` from root before running the playground
-- **Prisma client missing**: Run `pnpm exec prisma generate` from `playground/` after schema changes
-- **Prisma DB missing**: Run `pnpm exec prisma db push` from `playground/` to create the SQLite file
-- **Decorator errors**: Ensure `experimentalDecorators` and `emitDecoratorMetadata` in the package's `tsconfig.json`
-- **Circular dep (`@boostkit/core` ↔ `@boostkit/router`)**: Core loads router via `resolveOptionalPeer('@boostkit/router')` (runtime, Rollup-opaque). Never add `@boostkit/core` to `@boostkit/router`'s `dependencies` or `devDependencies` — only `peerDependencies`.
-- **Optional peer `ERR_PACKAGE_PATH_NOT_EXPORTED`**: All optional peer packages must include `"default": "./dist/index.js"` in their `exports` field — `createRequire.resolve()` uses the CJS condition which can't see `"import"`-only entries.
-- **`node:module` in browser bundle**: `resolveOptionalPeer` uses `await import('node:module')` (dynamic/lazy) — do NOT hoist the `createRequire` import to the top of `support.ts`; it would break the browser build.
-- **Port in use (EADDRINUSE 24678)**: Kill the stale Vite process — `lsof -ti :24678 -ti :3000 | xargs kill -9`
-- **`artisan` commands not appearing**: CLI must be run from a directory containing `bootstrap/app.ts` (i.e., from `playground/`, not the repo root)
+- **Prisma client missing**: Run `pnpm exec prisma generate` from `playground/`
+- **Decorator errors**: Ensure `experimentalDecorators` and `emitDecoratorMetadata` in tsconfig.json
+- **Circular dep**: Never add `@boostkit/core` to router/server-hono's `dependencies` — `peerDependencies` only
+- **Port in use**: `lsof -ti :24678 -ti :3000 | xargs kill -9`
+- **`artisan` commands not appearing**: Run from `playground/` (needs `bootstrap/app.ts`)
+- **RateLimit not working**: Requires a cache provider registered before middleware runs
+- **S3 disk errors**: Install `@aws-sdk/client-s3` — it's an optional dep of `@boostkit/storage`

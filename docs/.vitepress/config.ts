@@ -107,7 +107,7 @@ export default defineConfig({
           text: 'Storage',
           items: [
             { text: '@boostkit/storage', link: '/packages/storage/' },
-            { text: '@boostkit/storage-s3', link: '/packages/storage/s3' },
+            { text: 'S3 / R2 / MinIO', link: '/packages/storage/s3' },
           ],
         },
         {

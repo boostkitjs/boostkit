@@ -49,5 +49,5 @@ const text = await Storage.text('avatars/a.txt')
 ## Notes
 
 - Built-in driver: `local`.
-- Plugin driver supported by factory: `s3` (via `@boostkit/storage-s3`).
+- Built-in drivers: `local` (filesystem) and `s3` (AWS S3, R2, MinIO — requires `@aws-sdk/client-s3`).
 - Registers `storage:link` artisan command.

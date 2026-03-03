@@ -1,4 +1,4 @@
-# ⚡ Forge — Architecture Document
+# ⚡ BoostKit — Architecture Document
 > A Laravel-inspired, framework-agnostic Node.js meta-framework built on Vike + Vite.
 
 ---
@@ -36,40 +36,40 @@
 ## Monorepo Structure
 
 ```
-forge/
-├── packages/
+boostkit/
+├── packages/               # 25 published packages (@boostkit/*)
 │   ├── contracts/          # Pure TypeScript types — no runtime code (erased at build)
 │   │                       #   ForgeRequest, ForgeResponse, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/            # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer
 │   │                       #   sideEffects: false — fully tree-shakeable
 │   ├── di/                 # DI container: Container, @Injectable, @Inject, reflect-metadata
 │   ├── middleware/         # Middleware, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware
+│   │                       #   + RateLimit / RateLimitBuilder (cache-backed, merged from rate-limit)
 │   ├── validation/         # FormRequest, validate(), validateWith(), ValidationError, z re-export
 │   ├── core/               # Bootstrapper, Application, Forge, ServiceProvider, artisan registry
 │   │                       #   re-exports contracts · support · di · middleware · validation
 │   ├── router/             # Global router singleton + decorator-based routing
 │   ├── orm/                # ORM contract + base Model + ModelRegistry
 │   ├── orm-prisma/         # Prisma adapter (multi-driver: pg, libsql, default)
-│   ├── orm-drizzle/        # Drizzle adapter (stub)
-│   ├── server-hono/        # Hono adapter (HonoConfig, unified logger, CORS)
-│   ├── server-express/     # Express adapter (stub)
-│   ├── server-fastify/     # Fastify adapter (stub)
-│   ├── server-h3/          # H3 adapter (stub)
+│   ├── orm-drizzle/        # Drizzle adapter (sqlite, postgresql, libsql)
+│   ├── server-hono/        # Hono adapter (HonoConfig, unified logger [boostkit], CORS)
 │   ├── queue/              # Queue contract + Job base class + queue:work artisan command
-│   ├── queue-inngest/      # Inngest adapter
-│   ├── queue-bullmq/       # BullMQ adapter ✅
-│   ├── auth/               # Shared types (AuthUser, AuthSession, AuthResult) + better-auth adapter — betterAuth() factory, /api/auth/* mount
-│   ├── storage/            # Storage facade, LocalAdapter, storage() factory, storage:link
-│   ├── storage-s3/         # S3/R2/MinIO adapter (optional peer: @aws-sdk/client-s3)
+│   ├── queue-inngest/      # Inngest adapter — events: boostkit/job.<ClassName>
+│   ├── queue-bullmq/       # BullMQ adapter — default prefix: 'boostkit'
+│   ├── auth/               # AuthUser/Session/Result types + betterAuth() factory
+│   │                       #   (merged from auth-better-auth — single package)
+│   ├── storage/            # Storage facade, LocalAdapter + S3Adapter (built-in)
+│   │                       #   S3 driver needs optional dep: @aws-sdk/client-s3
 │   ├── cache/              # Cache facade, MemoryAdapter, cache() factory
-│   ├── cache-redis/        # Redis adapter (optional peer: ioredis)
+│   ├── cache-redis/        # Redis adapter via ioredis
 │   ├── events/             # EventDispatcher, Listener interface, dispatch() helper
 │   ├── mail/               # Mailable, Mail facade, LogAdapter, mail() factory
-│   ├── mail-nodemailer/    # Nodemailer SMTP adapter (optional peer: nodemailer)
+│   ├── mail-nodemailer/    # Nodemailer SMTP adapter
 │   ├── schedule/           # Task scheduler — schedule singleton, schedule:run/work/list
-│   ├── rate-limit/         # Cache-backed rate limiter — RateLimit.perMinute/Hour/Day
+│   ├── notification/       # Multi-channel notifications (mail, database)
 │   └── cli/                # Artisan-style CLI (make:*, module:*, user commands)
-├── create-boostkit-app/       # Interactive CLI scaffolder (like create-next-app)
+├── create-boostkit-app/    # Interactive CLI scaffolder (pnpm create boostkit-app)
+├── docs/                   # VitePress documentation site
 └── playground/             # Canonical demo app — primary integration reference
 ```
 
@@ -168,7 +168,7 @@ Level 1 (parallel — no framework deps):
     @boostkit/schedule    @boostkit/auth        @boostkit/validation
            │
     orm-prisma   queue-bullmq   queue-inngest
-    cache-redis  storage-s3     mail-nodemailer
+    cache-redis  mail-nodemailer
 ```
 
 **Clean DAG — no cycles**: `@boostkit/contracts` holds all shared types (`ForgeRequest`, `ForgeResponse`, `ServerAdapter`, `MiddlewareHandler`, `RouteDefinition`, `FetchHandler`). `@boostkit/router` and `@boostkit/server-hono` depend only on contracts, not on core — eliminating the former router↔core cycle entirely. `@boostkit/core` lists `@boostkit/router` as a regular dependency and imports it with a plain `await import('@boostkit/router')`. Turbo resolves the build order via the standard DAG: contracts/support/di first, then router + server-hono, then core, then everything else.
@@ -386,10 +386,10 @@ export default {
 }
 ```
 
-Available adapters: `hono()` ✅, `express()` (stub), `fastify()` (stub), `h3()` (stub).
+Available adapter: `hono()` ✅
 
 The Hono adapter includes:
-- Unified request logger with ANSI colors (`[forge]` tag)
+- Unified request logger with ANSI colors (`[boostkit]` tag)
 - Automatic CORS middleware when `cors` config is set
 - Vike's HTTP log suppression (no duplicate lines)
 
@@ -462,7 +462,7 @@ const file = await storage().get('avatars/user-1.jpg')
 await storage().delete('avatars/user-1.jpg')
 ```
 
-Drivers: `local` (built-in, default) and `s3` (via `@boostkit/storage-s3` optional peer — supports S3, R2, MinIO).
+Drivers: `local` (built-in, default) and `s3` (built-in — supports AWS S3, Cloudflare R2, MinIO). Install `@aws-sdk/client-s3` to use S3 disks.
 
 ```bash
 pnpm artisan storage:link    # creates public/storage symlink → storage/app/public
@@ -574,7 +574,7 @@ pnpm artisan db:seed
 
 ### Optional Peer Packages
 
-Packages like `@boostkit/queue-bullmq`, `@boostkit/cache-redis`, `@boostkit/storage-s3`, `@boostkit/mail-nodemailer` are **optional peers** — the user installs only what they need.
+Packages like `@boostkit/queue-bullmq`, `@boostkit/cache-redis`, `@boostkit/mail-nodemailer` are **optional peers** — the user installs only what they need.
 
 They are loaded at runtime via `resolveOptionalPeer(specifier)` from `@boostkit/core/support`. This helper:
 1. Uses `createRequire` anchored to `process.cwd()/package.json` to resolve the package from the **user's app**, not from inside `node_modules/@boostkit/*`
@@ -592,7 +592,6 @@ All optional peer packages **must** include `"default": "./dist/index.js"` in th
 | **v0.2** | ✅ ORM (Prisma), Validation, Middleware, Queue (Inngest) |
 | **v0.3** | ✅ Fluent bootstrap, artisan console routes, DB seeding, multi-provider |
 | **v0.4** | ✅ Auth (better-auth), Storage (S3), Cache (Redis), Events, Mail, Schedule, Rate Limiting, BullMQ |
-| **v0.5** | ✅ Package consolidation — support/di/server/middleware/validation merged into @boostkit/core subpaths; create-boostkit-app scaffolder |
-| **v0.6** | `@boostkit/notification` — multi-channel notifications (mail, database) |
-| **v0.7** | Drizzle adapter, BullMQ improvements, Vue + Solid adapters |
-| **v1.0** | Docs site, npm publish, public launch |
+| **v0.5** | ✅ Package consolidation — create-boostkit-app scaffolder, notifications, Drizzle adapter |
+| **v0.6** | ✅ Rename Forge → BoostKit, npm publish (25 packages), package merges, docs site, README |
+| **v1.0** | Deploy docs, GitHub Actions CI, stable API |

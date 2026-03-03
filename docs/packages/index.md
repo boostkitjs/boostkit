@@ -56,8 +56,7 @@ All `@boostkit/*` packages are published to npm individually. Install only what 
 
 | Package | Description | Install |
 |---|---|---|
-| [@boostkit/storage](./storage/) | Storage facade, built-in LocalAdapter, `storage()` factory, and `storage:link` artisan command. | `pnpm add @boostkit/storage` |
-| [@boostkit/storage-s3](./storage/s3) | S3/R2/MinIO adapter via `@aws-sdk/client-s3` — optional peer. | `pnpm add @boostkit/storage-s3` |
+| [@boostkit/storage](./storage/) | Storage facade, local + S3/R2/MinIO drivers, `storage()` factory, and `storage:link` artisan command. | `pnpm add @boostkit/storage` |
 
 ## Mail
 
@@ -72,5 +71,5 @@ All `@boostkit/*` packages are published to npm individually. Install only what 
 |---|---|---|
 | [@boostkit/events](./events) | EventDispatcher, Listener interface, `dispatch()` helper, and `events()` factory. | `pnpm add @boostkit/events` |
 | [@boostkit/schedule](./schedule) | Task scheduler — `schedule` singleton, `scheduler()` factory, and `schedule:run/work/list` commands. | `pnpm add @boostkit/schedule` |
-| [@boostkit/middleware](./rate-limit) | Cache-backed rate limiting — `RateLimit.perMinute/Hour/Day` and `X-RateLimit-*` headers. | `pnpm add @boostkit/middleware` |
+| [Rate Limiting](./rate-limit) | Cache-backed rate limiting via `@boostkit/middleware` — `RateLimit.perMinute/Hour/Day` and `X-RateLimit-*` headers. | `pnpm add @boostkit/middleware` |
 | [@boostkit/notification](./notification) | Multi-channel notifications (mail, database) — Notifiable, Notification, ChannelRegistry, `notify()`. | `pnpm add @boostkit/notification` |
