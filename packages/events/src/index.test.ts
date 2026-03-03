@@ -14,8 +14,8 @@ describe('Events contract baseline', () => {
     const d = new EventDispatcher()
     d.register(
       UserRegistered.name,
-      { handle: async (e) => calls.push(`a:${(e as UserRegistered).id}`) },
-      { handle: async (e) => calls.push(`b:${(e as UserRegistered).id}`) },
+      { handle: async (e) => { calls.push(`a:${(e as UserRegistered).id}`) } },
+      { handle: async (e) => { calls.push(`b:${(e as UserRegistered).id}`) } },
     )
 
     await d.dispatch(new UserRegistered('42'))

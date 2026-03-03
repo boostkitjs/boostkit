@@ -12,7 +12,7 @@ describe('ORM contract baseline', () => {
       query: () => ({}) as QueryBuilder<unknown>,
       connect: async () => undefined,
       disconnect: async () => undefined,
-    } satisfies OrmAdapter
+    } as OrmAdapter
 
     ModelRegistry.set(adapter)
 
@@ -51,14 +51,14 @@ describe('ORM contract baseline', () => {
       query: () => qb,
       connect: async () => undefined,
       disconnect: async () => undefined,
-    } satisfies OrmAdapter
+    } as OrmAdapter
 
     ModelRegistry.set(adapter)
     class Account extends Model {}
 
     const builder = Account.query()
     for (const method of ['where', 'orWhere', 'orderBy', 'limit', 'offset', 'with', 'first', 'find', 'get', 'all', 'count', 'create', 'update', 'delete', 'paginate']) {
-      assert.strictEqual(typeof (builder as Record<string, unknown>)[method], 'function')
+      assert.strictEqual(typeof (builder as unknown as Record<string, unknown>)[method], 'function')
     }
   })
 })
