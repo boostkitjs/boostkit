@@ -85,7 +85,7 @@ describe('Notification contract baseline', () => {
       delete: async () => undefined,
       paginate: async () => ({ data: [], total: 0, perPage: 15, currentPage: 1, lastPage: 0, from: 0, to: 0 }),
     }
-    ModelRegistry.set({ query: () => qb, connect: async () => undefined, disconnect: async () => undefined })
+    ModelRegistry.set({ query: () => qb, connect: async () => undefined, disconnect: async () => undefined } as OrmAdapter)
 
     class DbNotification extends Notification {
       via(): string[] { return ['database'] }

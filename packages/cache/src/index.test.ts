@@ -13,7 +13,7 @@ describe('Cache contract baseline', () => {
     const Provider = cache({ default: 'memory', stores: { memory: { driver: 'memory' } } })
     const app = { instance: () => undefined }
     const provider = new Provider(app as never)
-    await provider.boot()
+    await provider.boot?.()
     await Cache.flush()
   })
 
