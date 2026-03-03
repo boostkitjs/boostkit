@@ -15,11 +15,12 @@ pnpm add @forge/auth-better-auth better-auth
 ```ts
 // config/auth.ts
 import { PrismaClient } from '@prisma/client'
+import { Env } from '@forge/support'
 import type { BetterAuthConfig } from '@forge/auth-better-auth'
 
 export default {
-  secret: Env.get('AUTH_SECRET'),
-  baseUrl: Env.get('APP_URL', 'http://localhost:3000'),
+  secret:   Env.get('AUTH_SECRET'),
+  baseUrl:  Env.get('APP_URL', 'http://localhost:3000'),
   database: async () => new PrismaClient(),
   emailAndPassword: {
     enabled: true,
@@ -36,8 +37,9 @@ import { betterAuth } from '@forge/auth-better-auth'
 import configs from '../config/index.js'
 
 export default [
-  DatabaseServiceProvider,
-  betterAuth(configs.auth),
+  betterAuth(configs.auth),   // registers /api/auth/* before any route file loads
+  // ...other providers
+  DatabaseServiceProvider,    // must appear before AppServiceProvider
   AppServiceProvider,
 ]
 ```
@@ -89,53 +91,53 @@ Add the following models and fields to your `prisma/schema.prisma` after install
 ```prisma
 model User {
   id            String    @id @default(cuid())
-  name          String?
+  name          String
   email         String    @unique
-  emailVerified Boolean   @default(false)   // required by better-auth
-  image         String?                     // required by better-auth
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
   sessions      Session[]
   accounts      Account[]
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
+  id        String   @id
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id                    String    @id @default(cuid())
-  userId                String
+  id                    String    @id
   accountId             String
   providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
+  idToken               String?
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
-  idToken               String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime
+  updatedAt             DateTime
 }
 
 model Verification {
-  id         String   @id @default(cuid())
+  id         String    @id
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime?
+  updatedAt  DateTime?
 }
 ```
 

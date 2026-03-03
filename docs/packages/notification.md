@@ -19,11 +19,11 @@ import { notifications } from '@forge/notification'
 import configs from '../config/index.js'
 
 export default [
-  DatabaseServiceProvider,
-  betterAuth(configs.auth),
-  AppServiceProvider,
+  // ...other providers
   mail(configs.mail),
-  notifications(),
+  notifications(),           // must come after mail()
+  DatabaseServiceProvider,   // must appear before AppServiceProvider
+  AppServiceProvider,
 ]
 ```
 
@@ -135,14 +135,16 @@ Add the `Notification` model to your Prisma schema to enable the `'database'` ch
 // prisma/schema.prisma
 
 model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  type        String
-  data        String   // JSON blob
-  readAt      DateTime?
-  createdAt   DateTime @default(now())
+  id              String  @id @default(cuid())
+  notifiable_id   String
+  notifiable_type String
+  type            String
+  data            String   // JSON blob
+  read_at         String?
+  created_at      String
+  updated_at      String
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([notifiable_type, notifiable_id])
 }
 ```
 
