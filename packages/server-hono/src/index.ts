@@ -6,8 +6,8 @@ import type {
   FetchHandler,
   RouteDefinition,
   MiddlewareHandler,
-  BoostKitRequest,
-  BoostKitResponse,
+  AppRequest,
+  AppResponse,
 } from '@boostkit/contracts'
 
 // ─── Hono Adapter Config ───────────────────────────────────
@@ -27,7 +27,7 @@ export interface HonoConfig {
 
 // ─── Request Normalizer ────────────────────────────────────
 
-function normalizeRequest(c: any): BoostKitRequest {
+function normalizeRequest(c: any): AppRequest {
   const url = new URL(c.req.url)
   return {
     method:  c.req.method,
@@ -45,7 +45,7 @@ function normalizeRequest(c: any): BoostKitRequest {
 
 // ─── Response Normalizer ───────────────────────────────────
 
-function normalizeResponse(c: any): BoostKitResponse {
+function normalizeResponse(c: any): AppResponse {
   let statusCode = 200
   const headers: Record<string, string> = {}
 

@@ -1,6 +1,6 @@
 // ─── Request & Response ────────────────────────────────────
 
-export interface BoostKitRequest {
+export interface AppRequest {
   method:  string
   url:     string
   path:    string
@@ -11,9 +11,9 @@ export interface BoostKitRequest {
   raw:     unknown  // the original server-specific request object
 }
 
-export interface BoostKitResponse {
-  status:  (code: number) => BoostKitResponse
-  header:  (key: string, value: string) => BoostKitResponse
+export interface AppResponse {
+  status:  (code: number) => AppResponse
+  header:  (key: string, value: string) => AppResponse
   json:    (data: unknown) => void
   send:    (data: string) => void
   redirect:(url: string, code?: number) => void
@@ -23,13 +23,13 @@ export interface BoostKitResponse {
 // ─── Handler & Middleware ──────────────────────────────────
 
 export type RouteHandler = (
-  req: BoostKitRequest,
-  res: BoostKitResponse
+  req: AppRequest,
+  res: AppResponse
 ) => unknown | Promise<unknown>
 
 export type MiddlewareHandler = (
-  req: BoostKitRequest,
-  res: BoostKitResponse,
+  req: AppRequest,
+  res: AppResponse,
   next: () => Promise<void>
 ) => void | Promise<void>
 

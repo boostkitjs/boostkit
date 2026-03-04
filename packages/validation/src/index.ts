@@ -1,5 +1,5 @@
 import { z, ZodType, ZodError } from 'zod'
-import type { BoostKitRequest, BoostKitResponse } from '@boostkit/contracts'
+import type { AppRequest, AppResponse } from '@boostkit/contracts'
 
 // ─── Validation Error ──────────────────────────────────────
 
@@ -20,7 +20,7 @@ export class ValidationError extends Error {
 // ─── Form Request ──────────────────────────────────────────
 
 export abstract class FormRequest<T extends ZodType = ZodType> {
-  protected req!: BoostKitRequest
+  protected req!: AppRequest
 
   /** Define the Zod schema for this request */
   abstract rules(): T
@@ -31,7 +31,7 @@ export abstract class FormRequest<T extends ZodType = ZodType> {
   }
 
   /** Validate and return typed data */
-  async validate(req: BoostKitRequest): Promise<z.infer<T>> {
+  async validate(req: AppRequest): Promise<z.infer<T>> {
     this.req = req
 
     if (!this.authorize()) {
@@ -64,7 +64,7 @@ export abstract class FormRequest<T extends ZodType = ZodType> {
 
 export async function validate<T extends ZodType>(
   schema: T,
-  req: BoostKitRequest
+  req: AppRequest
 ): Promise<z.infer<T>> {
   const input = {
     ...(typeof req.body === 'object' && req.body !== null ? req.body as Record<string, unknown> : {}),
@@ -93,8 +93,8 @@ export function validateWith<T extends ZodType>(
   schema: T
 ) {
   return async (
-    req: BoostKitRequest,
-    _res: BoostKitResponse,
+    req: AppRequest,
+    _res: AppResponse,
     next: () => Promise<void>
   ) => {
     await validate(schema, req)
