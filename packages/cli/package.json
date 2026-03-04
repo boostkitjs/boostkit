@@ -32,6 +32,7 @@
     "@clack/prompts": "^1.0.0"
   },
   "devDependencies": {
+    "@boostkit/router": "workspace:*",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "typescript": "^5.4.0",

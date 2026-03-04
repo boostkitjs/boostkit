@@ -108,6 +108,41 @@ async function main(): Promise<void> {
   // Boot the app (providers + route files) so commands can use DB, etc.
   await bootApp()
 
+  // ── Built-in framework commands ───────────────────────────
+
+  program
+    .command('route:list')
+    .description('List all registered routes')
+    .action(async () => {
+      const { router } = await import('@boostkit/router') as { router: { list(): Array<{ method: string; path: string; middleware: unknown[] }> } }
+      const routes = router.list()
+
+      if (routes.length === 0) {
+        console.log('No routes registered.')
+        return
+      }
+
+      const methodColor = (m: string): string => {
+        const colors: Record<string, string> = {
+          GET: '\x1b[32m', POST: '\x1b[33m', PUT: '\x1b[34m',
+          PATCH: '\x1b[35m', DELETE: '\x1b[31m', ALL: '\x1b[36m',
+        }
+        return `${colors[m] ?? '\x1b[37m'}${m.padEnd(7)}\x1b[0m`
+      }
+
+      const methodWidth = 7
+      const pathWidth   = Math.min(Math.max(...routes.map(r => r.path.length), 4), 60)
+
+      console.log(`\n  ${'METHOD'.padEnd(methodWidth + 2)}  ${'PATH'.padEnd(pathWidth)}  MIDDLEWARE`)
+      console.log(`  ${'─'.repeat(methodWidth + 2)}  ${'─'.repeat(pathWidth)}  ${'─'.repeat(10)}`)
+
+      for (const route of routes) {
+        const mw = route.middleware.length > 0 ? `${route.middleware.length} handler(s)` : '—'
+        console.log(`  ${methodColor(route.method)}  ${route.path.padEnd(pathWidth)}  ${mw}`)
+      }
+      console.log()
+    })
+
   // Inline commands (artisan.command())
   for (const cmd of artisan.getCommands()) {
     program
