@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { BoostKitRequest, BoostKitResponse } from '@boostkit/contracts'
+import type { AppRequest, AppResponse } from '@boostkit/contracts'
 import { z, validate, validateWith, FormRequest, ValidationError } from './index.js'
 
-function makeReq(overrides: Partial<BoostKitRequest> = {}): BoostKitRequest {
+function makeReq(overrides: Partial<AppRequest> = {}): AppRequest {
   return {
     method: 'POST',
     url: '/users',
@@ -18,13 +18,13 @@ function makeReq(overrides: Partial<BoostKitRequest> = {}): BoostKitRequest {
 }
 
 const res = {
-  status() { return res as unknown as BoostKitResponse },
-  header() { return res as unknown as BoostKitResponse },
+  status() { return res as unknown as AppResponse },
+  header() { return res as unknown as AppResponse },
   json() {},
   send() {},
   redirect() {},
   raw: null,
-} as BoostKitResponse
+} as AppResponse
 
 describe('Validation contract baseline', () => {
   it('validate() returns parsed data for valid input', async () => {

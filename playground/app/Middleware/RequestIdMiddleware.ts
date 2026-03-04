@@ -1,5 +1,5 @@
 import { Middleware } from '@boostkit/middleware'
-import type { BoostKitRequest, BoostKitResponse } from '@boostkit/contracts'
+import type { AppRequest, AppResponse } from '@boostkit/contracts'
 
 /**
  * Example global middleware.
@@ -10,7 +10,7 @@ import type { BoostKitRequest, BoostKitResponse } from '@boostkit/contracts'
  * Registered globally in bootstrap/app.ts via withMiddleware().
  */
 export class RequestIdMiddleware extends Middleware {
-  async handle(req: BoostKitRequest, res: BoostKitResponse, next: () => Promise<void>): Promise<void> {
+  async handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
     // console.log('RequestIdMiddleware: handling request')
     const id = req.headers['x-request-id'] ?? crypto.randomUUID()
     ;(req as unknown as Record<string, unknown>)['requestId'] = id

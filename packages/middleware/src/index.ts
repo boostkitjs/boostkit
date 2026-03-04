@@ -1,11 +1,11 @@
-import type { MiddlewareHandler, BoostKitRequest, BoostKitResponse } from '@boostkit/contracts'
+import type { MiddlewareHandler, AppRequest, AppResponse } from '@boostkit/contracts'
 
 // ─── Base Middleware Class ─────────────────────────────────
 
 export abstract class Middleware {
   abstract handle(
-    req: BoostKitRequest,
-    res: BoostKitResponse,
+    req: AppRequest,
+    res: AppResponse,
     next: () => Promise<void>
   ): void | Promise<void>
 
@@ -30,8 +30,8 @@ export class Pipeline {
   }
 
   async run(
-    req: BoostKitRequest,
-    res: BoostKitResponse,
+    req: AppRequest,
+    res: AppResponse,
     destination: () => Promise<void>
   ): Promise<void> {
     let idx = 0
@@ -64,7 +64,7 @@ export class CorsMiddleware extends Middleware {
     super()
   }
 
-  handle(req: BoostKitRequest, res: BoostKitResponse, next: () => Promise<void>): Promise<void> {
+  handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
     const origin  = Array.isArray(this.options.origin)
       ? this.options.origin.join(', ')
       : (this.options.origin ?? '*')
@@ -81,7 +81,7 @@ export class CorsMiddleware extends Middleware {
 
 /** Request logger middleware */
 export class LoggerMiddleware extends Middleware {
-  async handle(req: BoostKitRequest, res: BoostKitResponse, next: () => Promise<void>): Promise<void> {
+  async handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
     const start = Date.now()
     await next()
     const ms = Date.now() - start
@@ -109,7 +109,7 @@ export class ThrottleMiddleware extends Middleware {
   }
 
   /** Best-effort client identifier from request headers */
-  private clientKey(req: BoostKitRequest): string {
+  private clientKey(req: AppRequest): string {
     return (
       req.headers['x-forwarded-for']?.split(',')[0]?.trim() ??
       req.headers['x-real-ip'] ??
@@ -117,7 +117,7 @@ export class ThrottleMiddleware extends Middleware {
     )
   }
 
-  handle(req: BoostKitRequest, res: BoostKitResponse, next: () => Promise<void>): Promise<void> {
+  handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
     // Never throttle static assets — would break Vite HMR and page loads in dev
     if (this.isAsset(req.path)) return next()
 
@@ -150,14 +150,14 @@ export function fromClass(MiddlewareClass: new () => Middleware): MiddlewareHand
 
 import { CacheRegistry } from '@boostkit/cache'
 
-type KeyExtractor = 'ip' | 'route' | ((req: BoostKitRequest) => string)
+type KeyExtractor = 'ip' | 'route' | ((req: AppRequest) => string)
 
 interface RateLimitOptions {
   max:      number
   windowMs: number
   keyBy:    KeyExtractor
   message:  string
-  skipIf?:  (req: BoostKitRequest) => boolean
+  skipIf?:  (req: AppRequest) => boolean
 }
 
 interface RateRecord {
@@ -165,7 +165,7 @@ interface RateRecord {
   expiresAt: number   // epoch ms — end of the current window
 }
 
-function clientIp(req: BoostKitRequest): string {
+function clientIp(req: AppRequest): string {
   return (
     (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
     (req.headers['x-real-ip'] as string | undefined) ??
@@ -173,7 +173,7 @@ function clientIp(req: BoostKitRequest): string {
   )
 }
 
-function buildKey(keyBy: KeyExtractor, req: BoostKitRequest): string {
+function buildKey(keyBy: KeyExtractor, req: AppRequest): string {
   if (keyBy === 'ip')    return clientIp(req)
   if (keyBy === 'route') return `${req.method}:${req.path}`
   return keyBy(req)
@@ -186,7 +186,7 @@ function isRateLimitAsset(path: string): boolean {
 }
 
 function makeRateLimitHandler(opts: RateLimitOptions): MiddlewareHandler {
-  return async (req: BoostKitRequest, res: BoostKitResponse, next: () => Promise<void>) => {
+  return async (req: AppRequest, res: AppResponse, next: () => Promise<void>) => {
     if (isRateLimitAsset(req.path)) return next()
     if (opts.skipIf?.(req))         return next()
 
@@ -241,13 +241,13 @@ export class RateLimitBuilder {
   byRoute(): this { this.opts = { ...this.opts, keyBy: 'route' }; return this }
 
   /** Identify clients by a custom key function */
-  by(fn: (req: BoostKitRequest) => string): this { this.opts = { ...this.opts, keyBy: fn }; return this }
+  by(fn: (req: AppRequest) => string): this { this.opts = { ...this.opts, keyBy: fn }; return this }
 
   /** Override the 429 response message */
   message(msg: string): this { this.opts = { ...this.opts, message: msg }; return this }
 
   /** Skip rate limiting entirely when this predicate returns true */
-  skipIf(fn: (req: BoostKitRequest) => boolean): this { this.opts = { ...this.opts, skipIf: fn }; return this }
+  skipIf(fn: (req: AppRequest) => boolean): this { this.opts = { ...this.opts, skipIf: fn }; return this }
 
   /** Returns a MiddlewareHandler ready for use in router or withMiddleware() */
   toHandler(): MiddlewareHandler { return makeRateLimitHandler(this.opts) }
