@@ -36,13 +36,13 @@ router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 // ── dd / dump demo ─────────────────────────────────────────
 // GET /api/debug/dump  — prints to terminal, keeps server running
 router.get('/api/debug/dump', (req, res) => {
-  dump({ method: req.method, path: req.path, query: req.query, headers: req.headers })
+  dump({ note: 'Check your terminal for dump output.' })
   return res.json({ note: 'Check your terminal for dump output.' })
 })
 
 // GET /api/debug/dd  — prints to terminal then kills the server (restart required)
 router.get('/api/debug/dd', (req) => {
-  dd({ method: req.method, path: req.path, query: req.query, headers: req.headers })
+  dd({ note: 'This will terminate the server. Restart required.' })
 })
 
 // GET /api/me — returns current session (null if not logged in)
