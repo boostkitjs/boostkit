@@ -5,7 +5,6 @@ import { Cache } from '@boostkit/cache'
 import { Storage } from '@boostkit/storage'
 import { RateLimit } from '@boostkit/middleware'
 import { notify } from '@boostkit/notification'
-import { validate } from '@boostkit/validation'
 import { UserService } from '../app/Services/UserService.js'
 import { AuthMiddleware } from '../app/Middleware/AuthMiddleware.js'
 import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.js'
@@ -120,14 +119,14 @@ router.delete('/api/files/:filename', async (req, res) => {
 router.post('/api/notify/welcome', async (req, res) => {
   const { id, email, name } = req.body as { id?: string; email?: string; name?: string }
   if (!id || !email) return res.status(422).json({ message: 'id and email are required.' })
-  await notify({ id, email, name }, new WelcomeNotification())
+  await notify({ id, email, ...(name !== undefined && { name }) }, new WelcomeNotification())
   return res.json({ sent: true })
 })
 
 // ── Validation demo ───────────────────────────────────────
 // POST /api/validate/user  — validates body with FormRequest (returns errors on failure)
 router.post('/api/validate/user', async (req, res) => {
-  const data = await validate(req, CreateUserRequest)
+  const data = await new CreateUserRequest().validate(req)
   return res.json({ valid: true, data })
 })
 
