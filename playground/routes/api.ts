@@ -131,6 +131,25 @@ router.post('/api/validate/user', async (req, res) => {
   return res.json({ valid: true, data })
 })
 
+// ── Contact form demo ─────────────────────────────────────
+// POST /api/contact — CSRF-protected globally, validates with zod
+import { z } from 'zod'
+
+const contactSchema = z.object({
+  name:    z.string().min(2,  'Name must be at least 2 characters.'),
+  email:   z.string().email('Please enter a valid email address.'),
+  message: z.string().min(10, 'Message must be at least 10 characters.'),
+})
+
+router.post('/api/contact', async (req, res) => {
+  const result = contactSchema.safeParse(req.body)
+  if (!result.success) {
+    const errors = Object.fromEntries(result.error.issues.map(i => [i.path[0], i.message]))
+    return res.status(422).json({ errors })
+  }
+  return res.json({ ok: true, message: `Thanks ${result.data.name}, your message has been received!` })
+})
+
 // Auth routes — delegate all /api/auth/* requests to better-auth, with a stricter rate limit
 router.all('/api/auth/*', (req) => {
   const auth = app().make<BetterAuthInstance>('auth')

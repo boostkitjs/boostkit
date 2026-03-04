@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import type { MiddlewareHandler, AppRequest, AppResponse } from '@boostkit/contracts'
 
 // ─── Base Middleware Class ─────────────────────────────────
@@ -138,6 +139,123 @@ export class ThrottleMiddleware extends Middleware {
     rec.count++
     return next()
   }
+}
+
+// ─── CSRF Middleware ───────────────────────────────────────
+
+function parseCookies(header: string): Record<string, string> {
+  return Object.fromEntries(
+    header.split(';')
+      .map(c => c.trim().split('='))
+      .filter(([k]) => k?.trim())
+      .map(([k, ...v]) => [k!.trim(), v.join('=')])
+  )
+}
+
+function generateCsrfToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'))
+  } catch {
+    return false
+  }
+}
+
+export interface CsrfOptions {
+  /** Paths to skip CSRF validation (supports trailing * wildcard) */
+  exclude?: string[]
+  cookieName?: string
+  headerName?: string
+  fieldName?: string
+}
+
+/**
+ * CSRF protection using the double-submit cookie pattern.
+ *
+ * - Sets a `csrf_token` cookie on every GET request (readable by JS, not HttpOnly)
+ * - Validates that POST/PUT/PATCH/DELETE requests include a matching token via
+ *   the `X-CSRF-Token` header or `_token` body field
+ * - Returns 419 when the token is missing or mismatched
+ *
+ * Client-side: use `getCsrfToken()` to read the token from the cookie.
+ */
+export class CsrfMiddleware extends Middleware {
+  private readonly cookieName: string
+  private readonly headerName: string
+  private readonly fieldName:  string
+
+  constructor(private readonly options: CsrfOptions = {}) {
+    super()
+    this.cookieName = options.cookieName ?? 'csrf_token'
+    this.headerName = options.headerName ?? 'x-csrf-token'
+    this.fieldName  = options.fieldName  ?? '_token'
+  }
+
+  private isExcluded(path: string): boolean {
+    return (this.options.exclude ?? []).some(p =>
+      p.endsWith('*') ? path.startsWith(p.slice(0, -1)) : path === p
+    )
+  }
+
+  async handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
+    // Skip static assets and Vite internals
+    if (req.path.startsWith('/@') || (req.path.split('/').pop() ?? '').includes('.')) {
+      return next()
+    }
+
+    const cookies  = parseCookies(req.headers['cookie'] ?? '')
+    const existing = cookies[this.cookieName]
+
+    // Ensure cookie is always present
+    if (!existing) {
+      const token = generateCsrfToken()
+      res.header('Set-Cookie', `${this.cookieName}=${token}; Path=/; SameSite=Strict`)
+    }
+
+    // Safe methods — no validation needed
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+    // Excluded paths
+    if (this.isExcluded(req.path)) return next()
+
+    // Validate
+    const body         = req.body as Record<string, unknown> | null
+    const requestToken = (req.headers[this.headerName] as string | undefined)
+                      ?? (body?.[this.fieldName] as string | undefined)
+
+    if (!existing || !requestToken || !timingSafeEqual(existing, requestToken)) {
+      res.status(419).json({ message: 'CSRF token mismatch.', error: 'CSRF_MISMATCH' })
+      return
+    }
+
+    return next()
+  }
+}
+
+/**
+ * Read the CSRF token from the browser cookie.
+ * Use this on the client side to get the token for request headers.
+ *
+ * @example
+ * fetch('/api/contact', {
+ *   method: 'POST',
+ *   headers: { 'X-CSRF-Token': getCsrfToken(), 'Content-Type': 'application/json' },
+ *   body: JSON.stringify(data),
+ * })
+ */
+/**
+ * Read the CSRF token from the browser cookie (client-side only).
+ * Safe to call in SSR — returns '' on the server.
+ */
+export function getCsrfToken(cookieName = 'csrf_token'): string {
+  if (typeof (globalThis as Record<string, unknown>)['document'] === 'undefined') return ''
+  const doc = (globalThis as Record<string, unknown>)['document'] as { cookie: string }
+  const match = doc.cookie.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`))
+  return match ? decodeURIComponent(match[1]!) : ''
 }
 
 // ─── Helper to convert class-based middleware to handler ───
