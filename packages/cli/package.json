@@ -1,6 +1,6 @@
 {
   "name": "@boostkit/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,7 +8,9 @@
     "directory": "packages/cli"
   },
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "bin": {
     "artisan": "./dist/index.js"
   },

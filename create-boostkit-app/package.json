@@ -1,6 +1,6 @@
 {
   "name": "create-boostkit-app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,14 +8,18 @@
     "directory": "create-boostkit-app"
   },
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "description": "Create a new BoostKit application",
   "bin": {
     "create-boostkit-app": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "exports": {
-    ".": { "import": "./dist/index.js" }
+    ".": {
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc",
