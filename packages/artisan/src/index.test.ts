@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { artisan, Command, CommandBuilder, ArtisanRegistry, parseSignature, CancelledError } from './index.js'
+import { Artisan, Command, CommandBuilder, ArtisanRegistry, parseSignature, CancelledError } from './index.js'
 
 // ─── ArtisanRegistry ──────────────────────────────────────
 
@@ -86,41 +86,41 @@ describe('ArtisanRegistry', () => {
 // ─── Global artisan singleton ──────────────────────────────
 
 describe('global artisan singleton', () => {
-  beforeEach(() => artisan.reset())
+  beforeEach(() => Artisan.reset())
 
-  it('artisan is the same instance across multiple imports', async () => {
-    const { artisan: artisan2 } = await import('./index.js')
-    assert.strictEqual(artisan, artisan2)
+  it('Artisan is the same instance across multiple imports', async () => {
+    const { Artisan: Artisan2 } = await import('./index.js')
+    assert.strictEqual(Artisan, Artisan2)
   })
 
-  it('artisan.command() registers a command', () => {
+  it('Artisan.command() registers a command', () => {
     const name = `test:${Date.now()}`
-    artisan.command(name, () => undefined)
-    const found = artisan.getCommands().find(c => c.name === name)
+    Artisan.command(name, () => undefined)
+    const found = Artisan.getCommands().find(c => c.name === name)
     assert.ok(found)
   })
 
-  it('artisan.register() registers class-based commands', () => {
+  it('Artisan.register() registers class-based commands', () => {
     class HelloCommand extends Command {
       readonly signature = 'hello'
       readonly description = 'hello cmd'
       handle(): void {}
     }
-    artisan.register(HelloCommand)
-    assert.deepStrictEqual(artisan.getClasses(), [HelloCommand])
+    Artisan.register(HelloCommand)
+    assert.deepStrictEqual(Artisan.getClasses(), [HelloCommand])
   })
 
-  it('artisan.reset() clears registered commands and classes', () => {
+  it('Artisan.reset() clears registered commands and classes', () => {
     class A extends Command {
       readonly signature = 'a'
       readonly description = 'a'
       handle(): void {}
     }
-    artisan.command('x', () => undefined)
-    artisan.register(A)
-    artisan.reset()
-    assert.strictEqual(artisan.getCommands().length, 0)
-    assert.strictEqual(artisan.getClasses().length, 0)
+    Artisan.command('x', () => undefined)
+    Artisan.register(A)
+    Artisan.reset()
+    assert.strictEqual(Artisan.getCommands().length, 0)
+    assert.strictEqual(Artisan.getClasses().length, 0)
   })
 })
 

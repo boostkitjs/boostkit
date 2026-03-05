@@ -11,10 +11,10 @@ pnpm add @boostkit/artisan
 ## Quick Start
 
 ```ts
-import { artisan, Command } from '@boostkit/artisan'
+import { Artisan, Command } from '@boostkit/artisan'
 
 // Functional command
-artisan.command('greet {name}', (args) => {
+Artisan.command('greet {name}', (args) => {
   console.log(`Hello, ${args[0]}!`)
 }).description('Print a greeting')
 
@@ -28,7 +28,7 @@ class PingCommand extends Command {
   }
 }
 
-artisan.register(PingCommand)
+Artisan.register(PingCommand)
 ```
 
 ---
@@ -65,30 +65,30 @@ Global singleton registry (both names refer to the same instance):
 import { artisan, Artisan } from '@boostkit/artisan'
 ```
 
-#### `artisan.command(name, handler)`
+#### `Artisan.command(name, handler)`
 
 Registers a functional command. Returns a `CommandBuilder` for chaining.
 
 ```ts
-artisan.command('db:seed {table?}', async (args, opts) => {
+Artisan.command('db:seed {table?}', async (args, opts) => {
   // args: string[]  (positional values in order)
   // opts: Record<string, unknown>
 }).description('Seed the database')
 ```
 
-#### `artisan.register(...CommandClasses)`
+#### `Artisan.register(...CommandClasses)`
 
 Registers one or more class-based `Command` subclasses.
 
 ```ts
-artisan.register(MigrateCommand, SeedCommand)
+Artisan.register(MigrateCommand, SeedCommand)
 ```
 
-#### `artisan.reset()`
+#### `Artisan.reset()`
 
 Clears all registered commands and classes. Useful in tests.
 
-#### `artisan.getCommands()` / `artisan.getClasses()`
+#### `Artisan.getCommands()` / `Artisan.getClasses()`
 
 Returns the internal arrays (used by `@boostkit/cli` to discover commands).
 
@@ -96,10 +96,10 @@ Returns the internal arrays (used by `@boostkit/cli` to discover commands).
 
 ### `CommandBuilder`
 
-Returned by `artisan.command()`. Supports fluent chaining:
+Returned by `Artisan.command()`. Supports fluent chaining:
 
 ```ts
-artisan.command('migrate', handler)
+Artisan.command('migrate', handler)
   .description('Run database migrations')  // or .purpose(...)
 ```
 

@@ -16,19 +16,17 @@ Use the `artisan` singleton to define inline commands in `routes/console.ts`:
 // routes/console.ts
 import { artisan } from '@boostkit/artisan'
 
-artisan.command('greet {name}', async (cmd) => {
-  const name = cmd.argument('name')
-  cmd.info(`Hello, ${name}!`)
+artisan.command('greet {name}', async (args, opts) => {
+  console.log(`Hello, ${args[0]}!`)
 }).description('Greet a user by name')
 
-artisan.command('db:seed', async (cmd) => {
-  cmd.line('Seeding database...')
+artisan.command('db:seed', async () => {
   await User.create({ name: 'Alice', email: 'alice@example.com' })
-  cmd.info('Done.')
+  console.log('Done.')
 }).description('Seed the database with initial data')
 ```
 
-Run from the playground directory:
+Run from your project directory:
 
 ```bash
 pnpm artisan greet Alice
@@ -37,27 +35,27 @@ pnpm artisan db:seed
 
 ## Class-Based Commands
 
-For complex commands, extend the `Command` base class:
+For complex commands with typed input, output helpers, and interactive prompts, extend `Command`:
 
 ```ts
 // app/Commands/SendDigestCommand.ts
 import { Command } from '@boostkit/artisan'
 
 export class SendDigestCommand extends Command {
-  signature    = 'mail:digest {--dry-run} {--type=weekly}'
-  description  = 'Send the email digest to all subscribers'
+  readonly signature   = 'mail:digest {--dry-run} {--type=weekly}'
+  readonly description = 'Send the email digest to all subscribers'
 
   async handle(): Promise<void> {
-    const isDry  = this.option('dry-run') as boolean
-    const type   = this.option('type') as string
+    const isDry = this.option('dry-run') as boolean
+    const type  = this.option('type') as string
 
     this.info(`Sending ${type} digest${isDry ? ' (dry run)' : ''}...`)
 
     const users = await User.all()
 
     this.table(
-      users.map((u) => [u.name, u.email]),
       ['Name', 'Email'],
+      users.map(u => [u.name, u.email]),
     )
 
     if (!isDry) {
@@ -71,7 +69,7 @@ export class SendDigestCommand extends Command {
 }
 ```
 
-Register a class-based command with `artisan.register()`:
+Register it with `artisan.register()`:
 
 ```ts
 // routes/console.ts
@@ -83,18 +81,19 @@ artisan.register(SendDigestCommand)
 
 ## Signature Syntax
 
-Signatures follow Laravel's argument/option syntax. `parseSignature(signature)` parses a signature string into a structured definition.
+Signatures follow Laravel's argument/option DSL. `parseSignature(signature)` parses them into structured definitions.
 
 | Syntax | Type | Description |
 |---|---|---|
 | `{name}` | Argument | Required positional argument |
 | `{name?}` | Argument | Optional positional argument |
-| `{name*}` | Argument | Variadic argument (array of values) |
+| `{name*}` | Argument | Variadic argument (zero or more values) |
 | `{name=default}` | Argument | Optional argument with a default value |
 | `{--flag}` | Option | Boolean flag (present = `true`) |
 | `{--N\|name}` | Option | Boolean flag with a short alias (`-N`) |
 | `{--name=}` | Option | Option that accepts a value |
 | `{--name=default}` | Option | Option with a value and a default |
+| `{arg : description}` | Any | Inline description (stripped at parse time) |
 
 Examples:
 
@@ -115,51 +114,90 @@ When extending `Command`, the following methods are available inside `handle()`:
 
 ### Reading Input
 
-| Method | Description |
-|---|---|
-| `argument(name)` | Returns the value of a named positional argument |
-| `arguments()` | Returns all argument values as a `Record<string, unknown>` |
-| `option(name)` | Returns the value of a named option |
-| `options()` | Returns all option values as a `Record<string, unknown>` |
+| Method | Returns | Description |
+|---|---|---|
+| `argument(name)` | `string` | Named positional argument (`''` if missing) |
+| `arguments()` | `Record<string, unknown>` | All arguments as a shallow copy |
+| `option(name)` | `string \| boolean \| undefined` | Named option value |
+| `options()` | `Record<string, unknown>` | All options as a shallow copy |
 
 ### Output Helpers
 
-All output helpers write to stdout with ANSI color formatting:
-
 | Method | Color | Description |
 |---|---|---|
-| `info(msg)` | Green | Informational success message |
+| `info(msg)` | Green | Success / informational message |
 | `error(msg)` | Red | Error message |
 | `warn(msg)` | Yellow | Warning message |
-| `line(msg)` | Default | Plain output line |
-| `table(rows, headers?)` | — | Renders a formatted ASCII table |
-
-Example:
+| `line(msg?)` | Default | Plain output line (defaults to empty) |
+| `comment(msg)` | Dim/grey | Secondary / less prominent message |
+| `newLine(count?)` | — | Print one or more blank lines (default 1) |
+| `table(headers, rows)` | — | Render a formatted ASCII table |
 
 ```ts
 this.info('Migration complete.')
 this.warn('No users found — skipping seed.')
 this.error('Database connection failed.')
+this.comment('This may take a while...')
+this.newLine()
 this.table(
-  [['Alice', 'alice@example.com'], ['Bob', 'bob@example.com']],
   ['Name', 'Email'],
+  [['Alice', 'alice@example.com'], ['Bob', 'bob@example.com']],
 )
+```
+
+### Interactive Prompts
+
+All prompt methods are async and throw `CancelledError` if the user presses Ctrl+C.
+
+| Method | Returns | Description |
+|---|---|---|
+| `ask(message, default?)` | `Promise<string>` | Free-text input |
+| `confirm(message, default?)` | `Promise<boolean>` | Yes/no confirmation (default: `false`) |
+| `choice(message, choices, default?)` | `Promise<string>` | Selection list |
+| `secret(message)` | `Promise<string>` | Hidden input (password) |
+
+```ts
+import { CancelledError } from '@boostkit/artisan'
+
+async handle() {
+  try {
+    const name = await this.ask('What is your name?', 'World')
+    const ok   = await this.confirm('Are you sure?')
+    const env  = await this.choice('Select environment', ['local', 'staging', 'production'])
+    const pass = await this.secret('Enter password')
+  } catch (err) {
+    if (err instanceof CancelledError) {
+      this.warn('Command cancelled.')
+      return
+    }
+    throw err
+  }
+}
+```
+
+## `CancelledError`
+
+Thrown when the user cancels an interactive prompt (Ctrl+C). Import it to handle gracefully:
+
+```ts
+import { CancelledError } from '@boostkit/artisan'
 ```
 
 ## `ArtisanRegistry` API
 
-The `artisan` singleton is an instance of `ArtisanRegistry`. It is stored on `globalThis.__boostkit_artisan__` so that a single registry is shared across all package boundaries.
+The `artisan` singleton is an instance of `ArtisanRegistry`, stored on `globalThis.__boostkit_artisan__` so a single registry is shared across all package boundaries.
 
 | Method | Description |
 |---|---|
-| `artisan.command(signature, handler)` | Register an inline command; returns a fluent builder with `.description(text)` |
-| `artisan.register(CommandClass)` | Register a class-based command that extends `Command` |
-| `artisan.run(argv)` | Parse and execute a command from an argv array (used by the CLI entry point) |
-| `artisan.commands()` | Returns an array of all registered command definitions |
+| `artisan.command(name, handler)` | Register an inline command; returns a `CommandBuilder` with `.description(text)` / `.purpose(text)` |
+| `artisan.register(...Classes)` | Register one or more class-based commands extending `Command` |
+| `artisan.getCommands()` | Returns all registered `CommandBuilder` instances |
+| `artisan.getClasses()` | Returns all registered class constructors |
+| `artisan.reset()` | Clears all registrations (useful in tests) |
 
 ## `parseSignature(signature)`
 
-Low-level utility that parses a signature string into structured argument and option definitions:
+Low-level utility that parses a signature string into structured argument and option definitions. Throws if the signature does not start with a valid command name.
 
 ```ts
 import { parseSignature } from '@boostkit/artisan'
@@ -167,15 +205,40 @@ import { parseSignature } from '@boostkit/artisan'
 const parsed = parseSignature('make:model {name} {--table=users}')
 // {
 //   name: 'make:model',
-//   arguments: [{ name: 'name', required: true, variadic: false }],
-//   options:   [{ name: 'table', alias: null, acceptsValue: true, default: 'users' }],
+//   args: [{ name: 'name', required: true, variadic: false }],
+//   opts: [{ name: 'table', hasValue: true, defaultValue: 'users' }],
 // }
+```
+
+**Return type:**
+
+```ts
+interface ParsedSignature {
+  name: string
+  args: CommandArgDef[]
+  opts: CommandOptDef[]
+}
+
+interface CommandArgDef {
+  name: string
+  required: boolean
+  variadic: boolean
+  defaultValue?: string
+}
+
+interface CommandOptDef {
+  name: string
+  shorthand?: string
+  hasValue: boolean
+  defaultValue?: string
+}
 ```
 
 ## Notes
 
-- The `artisan` singleton is stored on `globalThis.__boostkit_artisan__` — it is shared across all imports regardless of how many times `@boostkit/artisan` is required, preventing duplicate registries across package boundaries.
-- `parseSignature` supports the full set of Laravel-style argument and option syntaxes described in the table above. Short aliases (`{--N|name}`) are single-character only.
-- Command output helpers (`info`, `error`, `warn`, `line`) use ANSI escape codes for color. Colors are applied unconditionally — redirect output to a file if you need plain text.
-- The BoostKit CLI (`@boostkit/cli`) loads `bootstrap/app.ts` and calls `forge.boot()` before `program.parse()`, so providers (including the database) are fully initialized when any artisan command runs.
-- Commands must be registered before `artisan.run()` is called. Commands in `routes/console.ts` are loaded by the CLI via the `withRouting({ commands })` loader in `bootstrap/app.ts`.
+- The `artisan` singleton is stored on `globalThis.__boostkit_artisan__` — it is shared across all imports regardless of how many times `@boostkit/artisan` is loaded, preventing duplicate registries.
+- `parseSignature` throws if the signature string does not start with a valid command name (letters, digits, `:`, `.`, `-`).
+- `@clack/prompts` is loaded lazily — it is only imported on the first interactive prompt call.
+- Prompt cancellation throws `CancelledError` instead of calling `process.exit()` — catch it to handle gracefully.
+- `table(headers, rows)` pads short rows with empty strings to match the header column count.
+- The BoostKit CLI (`@boostkit/cli`) loads `bootstrap/app.ts` and boots all providers before dispatching commands, so the database and other services are available inside `handle()`.
