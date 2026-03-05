@@ -247,7 +247,7 @@ export class BoostKit {
   private _suppressVikeNoise(): void {
     const isNoise = (args: unknown[]): boolean => {
       // just for debug
-      return false;
+      // return false;
       const msg = args.map(a => String(a ?? '')).join(' ')
       return msg.includes('[vike]') && (
         msg.includes('HTTP request')           ||
