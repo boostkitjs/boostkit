@@ -18,6 +18,7 @@ import 'reflect-metadata'
 import 'dotenv/config'
 import { Application } from '@boostkit/core'
 import { hono } from '@boostkit/server-hono'
+import { RateLimit } from '@boostkit/middleware'
 import configs from '../config/index.ts'
 import providers from './providers.ts'
 
@@ -32,10 +33,11 @@ export default Application.configure({
     commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    // m.use(new CorsMiddleware().toHandler())
+    // Global middleware — runs on every request (web + API)
+    m.use(RateLimit.perMinute(60))
   })
   .withExceptions((_e) => {
-    // custom error handling
+    // reserved: custom exception handling
   })
   .create()
 ```
@@ -51,7 +53,7 @@ export default {
 } as unknown as Config
 ```
 
-`bootstrap/app.ts` is the entry point — `import 'reflect-metadata'` belongs at the top of that file, not in a separate `src/index.ts`.
+`bootstrap/app.ts` is the entry point — `import 'reflect-metadata'` belongs at the top of that file.
 
 ---
 
@@ -61,9 +63,9 @@ export default {
 
 | Method | Signature | Description |
 |---|---|---|
-| `withRouting` | `(options: { api?, commands? }) => AppBuilder` | Registers lazy route loader functions. Each loader is a dynamic import returning a side-effect module. |
-| `withMiddleware` | `(fn: (m: MiddlewareRegistry) => void) => AppBuilder` | Registers global middleware that runs on every request before route handlers. |
-| `withExceptions` | `(fn: (e: ExceptionHandler) => void) => AppBuilder` | Registers a custom exception handler for unhandled errors. |
+| `withRouting` | `(options: { web?, api?, commands? }) => AppBuilder` | Registers lazy route loader functions. Each loader is a dynamic import returning a side-effect module. |
+| `withMiddleware` | `(fn: (m: MiddlewareConfigurator) => void) => AppBuilder` | Registers global middleware that runs on every request before route handlers. |
+| `withExceptions` | `(fn: (e: ExceptionConfigurator) => void) => AppBuilder` | Reserved for custom exception handling (future). |
 | `create` | `() => BoostKit` | Finalises configuration and returns a `BoostKit` instance. Does not boot providers yet. |
 
 ---
@@ -74,29 +76,30 @@ export default {
 
 | Method | Signature | Description |
 |---|---|---|
-| `handleRequest` | `(req: Request) => Promise<Response>` | Lazily bootstraps all service providers on the first call, then handles the incoming HTTP request. Used as the WinterCG `fetch` export. |
+| `handleRequest` | `(req: Request, env?, ctx?) => Promise<Response>` | Lazily bootstraps all service providers on the first call, then handles the incoming HTTP request. Used as the WinterCG `fetch` export. |
 | `boot` | `() => Promise<void>` | Boots all service providers without starting an HTTP server. Used by the Artisan CLI and background workers. |
+| `fetch` | `(req: Request, env?, ctx?) => Promise<Response>` | WinterCG-compatible property — alias for `handleRequest`. |
 
 ---
 
 ## app() and resolve() Helpers
 
-Once the application has been booted, two global helpers are available anywhere in your codebase.
+Once the application has been created, two global helpers are available anywhere in your codebase.
 
 ```ts
 import { app, resolve } from '@boostkit/core'
 
-// Retrieve the DI container
-const container = app()
+// Get the Application instance
+const application = app()
 
-// Resolve a binding by token
+// Resolve a binding from the container
 const userService = resolve<UserService>('userService')
 
-// Equivalent: make() directly
+// Equivalent via make()
 const userService = app().make<UserService>('userService')
 ```
 
-`app()` returns the global `Container` instance. `resolve<T>(token)` is shorthand for `app().make<T>(token)`.
+`app()` returns the global `Application` instance (not the container directly). `resolve<T>(token)` is shorthand for `app().make<T>(token)`. Both throw if the application has not been created yet.
 
 ---
 
@@ -135,35 +138,22 @@ export default [
 
 ## Re-exports
 
-`@boostkit/core` re-exports the following packages so you do not need to install them separately for common usage.
+`@boostkit/core` re-exports the following so you do not need to install them separately for common usage.
 
 | Export | Source Package |
 |---|---|
-| `artisan`, `Command` | `@boostkit/artisan` |
-| `Container`, `Injectable`, `Inject` | `@boostkit/di` |
-| `Env`, `Collection`, `ConfigRepository`, `resolveOptionalPeer` | `@boostkit/support` |
-| `AppRequest`, `AppResponse`, `HttpMethod`, `ServerAdapter`, `FetchHandler` | `@boostkit/contracts` |
-
----
-
-## Subpath Exports
-
-`@boostkit/core` ships tree-shakable subpaths for environments where bundle size matters.
-
-| Import | Contents |
-|---|---|
-| `@boostkit/core` | Everything — Application, ServiceProvider, BoostKit, artisan, re-exports |
-| `@boostkit/core/support` | Env, Collection, ConfigRepository, resolveOptionalPeer, helpers |
-| `@boostkit/core/di` | Container, Injectable, Inject |
-| `@boostkit/core/server` | ServerAdapter, AppRequest, AppResponse, HttpMethod, FetchHandler |
-| `@boostkit/core/middleware` | Middleware, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware |
-| `@boostkit/core/validation` | FormRequest, ValidationError, validate, z |
+| `artisan`, `Artisan`, `ArtisanRegistry`, `Command`, `CommandBuilder`, `CancelledError`, `parseSignature` | `@boostkit/artisan` |
+| `Container`, `container`, `Injectable`, `Inject` | `@boostkit/di` |
+| `Env`, `env`, `Collection`, `ConfigRepository`, `config`, `resolveOptionalPeer`, `defineEnv`, `dump`, `dd`, `sleep`, `tap`, `pick`, `omit`, `ucfirst` | `@boostkit/support` |
+| `AppRequest`, `AppResponse`, `RouteHandler`, `MiddlewareHandler`, `HttpMethod`, `RouteDefinition`, `ServerAdapter`, `FetchHandler`, `ServerAdapterProvider` | `@boostkit/contracts` |
 
 ---
 
 ## Notes
 
-- `Application.configure().create()` is singleton-based — calling `create()` twice returns the same `BoostKit` instance.
-- `BoostKit.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear before `AppServiceProvider` so `ModelRegistry` is set before any provider that uses ORM models calls `boot()`.
-- `BoostKit.handleRequest()` calls `boot()` automatically on the first HTTP request. Subsequent calls skip the boot phase.
-- Route loaders passed to `withRouting()` are dynamic imports and are side-effect modules — they register routes by calling `router.get/post/...` and do not need to export anything.
+- `Application.configure().create()` creates an `Application` singleton — calling `Application.create()` a second time in production returns the same instance.
+- In `local` / `development` environments, `Application.create()` recreates the instance on each call — useful for hot-reload scenarios.
+- `BoostKit.boot()` runs `register()` then `boot()` on every provider in declaration order. Provider boot order matters — `DatabaseServiceProvider` must appear before any provider that uses ORM models.
+- `BoostKit.handleRequest()` calls boot automatically on the first HTTP request. Subsequent calls skip the boot phase.
+- Route loaders passed to `withRouting()` are dynamic imports returning side-effect modules — they register routes by calling `Route.get/post/...` and do not need to export anything.
+- `Application.resetForTesting()` is available for test teardown — clears the singleton without reaching into private state.

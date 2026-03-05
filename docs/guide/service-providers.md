@@ -61,6 +61,7 @@ import configs                     from '../config/index.js'
 
 export default [
   betterAuth(configs.auth),   // auth mounts /api/auth/* before routes/api.ts loads
+  session(configs.session),   // must be registered before routes load
   queue(configs.queue),
   mail(configs.mail),
   notifications(),            // must come after mail()
@@ -101,6 +102,7 @@ const service = app().make(UserService)
 | `events(listenMap)` | `@boostkit/events` | Event dispatcher, listener registration |
 | `scheduler()` | `@boostkit/schedule` | Schedule instance, `schedule:*` commands |
 | `betterAuth(config)` | `@boostkit/auth` | Auth instance, `/api/auth/*` routes |
+| `session(config)` | `@boostkit/session` | Session driver (cookie/redis), `SessionMiddleware()` factory |
 | `notifications()` | `@boostkit/notification` | Mail + database channels |
 
 ## DatabaseServiceProvider Pattern
