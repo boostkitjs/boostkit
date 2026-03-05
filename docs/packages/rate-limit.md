@@ -34,7 +34,7 @@ export default Application.configure({
     commands: () => import('../routes/console.js'),
   })
   .withMiddleware((m) => {
-    m.use(RateLimit.perMinute(60).byIp().toHandler())
+    m.use(RateLimit.perMinute(60))
   })
   .create()
 ```
@@ -50,7 +50,7 @@ import { RateLimit } from '@boostkit/middleware'
 @Controller('/api/auth')
 export class AuthController {
   @Post('/login')
-  @Middleware([RateLimit.perMinute(10).byIp().toHandler()])
+  @Middleware([RateLimit.perMinute(10)])
   async login(req, res) {
     // ...
   }
@@ -65,10 +65,10 @@ import { RateLimit } from '@boostkit/middleware'
 
 router.post(
   '/api/auth/login',
-  RateLimit.perMinute(10).byIp().toHandler(),
   async (req, res) => {
     // ...
-  }
+  },
+  [RateLimit.perMinute(10)]
 )
 ```
 
@@ -77,39 +77,34 @@ router.post(
 ### Limit by IP address
 
 ```ts
-RateLimit.perMinute(60).byIp().toHandler()
+RateLimit.perMinute(60)
 ```
 
 ### Limit by route + IP combination
 
 ```ts
-RateLimit.perHour(1000).byRoute().toHandler()
+RateLimit.perHour(1000).byRoute()
 ```
 
 ### Limit by a custom key (e.g. API key header)
 
 ```ts
 RateLimit.per(100, 300_000)
-  .by((req) => req.headers['x-api-key'] as string ?? req.ip)
-  .toHandler()
+  .by((req) => req.headers['x-api-key'] as string ?? 'unknown')
 ```
 
 ### Custom error message
 
 ```ts
 RateLimit.perMinute(30)
-  .byIp()
   .message('Slow down — too many requests.')
-  .toHandler()
 ```
 
 ### Skip rate limiting conditionally
 
 ```ts
 RateLimit.perMinute(60)
-  .byIp()
   .skipIf((req) => req.headers['x-internal-token'] === process.env.INTERNAL_TOKEN)
-  .toHandler()
 ```
 
 ## API Reference
@@ -123,18 +118,17 @@ RateLimit.perMinute(60)
 | `RateLimit.perDay(max)` | Allow `max` requests per 86400-second window |
 | `RateLimit.per(max, windowMs)` | Allow `max` requests per custom `windowMs` window |
 
-Each factory method returns a `RateLimitBuilder` instance.
+Each method returns a `RateLimitHandler` — a `MiddlewareHandler` with chainable configuration methods. No `.toHandler()` call is needed.
 
-### `RateLimitBuilder` Chainable API
+### `RateLimitHandler` Chainable API
 
 | Method | Description |
 |---|---|
-| `.byIp()` | Key requests by client IP address |
-| `.byRoute()` | Key requests by `${method}:${path}:${ip}` |
+| `.byIp()` | Key requests by client IP address (default) |
+| `.byRoute()` | Key requests by `METHOD:path` |
 | `.by(fn)` | Key requests by a custom function `(req: AppRequest) => string` |
 | `.message(msg)` | Custom message included in the 429 response body |
 | `.skipIf(fn)` | Skip rate limiting when `fn(req)` returns `true` |
-| `.toHandler()` | Build and return a `MiddlewareHandler` ready for use |
 
 ### Response Headers
 
@@ -160,10 +154,10 @@ The `message` field reflects the value set via `.message()`, or the default show
 
 ## Notes
 
-- `@boostkit/cache` must be registered in `bootstrap/providers.ts` before rate limiting middleware is applied. The rate limiter uses the default cache store to track counters.
-- Static assets and Vite internals (HMR, `/@vite/`, `/__vite_ping`) are automatically excluded from rate limiting.
-- Counters are stored with a TTL matching the window duration — they expire automatically without manual cleanup.
-- In a multi-process or multi-instance deployment, use the `redis` cache driver (`pnpm add ioredis`) so rate limit counters are shared across instances.
+- `@boostkit/cache` must be registered in `bootstrap/providers.ts` before rate limiting middleware is applied.
+- Static assets and Vite internals are automatically excluded from rate limiting.
+- Counters are stored with a TTL matching the window duration — they expire automatically.
+- In a multi-process deployment, use the `redis` cache driver so counters are shared across instances.
 
 ---
 
@@ -179,14 +173,14 @@ The `message` field reflects the value set via `.message()`, or the default show
 
 ## Setup
 
-Register globally in `bootstrap/app.ts`. Exclude routes that manage their own CSRF (e.g. `better-auth`):
+Register on web routes in `bootstrap/app.ts` or per route-group. Exclude routes that manage their own CSRF (e.g. `better-auth`):
 
 ```ts
 import { CsrfMiddleware } from '@boostkit/middleware'
 
 Application.configure({ ... })
   .withMiddleware((m) => {
-    m.use(new CsrfMiddleware({ exclude: ['/api/auth/*'] }).toHandler())
+    m.use(CsrfMiddleware({ exclude: ['/api/auth/*'] }))
   })
   .create()
 ```
@@ -213,7 +207,7 @@ await fetch('/api/contact', {
 ## Options
 
 ```ts
-new CsrfMiddleware({
+CsrfMiddleware({
   exclude:    ['/api/auth/*', '/webhooks/*'],  // paths to skip (trailing * wildcard)
   cookieName: 'csrf_token',   // default
   headerName: 'x-csrf-token', // default

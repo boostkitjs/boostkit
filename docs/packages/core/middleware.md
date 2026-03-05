@@ -144,7 +144,7 @@ Sets `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Ret
 
 ### `CorsMiddleware`
 
-Class-based — use `.toHandler()` or `fromClass()`:
+Class-based — instantiate with options and call `.toHandler()`:
 
 ```ts
 import { CorsMiddleware } from '@boostkit/middleware'
