@@ -37,7 +37,9 @@ const SSR_EXTERNALS = [
 
 // ─── Helpers ───────────────────────────────────────────────
 
-const _require = createRequire(import.meta.url)
+// Resolve from the app root (process.cwd()) so we always pick up the user's
+// installed packages — not a copy inside packages/vite/node_modules.
+const _require = createRequire(process.cwd() + '/package.json')
 
 function tryLoad<T>(id: string): T | null {
   try {
@@ -92,14 +94,14 @@ function solidPlugins(hasReact: boolean): Plugin[] {
  * import boostkit from '@boostkit/vite'
  * import tailwindcss from '@tailwindcss/vite'
  *
- * export default defineConfig({
+ * export default defineConfig(async () => ({
  *   plugins: [
- *     boostkit({ ui: 'react' }),
+ *     ...(await boostkit({ ui: 'react' })),
  *     tailwindcss(),
  *   ],
- * })
+ * }))
  */
-export function boostkit(options: BoostkitOptions = {}): Plugin[] {
+export async function boostkit(options: BoostkitOptions = {}): Promise<Plugin[]> {
   const ui = options.ui ?? 'react'
   const frameworks: UiFramework[] = ui === 'none' ? [] : Array.isArray(ui) ? ui : [ui]
 
@@ -107,13 +109,25 @@ export function boostkit(options: BoostkitOptions = {}): Plugin[] {
   const hasVue   = frameworks.includes('vue')
   const hasSolid = frameworks.includes('solid')
 
-  // Load vike — required peer
-  const vikeMod = tryLoad<{ default: (opts?: unknown) => Plugin }>('vike/plugin')
-  if (!vikeMod) throw new Error('[BoostKit] vike is not installed. Run: pnpm add vike')
+  // Load vike from the app root's resolved path so both boostkit and the app
+  // share the same module instance (avoids duplicate vike:pluginCommon plugin).
+  //
+  // Critical: vike() returns a Promise with `_vikeVitePluginOptions` attached — that
+  // property is how Vike detects itself in vite.config plugins. Vite handles
+  // Promise-shaped plugins natively. We must NOT await/spread the result here,
+  // otherwise _vikeVitePluginOptions is lost and Vike adds itself a second time.
+  let vikePlugin: Plugin | null = null
+  try {
+    const vikePath = _require.resolve('vike/plugin')
+    const vikeMod = await import(vikePath) as { default: () => Plugin }
+    vikePlugin = vikeMod.default()  // Promise — do NOT await
+  } catch {
+    console.warn('[BoostKit] vike not found — install vike to enable SSR support.')
+  }
 
-  const plugins: Plugin[] = [
-    // Vike — suppress request/response noise, keep warnings
-    vikeMod.default({ logLevel: 'warn' }) as Plugin,
+  return [
+    // Vike plugin (as a Promise — Vite resolves it; the Promise carries _vikeVitePluginOptions)
+    ...(vikePlugin ? [vikePlugin] : []),
 
     // UI frameworks
     ...(hasReact ? reactPlugins(hasSolid) : []),
@@ -143,8 +157,6 @@ export function boostkit(options: BoostkitOptions = {}): Plugin[] {
       },
     },
   ]
-
-  return plugins
 }
 
 export default boostkit
