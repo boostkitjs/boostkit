@@ -2,8 +2,6 @@ import { Container, container } from '@boostkit/di'
 import { Env, ConfigRepository, setConfigRepository } from '@boostkit/support'
 import type { ServerAdapterProvider, ServerAdapter, FetchHandler, MiddlewareHandler } from '@boostkit/contracts'
 import { artisan, ArtisanRegistry } from '@boostkit/artisan'
-import { debug } from 'console'
-
 // ─── Service Provider ──────────────────────────────────────
 
 export abstract class ServiceProvider {
@@ -243,32 +241,8 @@ export class BoostKit {
     this._providerBoot = this._bootstrapProviders()
   }
 
-  /** Suppress Vike's informational console noise — runs once at boot, adapter-agnostic */
-  private _suppressVikeNoise(): void {
-    const isNoise = (args: unknown[]): boolean => {
-      // just for debug
-      // return false;
-      const msg = args.map(a => String(a ?? '')).join(' ')
-      return msg.includes('[vike]') && (
-        msg.includes('HTTP request')           ||
-        msg.includes('HTTP response')          ||
-        msg.includes("doesn't match the route")||
-        msg.includes('thrown by')               // guard() / hook throw notifications
-      )
-    }
-    const _log   = console.log
-    const _warn  = console.warn
-    const _info  = console.info
-    const _error = console.error
-    console.log   = (...a: unknown[]) => { if (!isNoise(a)) _log(...a)   }
-    console.warn  = (...a: unknown[]) => { if (!isNoise(a)) _warn(...a)  }
-    console.info  = (...a: unknown[]) => { if (!isNoise(a)) _info(...a)  }
-    console.error = (...a: unknown[]) => { if (!isNoise(a)) _error(...a) }
-  }
-
   /** Phase 1 — boot service providers then load routes. Safe in CLI (no Vike virtual URLs). */
   private async _bootstrapProviders(): Promise<void> {
-    this._suppressVikeNoise()
     if (this._app.isDevelopment()) {
       artisan.reset()
       const { router } = await import('@boostkit/router') as { router: { reset(): void } }

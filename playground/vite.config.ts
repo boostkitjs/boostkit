@@ -2,9 +2,9 @@ import { defineConfig } from 'vite'
 import boostkit from '@boostkit/vite'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
+export default defineConfig(async () => ({
   plugins: [
-    boostkit({ ui: ['react', 'vue', 'solid'] }),
+    ...(await boostkit({ ui: ['react', 'vue', 'solid'] })),
     tailwindcss(),
   ],
-})
+}))
