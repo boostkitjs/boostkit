@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { ServiceProvider, type Application } from '@boostkit/core'
+import { ServiceProvider, type Application, app } from '@boostkit/core'
 import type { AppRequest, AppResponse, MiddlewareHandler } from '@boostkit/contracts'
 
 // ─── Module Augmentation ───────────────────────────────────
@@ -338,6 +338,21 @@ export function sessionMiddleware(config: SessionConfig): MiddlewareHandler {
     await _als.run(session, next)
     await session.save(res)
   }
+}
+
+// ─── Zero-config middleware (reads config from DI) ─────────
+
+/**
+ * Session middleware that reads its config from the DI container.
+ * Requires session() provider to be registered in bootstrap/providers.ts.
+ *
+ * Usage in routes:
+ *   import { SessionMiddleware } from '@boostkit/session'
+ *   Route.get('/path', handler, [SessionMiddleware()])
+ */
+export function SessionMiddleware(): MiddlewareHandler {
+  const config = app().make<SessionConfig>('session.config')
+  return sessionMiddleware(config)
 }
 
 // ─── Service Provider Factory ──────────────────────────────

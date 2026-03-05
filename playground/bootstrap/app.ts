@@ -18,8 +18,8 @@ export default Application.configure({
     commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    // Truly global middleware — applied to every request regardless of route group
-    m.use(RateLimit.perMinute(60).toHandler())
+    // Global middlewares
+    m.use(RateLimit.perMinute(60))
     m.use(requestIdMiddleware)
   })
   .withExceptions((_e) => {
