@@ -28,7 +28,6 @@ const authLimit = RateLimit.perMinute(10)
     return `${ip}:${req.path}`
   })
   .message('Too many auth attempts. Try again later.')
-  .toHandler()
 
 Route.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
@@ -99,7 +98,7 @@ Route.put('/api/files/:filename', async (req, res) => {
   const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
   await Storage.put(`uploads/${filename}`, content)
   return res.json({ path: `uploads/${filename}`, url: Storage.url(`uploads/${filename}`) })
-}, [RateLimit.perMinute(10).toHandler()])
+}, [RateLimit.perMinute(10)])
 
 // GET /api/files  — list uploaded files
 Route.get('/api/files', async (_req, res) => {

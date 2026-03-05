@@ -1,12 +1,11 @@
 import { Route } from '@boostkit/router'
 import { CsrfMiddleware } from '@boostkit/middleware'
-import { sessionMiddleware } from '@boostkit/session'
-import configs from '../config/index.js'
+import { SessionMiddleware } from '@boostkit/session'
 
 // Web middleware — session + CSRF apply to all web routes (not API)
 const webMw = [
-  sessionMiddleware(configs.session),
-  new CsrfMiddleware().toHandler(),
+  SessionMiddleware(),
+  CsrfMiddleware(),
 ]
 
 // Web routes — HTML redirects, guards, and non-API server responses

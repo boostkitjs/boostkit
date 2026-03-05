@@ -183,7 +183,7 @@ export interface CsrfOptions {
  *
  * Client-side: use `getCsrfToken()` to read the token from the cookie.
  */
-export class CsrfMiddleware extends Middleware {
+class _CsrfMiddleware extends Middleware {
   private readonly cookieName: string
   private readonly headerName: string
   private readonly fieldName:  string
@@ -234,6 +234,10 @@ export class CsrfMiddleware extends Middleware {
 
     return next()
   }
+}
+
+export function CsrfMiddleware(options?: CsrfOptions): MiddlewareHandler {
+  return new _CsrfMiddleware(options).toHandler()
 }
 
 /**
@@ -345,31 +349,39 @@ function makeRateLimitHandler(opts: RateLimitOptions): MiddlewareHandler {
   }
 }
 
-export class RateLimitBuilder {
-  private opts: RateLimitOptions
+// ─── RateLimit fluent handler ──────────────────────────────
+//
+// RateLimit.perMinute(60) returns a MiddlewareHandler that is also
+// chainable — no .toHandler() call needed.
 
-  constructor(max: number, windowMs: number) {
-    this.opts = { max, windowMs, keyBy: 'ip', message: 'Too many requests. Please slow down.' }
-  }
-
+export interface RateLimitHandler extends MiddlewareHandler {
   /** Identify clients by IP address (default) */
-  byIp(): this    { this.opts = { ...this.opts, keyBy: 'ip' };    return this }
-
-  /** Identify clients by HTTP method + path (useful for endpoint-level limits) */
-  byRoute(): this { this.opts = { ...this.opts, keyBy: 'route' }; return this }
-
+  byIp():   RateLimitHandler
+  /** Identify clients by HTTP method + path */
+  byRoute(): RateLimitHandler
   /** Identify clients by a custom key function */
-  by(fn: (req: AppRequest) => string): this { this.opts = { ...this.opts, keyBy: fn }; return this }
-
+  by(fn: (req: AppRequest) => string): RateLimitHandler
   /** Override the 429 response message */
-  message(msg: string): this { this.opts = { ...this.opts, message: msg }; return this }
-
-  /** Skip rate limiting entirely when this predicate returns true */
-  skipIf(fn: (req: AppRequest) => boolean): this { this.opts = { ...this.opts, skipIf: fn }; return this }
-
-  /** Returns a MiddlewareHandler ready for use in router or withMiddleware() */
-  toHandler(): MiddlewareHandler { return makeRateLimitHandler(this.opts) }
+  message(msg: string): RateLimitHandler
+  /** Skip rate limiting when this predicate returns true */
+  skipIf(fn: (req: AppRequest) => boolean): RateLimitHandler
+  /** @deprecated Use the handler directly — kept for backwards compatibility */
+  toHandler(): MiddlewareHandler
 }
+
+function buildRateLimit(opts: RateLimitOptions): RateLimitHandler {
+  const fn = makeRateLimitHandler(opts) as RateLimitHandler
+  fn.byIp    = ()  => buildRateLimit({ ...opts, keyBy: 'ip' })
+  fn.byRoute = ()  => buildRateLimit({ ...opts, keyBy: 'route' })
+  fn.by      = (f) => buildRateLimit({ ...opts, keyBy: f })
+  fn.message = (m) => buildRateLimit({ ...opts, message: m })
+  fn.skipIf  = (f) => buildRateLimit({ ...opts, skipIf: f })
+  fn.toHandler = () => makeRateLimitHandler(opts)
+  return fn
+}
+
+/** @deprecated Use RateLimitHandler directly — kept for backwards compatibility */
+export type RateLimitBuilder = RateLimitHandler
 
 /**
  * Cache-backed rate limiter middleware.
@@ -379,23 +391,23 @@ export class RateLimitBuilder {
  *
  * Usage:
  *   // Global (in bootstrap/app.ts)
- *   .withMiddleware(m => m.use(RateLimit.perMinute(60).toHandler()))
+ *   .withMiddleware(m => m.use(RateLimit.perMinute(60)))
  *
  *   // Per-route
- *   router.post('/api/auth/sign-in', handler, [
- *     RateLimit.perMinute(5).message('Too many login attempts.').toHandler()
+ *   Route.post('/api/auth/sign-in', handler, [
+ *     RateLimit.perMinute(5).message('Too many login attempts.')
  *   ])
  */
 export class RateLimit {
   /** N requests per minute */
-  static perMinute(max: number): RateLimitBuilder { return new RateLimitBuilder(max, 60_000) }
+  static perMinute(max: number): RateLimitHandler { return buildRateLimit({ max, windowMs: 60_000,      keyBy: 'ip', message: 'Too many requests. Please slow down.' }) }
 
   /** N requests per hour */
-  static perHour(max: number): RateLimitBuilder   { return new RateLimitBuilder(max, 3_600_000) }
+  static perHour(max: number): RateLimitHandler   { return buildRateLimit({ max, windowMs: 3_600_000,   keyBy: 'ip', message: 'Too many requests. Please slow down.' }) }
 
   /** N requests per day */
-  static perDay(max: number): RateLimitBuilder    { return new RateLimitBuilder(max, 86_400_000) }
+  static perDay(max: number): RateLimitHandler    { return buildRateLimit({ max, windowMs: 86_400_000,  keyBy: 'ip', message: 'Too many requests. Please slow down.' }) }
 
   /** N requests per custom window (milliseconds) */
-  static per(max: number, windowMs: number): RateLimitBuilder { return new RateLimitBuilder(max, windowMs) }
+  static per(max: number, windowMs: number): RateLimitHandler { return buildRateLimit({ max, windowMs, keyBy: 'ip', message: 'Too many requests. Please slow down.' }) }
 }
