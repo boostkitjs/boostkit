@@ -65,23 +65,14 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
 
 function packageJson(ctx: TemplateContext): string {
   const dbDeps: Record<string, Record<string, string>> = {
-    sqlite: {
-      '@prisma/adapter-better-sqlite3': '^7.0.0',
-      'better-sqlite3': '^12.0.0',
-    },
-    postgresql: {
-      '@prisma/adapter-pg': '^7.0.0',
-      'pg': '^8.13.0',
-    },
-    mysql: {
-      '@prisma/adapter-mysql2': '^7.0.0',
-      'mysql2': '^3.13.0',
-    },
+    sqlite:     { 'better-sqlite3': '^12.0.0' },
+    postgresql: {},
+    mysql:      {},
   }
   const dbDevDeps: Record<string, Record<string, string>> = {
-    sqlite: { '@types/better-sqlite3': '^7.6.0' },
-    postgresql: { '@types/pg': '^8.11.0' },
-    mysql: {},
+    sqlite:     { '@types/better-sqlite3': '^7.6.0' },
+    postgresql: {},
+    mysql:      {},
   }
 
   const deps = {
@@ -549,7 +540,7 @@ import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 ${todoImport}import configs from '../config/index.js'
 
 export default [
-  betterAuth(configs.auth),
+  betterAuth(configs.auth, configs.database.connections[configs.database.default as keyof typeof configs.database.connections]),
   events({}),
   queue(configs.queue),
   mail(configs.mail),
@@ -735,51 +726,13 @@ export default {
 `
 }
 
-function configAuth(ctx: TemplateContext): string {
-  let dbFactory: string
-  let dbProvider: string
-
-  if (ctx.db === 'sqlite') {
-    dbFactory = `async function createDatabase(): Promise<unknown> {
-  const { PrismaBetterSqlite3 } = await import('@prisma/adapter-better-sqlite3') as any
-  const { PrismaClient }        = await import('@prisma/client') as any
-  const url = Env.get('DATABASE_URL', 'file:./dev.db')
-  return new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) })
-}`
-    dbProvider = `  databaseProvider: 'sqlite' as const,`
-  } else if (ctx.db === 'postgresql') {
-    dbFactory = `async function createDatabase(): Promise<unknown> {
-  const { PrismaPg }     = await import('@prisma/adapter-pg') as any
-  const { PrismaClient } = await import('@prisma/client') as any
-  const connectionString = Env.get('DATABASE_URL', '')
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
-}`
-    dbProvider = `  databaseProvider: 'postgresql' as const,`
-  } else {
-    dbFactory = `async function createDatabase(): Promise<unknown> {
-  const { createPool }   = await import('mysql2/promise') as any
-  const { PrismaMysql2 } = await import('@prisma/adapter-mysql2') as any
-  const { PrismaClient } = await import('@prisma/client') as any
-  const pool = createPool(Env.get('DATABASE_URL', ''))
-  return new PrismaClient({ adapter: new PrismaMysql2(pool) })
-}`
-    dbProvider = `  databaseProvider: 'mysql' as const,`
-  }
-
+function configAuth(_ctx: TemplateContext): string {
   return `import { Env } from '@boostkit/support'
 import type { BetterAuthConfig } from '@boostkit/auth'
-
-// Dedicated PrismaClient for better-auth's own tables.
-// The ORM adapter uses its own client in DatabaseServiceProvider — keep them separate.
-${dbFactory}
-
-const _prisma = createDatabase()
 
 export default {
   secret:           Env.get('AUTH_SECRET', 'please-set-AUTH_SECRET-min-32-chars!!'),
   baseUrl:          Env.get('APP_URL', 'http://localhost:3000'),
-  database:         _prisma,
-${dbProvider}
   emailAndPassword: { enabled: true },
 } satisfies BetterAuthConfig
 `
