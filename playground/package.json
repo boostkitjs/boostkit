@@ -20,7 +20,6 @@
     "@boostkit/contracts": "workspace:*",
     "@boostkit/core": "workspace:*",
     "@boostkit/mail": "workspace:*",
-    "@boostkit/mail-nodemailer": "workspace:*",
     "@boostkit/middleware": "workspace:*",
     "@boostkit/notification": "workspace:*",
     "@boostkit/orm": "workspace:*",
