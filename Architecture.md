@@ -71,6 +71,8 @@ boostkit/
 │   ├── notification/       # Multi-channel notifications (mail, database)
 │   └── cli/                # Artisan-style CLI (make:*, module:*, user commands)
 ├── create-boostkit-app/    # Interactive CLI scaffolder (pnpm create boostkit-app)
+│                           #   Prompts: name · DB · Todo · frameworks (React/Vue/Solid)
+│                           #           primary framework · Tailwind · shadcn/ui
 ├── docs/                   # VitePress documentation site
 └── playground/             # Canonical demo app — primary integration reference
 ```
@@ -644,4 +646,5 @@ All optional peer packages **must** include `"default": "./dist/index.js"` in th
 | **v0.5** | ✅ Package consolidation — create-boostkit-app scaffolder, notifications, Drizzle adapter |
 | **v0.6** | ✅ Rename Forge → BoostKit, npm publish (25 packages), package merges, docs site, README |
 | **v0.7** | ✅ Session package, AuthMiddleware, callable middleware (no .toHandler()), artisan test suite |
+| **v0.8** | ✅ create-boostkit-app multi-framework scaffolder (React/Vue/Solid, Tailwind, shadcn/ui) |
 | **v1.0** | Deploy docs, GitHub Actions CI, stable API |

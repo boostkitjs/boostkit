@@ -12,7 +12,7 @@ This file provides guidance to Claude Code when working in this repository.
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@boostkit/*`
 - **GitHub**: https://github.com/boostkitjs/boostkit
-- **Status**: Early development — 25 packages published to npm
+- **Status**: Early development — 26 packages published to npm
 
 ---
 
@@ -108,7 +108,8 @@ boostkit/
 │   ├── mail-nodemailer/ # Nodemailer SMTP adapter
 │   ├── notification/   # Multi-channel notifications (mail, database)
 │   └── cli/            # make:*, module:*, module:publish, artisan user commands
-├── create-boostkit-app/   # Project scaffolder CLI (pnpm create boostkit-app)
+├── create-boostkit-app/   # Interactive scaffolder CLI (pnpm create boostkit-app)
+│                          #   Prompts: name · DB · Todo · frameworks · primary · Tailwind · shadcn
 ├── docs/               # VitePress documentation site
 └── playground/         # Demo app — primary integration reference
 ```
@@ -324,3 +325,33 @@ There is **no `boostkit.config.ts`** — `bootstrap/app.ts` is the framework wir
 - **`artisan` commands not appearing**: Run from `playground/` (needs `bootstrap/app.ts`)
 - **RateLimit not working**: Requires a cache provider registered before middleware runs
 - **S3 disk errors**: Install `@aws-sdk/client-s3` — it's an optional dep of `@boostkit/storage`
+
+## create-boostkit-app
+
+### Prompts (in order)
+1. Project name
+2. Database driver — SQLite · PostgreSQL · MySQL
+3. Include Todo module? — yes/no
+4. Frontend frameworks — **multiselect**: React · Vue · Solid (default: React)
+5. Primary framework — single select, only shown when >1 framework selected
+6. Add Tailwind CSS? — yes/no (default: yes)
+7. Add shadcn/ui? — yes/no (default: yes), **only shown when React + Tailwind are both selected**
+8. Install dependencies? — yes/no
+
+### Template Gotchas
+- `tsconfig.json` must be self-contained — no `extends: ../tsconfig.base.json` (monorepo-only)
+- All `@boostkit/*` deps use `'latest'` — pnpm double-zero semver (`^0.0.x`) pins to exact version
+- `pnpm.onlyBuiltDependencies` required for `better-sqlite3`, `@prisma/engines`, `esbuild`, `prisma`
+- Use `prismaProvider(configs.database)` not `DatabaseServiceProvider` in providers.ts
+- `shadcn` dep only added when React + Tailwind are both selected
+- `src/index.css` not generated at all when Tailwind is not selected
+- React + Solid together: Vite plugins use `include`/`exclude` to disambiguate `.tsx` files
+- Secondary frameworks get demo pages at `pages/{fw}-demo/`
+- `@boostkit/session` is in deps (providers.ts imports it)
+
+### Local Testing
+```bash
+cd create-boostkit-app
+pnpm build
+node dist/index.js        # launches the full interactive CLI
+```
