@@ -37,25 +37,53 @@ export interface AuthResult {
   session: AuthSession
 }
 
-// ─── better-auth Config ────────────────────────────────────
+// ─── Config ────────────────────────────────────────────────
 
 export interface BetterAuthConfig {
   /** 32+ character secret. Falls back to process.env.AUTH_SECRET */
   secret?: string
   /** App base URL. Falls back to process.env.APP_URL */
   baseUrl?: string
-  /**
-   * Pass a PrismaClient instance — auto-wrapped with prismaAdapter internally.
-   * Or pass a pre-built better-auth database adapter for advanced use.
-   */
-  database: unknown
-  /** Required when passing a PrismaClient. Default: 'sqlite' */
-  databaseProvider?: 'sqlite' | 'postgresql' | 'mysql'
   emailAndPassword?: { enabled?: boolean; requireEmailVerification?: boolean }
   socialProviders?: Record<string, { clientId: string; clientSecret: string }>
   trustedOrigins?: string[]
   /** Called after a new user is successfully created — ideal for dispatching jobs or events */
   onUserCreated?: (user: { id: string; name: string; email: string }) => void | Promise<void>
+}
+
+export interface AuthDbConfig {
+  driver?: 'postgresql' | 'sqlite' | 'libsql' | 'mysql'
+  url?: string
+}
+
+// ─── Internal helpers ──────────────────────────────────────
+
+async function createPrismaClient(config: AuthDbConfig): Promise<unknown> {
+  const opts: Record<string, unknown> = {}
+
+  if (config.driver === 'postgresql' && config.url) {
+    const { Pool }     = await import('pg') as any
+    const { PrismaPg } = await import('@prisma/adapter-pg') as any
+    opts['adapter'] = new PrismaPg(new Pool({ connectionString: config.url }))
+  } else if (config.driver === 'libsql' && config.url) {
+    const { createClient }    = await import('@libsql/client') as any
+    const { PrismaLibSql }    = await import('@prisma/adapter-libsql') as any
+    opts['adapter'] = new PrismaLibSql(createClient({ url: config.url }))
+  } else {
+    const dbUrl = config.url ?? process.env['DATABASE_URL'] ?? 'file:./dev.db'
+    const { PrismaBetterSqlite3 } = await import('@prisma/adapter-better-sqlite3') as any
+    opts['adapter'] = new PrismaBetterSqlite3({ url: dbUrl })
+  }
+
+  const mod = await import('@prisma/client') as any
+  const PC  = mod.PrismaClient ?? mod.default?.PrismaClient ?? mod.default
+  return new PC(opts)
+}
+
+function mapDriver(driver?: string): 'sqlite' | 'postgresql' | 'mysql' {
+  if (driver === 'postgresql') return 'postgresql'
+  if (driver === 'mysql') return 'mysql'
+  return 'sqlite'
 }
 
 // ─── betterAuth() Factory ──────────────────────────────────
@@ -64,31 +92,35 @@ export interface BetterAuthConfig {
  * Returns a ServiceProvider constructor that configures better-auth and
  * binds the auth instance to the DI container in boot().
  *
+ * Pass the database connection config as the second argument — betterAuth
+ * creates its own PrismaClient internally (separate from the ORM's client).
+ *
  * Usage in bootstrap/providers.ts:
  *   import { betterAuth } from '@boostkit/auth'
  *   import configs from '../config/index.ts'
- *   export default [..., betterAuth(configs.auth), ...]
+ *   export default [
+ *     betterAuth(configs.auth, configs.database.connections[configs.database.default]),
+ *     ...
+ *   ]
  */
-export function betterAuth(config: BetterAuthConfig): new (app: Application) => ServiceProvider {
+export function betterAuth(
+  config: BetterAuthConfig,
+  dbConfig?: AuthDbConfig,
+): new (app: Application) => ServiceProvider {
   class BetterAuthProvider extends ServiceProvider {
     register(): void {}
 
     async boot(): Promise<void> {
-      const { betterAuth: createAuth } = await import('better-auth')
+      const { betterAuth: createAuth }  = await import('better-auth')
+      const { prismaAdapter }           = await import('better-auth/adapters/prisma')
 
-      // Resolve database if it's a Promise (supports async factory pattern)
-      let database = config.database instanceof Promise ? await config.database : config.database
-      if (database && typeof (database as Record<string, unknown>)['$connect'] === 'function') {
-        const { prismaAdapter } = await import('better-auth/adapters/prisma')
-        database = prismaAdapter(database, {
-          provider: config.databaseProvider ?? 'sqlite',
-        })
-      }
+      const prisma   = await createPrismaClient(dbConfig ?? {})
+      const database = prismaAdapter(prisma as any, { provider: mapDriver(dbConfig?.driver) })
 
       const auth = createAuth({
-        secret:  config.secret  ?? process.env['AUTH_SECRET'] ?? '',
-        baseURL: config.baseUrl ?? process.env['APP_URL'] ?? 'http://localhost:3000',
-        database: database as Parameters<typeof createAuth>[0]['database'],
+        secret:   config.secret  ?? process.env['AUTH_SECRET'] ?? '',
+        baseURL:  config.baseUrl ?? process.env['APP_URL'] ?? 'http://localhost:3000',
+        database,
         emailAndPassword: {
           enabled: config.emailAndPassword?.enabled ?? true,
           ...(config.emailAndPassword?.requireEmailVerification !== undefined
@@ -110,9 +142,7 @@ export function betterAuth(config: BetterAuthConfig): new (app: Application) => 
         }),
       })
 
-      // Bind into DI container
       this.app.instance('auth', auth)
-
       console.log('[BetterAuthServiceProvider] booted — auth instance bound to DI container')
     }
   }

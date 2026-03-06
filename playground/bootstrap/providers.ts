@@ -16,7 +16,7 @@ import { SendWelcomeEmailListener } from '../app/Listeners/SendWelcomeEmailListe
 import configs from '../config/index.js'
 
 export default [
-  betterAuth(configs.auth),
+  betterAuth(configs.auth, configs.database.connections[configs.database.default as keyof typeof configs.database.connections]),
   queue(configs.queue),
   events({ [UserRegistered.name]: [SendWelcomeEmailListener] }),
   mail(configs.mail),

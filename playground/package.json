@@ -34,7 +34,6 @@
     "@boostkit/server-hono": "workspace:*",
     "@boostkit/storage": "workspace:*",
     "@boostkit/validation": "workspace:*",
-    "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-vue": "^6.0.4",
