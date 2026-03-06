@@ -271,10 +271,6 @@ importers:
         version: 5.9.3
 
   packages/orm:
-    dependencies:
-      '@boostkit/core':
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
