@@ -312,7 +312,6 @@ export type { ConsoleHandler, CommandArgDef, CommandOptDef, ParsedSignature } fr
 export { ServiceProvider } from './service-provider.js'
 export { Listener, EventDispatcher, dispatcher, dispatch, events } from './events.js'
 export type { ListenMap } from './events.js'
-export { ScheduledTask, schedule, Schedule, scheduler } from './schedule.js'
 
 // ─── Global helpers ────────────────────────────────────────
 

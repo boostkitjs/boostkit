@@ -192,9 +192,6 @@ importers:
       '@boostkit/support':
         specifier: workspace:*
         version: link:../support
-      croner:
-        specifier: ^9.0.0
-        version: 9.1.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -428,6 +425,25 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/schedule:
+    dependencies:
+      '@boostkit/core':
+        specifier: workspace:*
+        version: link:../core
+      croner:
+        specifier: ^9.0.0
+        version: 9.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/server-hono:
     dependencies:
       '@boostkit/contracts':
@@ -590,6 +606,9 @@ importers:
       '@boostkit/router':
         specifier: workspace:*
         version: link:../packages/router
+      '@boostkit/schedule':
+        specifier: workspace:*
+        version: link:../packages/schedule
       '@boostkit/server-hono':
         specifier: workspace:*
         version: link:../packages/server-hono

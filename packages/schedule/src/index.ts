@@ -1,6 +1,4 @@
-import type { Application } from './index.js'
-import { ServiceProvider } from './service-provider.js'
-import { artisan } from '@boostkit/artisan'
+import { ServiceProvider, artisan, type Application } from '@boostkit/core'
 import { Cron } from 'croner'
 
 // ─── Scheduled Task ────────────────────────────────────────
@@ -62,8 +60,6 @@ export class ScheduledTask {
   isDue(): boolean {
     try {
       const job  = new Cron(this._cron, { paused: true })
-      // Starting from 60 s ago, find the next scheduled run.
-      // If it falls at or before now, the task is due this minute.
       const next = job.nextRun(new Date(Date.now() - 60_000))
       return next !== null && next.getTime() <= Date.now()
     } catch {
@@ -77,7 +73,6 @@ export class ScheduledTask {
 class Scheduler {
   private readonly _tasks: ScheduledTask[] = []
 
-  /** Register a callback on the schedule and return the task for chaining. */
   call(callback: () => void | Promise<void>): ScheduledTask {
     const task = new ScheduledTask(callback)
     this._tasks.push(task)
@@ -87,36 +82,16 @@ class Scheduler {
   getTasks(): ScheduledTask[] { return [...this._tasks] }
 }
 
-/** Global schedule singleton — define tasks in routes/console.ts */
 export const schedule = new Scheduler()
-
-/** Alias for schedule — Laravel-style capitalised name */
 export const Schedule = schedule
 
 // ─── Service Provider Factory ──────────────────────────────
 
-/**
- * Returns a ScheduleServiceProvider that registers the `schedule:run` and
- * `schedule:work` artisan commands.
- *
- * Define scheduled tasks in routes/console.ts:
- *   import { schedule } from '@boostkit/core'
- *   schedule.call(() => Cache.forget('users:all')).everyFiveMinutes()
- *
- * Run via system cron (production):
- *   * * * * *  cd /app && node artisan schedule:run
- *
- * Run in-process (dev / simple deployments):
- *   pnpm artisan schedule:work
- */
 export function scheduler(): new (app: Application) => ServiceProvider {
   class ScheduleServiceProvider extends ServiceProvider {
     register(): void {}
 
     boot(): void {
-      // ── schedule:run ─────────────────────────────────────
-      // Intended to be called every minute by a system cron job.
-      // Runs only the tasks that are due in the current minute, then exits.
       artisan.command('schedule:run', async () => {
         const tasks = schedule.getTasks()
         if (tasks.length === 0) {
@@ -143,9 +118,6 @@ export function scheduler(): new (app: Application) => ServiceProvider {
         else           console.log(`[Schedule] ${ran} task(s) completed.`)
       }).description('Run all scheduled tasks that are due now')
 
-      // ── schedule:work ─────────────────────────────────────
-      // Starts an in-process worker that runs tasks on their cron schedule.
-      // Keeps the process alive — use Ctrl+C to stop.
       artisan.command('schedule:work', async () => {
         const tasks = schedule.getTasks()
         console.log(`[Schedule] Worker started — ${tasks.length} task(s) registered.`)
@@ -167,7 +139,6 @@ export function scheduler(): new (app: Application) => ServiceProvider {
           }))
         }
 
-        // Keep the process alive until Ctrl+C
         await new Promise<void>((resolve) => {
           process.once('SIGINT', () => {
             for (const job of jobs) job.stop()
@@ -178,7 +149,6 @@ export function scheduler(): new (app: Application) => ServiceProvider {
         process.exit(0)
       }).description('Start the schedule worker (in-process cron, Ctrl+C to stop)')
 
-      // ── schedule:list ─────────────────────────────────────
       artisan.command('schedule:list', () => {
         const tasks = schedule.getTasks()
         if (tasks.length === 0) {
@@ -192,8 +162,6 @@ export function scheduler(): new (app: Application) => ServiceProvider {
         }
         console.log()
       }).description('List all registered scheduled tasks')
-
-      console.log(`[ScheduleServiceProvider] booted — ${schedule.getTasks().length} task(s) registered`)
     }
   }
 
