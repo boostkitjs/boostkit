@@ -1,58 +1,271 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { cache, Cache, CacheRegistry, type CacheAdapter } from './index.js'
+import { cache, Cache, CacheRegistry, MemoryAdapter } from './index.js'
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-describe('Cache contract baseline', () => {
+// ─── MemoryAdapter (direct) ────────────────────────────────
+
+describe('MemoryAdapter', () => {
+  let adapter: MemoryAdapter
+
+  beforeEach(() => { adapter = new MemoryAdapter() })
+
+  it('get() returns null for a missing key', async () => {
+    assert.strictEqual(await adapter.get('missing'), null)
+  })
+
+  it('set() + get() round-trips any JSON-serialisable value', async () => {
+    await adapter.set('str',  'hello')
+    await adapter.set('num',  42)
+    await adapter.set('obj',  { a: 1 })
+    await adapter.set('arr',  [1, 2, 3])
+    await adapter.set('bool', true)
+
+    assert.strictEqual(await adapter.get('str'),         'hello')
+    assert.strictEqual(await adapter.get('num'),          42)
+    assert.deepStrictEqual(await adapter.get('obj'),     { a: 1 })
+    assert.deepStrictEqual(await adapter.get('arr'),     [1, 2, 3])
+    assert.strictEqual(await adapter.get('bool'),        true)
+  })
+
+  it('has() returns true for an existing key', async () => {
+    await adapter.set('k', 'v')
+    assert.strictEqual(await adapter.has('k'), true)
+  })
+
+  it('has() returns false for a missing key', async () => {
+    assert.strictEqual(await adapter.has('missing'), false)
+  })
+
+  it('forget() removes a key', async () => {
+    await adapter.set('k', 'v')
+    await adapter.forget('k')
+    assert.strictEqual(await adapter.get('k'), null)
+    assert.strictEqual(await adapter.has('k'), false)
+  })
+
+  it('forget() on a non-existent key is a no-op', async () => {
+    await assert.doesNotReject(() => adapter.forget('ghost'))
+  })
+
+  it('flush() removes all keys', async () => {
+    await adapter.set('a', 1)
+    await adapter.set('b', 2)
+    await adapter.flush()
+    assert.strictEqual(await adapter.get('a'), null)
+    assert.strictEqual(await adapter.get('b'), null)
+  })
+
+  it('set() without TTL stores value permanently', async () => {
+    await adapter.set('forever', 'value')
+    await sleep(20)
+    assert.strictEqual(await adapter.get('forever'), 'value')
+  })
+
+  it('get() returns null after TTL expires', async () => {
+    await adapter.set('ttl', 'temp', 0.01)
+    assert.strictEqual(await adapter.get('ttl'), 'temp')
+    await sleep(20)
+    assert.strictEqual(await adapter.get('ttl'), null)
+  })
+
+  it('has() returns false and cleans up an expired key', async () => {
+    await adapter.set('ttl', 'temp', 0.01)
+    await sleep(20)
+    assert.strictEqual(await adapter.has('ttl'), false)
+  })
+
+  it('overwriting a key replaces the value', async () => {
+    await adapter.set('k', 'first')
+    await adapter.set('k', 'second')
+    assert.strictEqual(await adapter.get('k'), 'second')
+  })
+})
+
+// ─── CacheRegistry ─────────────────────────────────────────
+
+describe('CacheRegistry', () => {
+  beforeEach(() => CacheRegistry.reset())
+
+  it('get() returns null when no adapter is registered', () => {
+    assert.strictEqual(CacheRegistry.get(), null)
+  })
+
+  it('set() + get() registers and retrieves the adapter', () => {
+    const adapter = new MemoryAdapter()
+    CacheRegistry.set(adapter)
+    assert.strictEqual(CacheRegistry.get(), adapter)
+  })
+
+  it('reset() clears the registered adapter', () => {
+    CacheRegistry.set(new MemoryAdapter())
+    CacheRegistry.reset()
+    assert.strictEqual(CacheRegistry.get(), null)
+  })
+})
+
+// ─── Cache facade ──────────────────────────────────────────
+
+describe('Cache facade', () => {
   beforeEach(async () => {
-    ;(CacheRegistry as unknown as { adapter: CacheAdapter | null }).adapter = null
-
+    CacheRegistry.reset()
     const Provider = cache({ default: 'memory', stores: { memory: { driver: 'memory' } } })
-    const app = { instance: () => undefined }
-    const provider = new Provider(app as never)
-    await provider.boot?.()
+    await new Provider({ instance: () => undefined } as never).boot?.()
+  })
+
+  it('throws when no adapter is registered', async () => {
+    CacheRegistry.reset()
+    await assert.rejects(async () => Cache.get('k'), /No cache adapter registered/)
+  })
+
+  it('get() returns null for a missing key', async () => {
+    assert.strictEqual(await Cache.get('missing'), null)
+  })
+
+  it('set() + get() stores and retrieves a value', async () => {
+    await Cache.set('user', { id: 1 })
+    assert.deepStrictEqual(await Cache.get('user'), { id: 1 })
+  })
+
+  it('has() returns true for an existing key', async () => {
+    await Cache.set('k', 'v')
+    assert.strictEqual(await Cache.has('k'), true)
+  })
+
+  it('has() returns false for a missing key', async () => {
+    assert.strictEqual(await Cache.has('missing'), false)
+  })
+
+  it('forget() removes a key', async () => {
+    await Cache.set('k', 'v')
+    await Cache.forget('k')
+    assert.strictEqual(await Cache.get('k'), null)
+  })
+
+  it('flush() removes all keys', async () => {
+    await Cache.set('a', 1)
+    await Cache.set('b', 2)
     await Cache.flush()
+    assert.strictEqual(await Cache.get('a'), null)
+    assert.strictEqual(await Cache.get('b'), null)
   })
 
-  it('memory cache supports get/set/forget/has', async () => {
-    await Cache.set('user:1', { id: 1 })
-
-    assert.deepStrictEqual(await Cache.get('user:1'), { id: 1 })
-    assert.strictEqual(await Cache.has('user:1'), true)
-
-    await Cache.forget('user:1')
-
-    assert.strictEqual(await Cache.has('user:1'), false)
-    assert.strictEqual(await Cache.get('user:1'), null)
+  it('get() returns null after TTL expires', async () => {
+    await Cache.set('ttl', 'temp', 0.01)
+    await sleep(20)
+    assert.strictEqual(await Cache.get('ttl'), null)
   })
 
-  it('remember() computes once and returns cached value within TTL', async () => {
+  // ── remember() ────────────────────────────────────────────
+
+  it('remember() computes and stores on cache miss', async () => {
     let calls = 0
-
-    const a = await Cache.remember('remember:key', 60, async () => {
-      calls++
-      return 'value'
-    })
-    const b = await Cache.remember('remember:key', 60, async () => {
-      calls++
-      return 'new-value'
-    })
-
-    assert.strictEqual(a, 'value')
-    assert.strictEqual(b, 'value')
+    const val = await Cache.remember('k', 60, () => { calls++; return 'v' })
+    assert.strictEqual(val, 'v')
     assert.strictEqual(calls, 1)
   })
 
-  it('stored value expires after TTL', async () => {
-    await Cache.set('ttl:key', 'ephemeral', 0.01)
-    assert.strictEqual(await Cache.get('ttl:key'), 'ephemeral')
+  it('remember() returns cached value and skips callback on hit', async () => {
+    let calls = 0
+    await Cache.remember('k', 60, () => { calls++; return 'first' })
+    const val = await Cache.remember('k', 60, () => { calls++; return 'second' })
+    assert.strictEqual(val, 'first')
+    assert.strictEqual(calls, 1)
+  })
 
-    await sleep(25)
+  it('remember() re-computes after TTL expires', async () => {
+    let calls = 0
+    await Cache.remember('k', 0.01, () => { calls++; return 'first' })
+    await sleep(20)
+    const val = await Cache.remember('k', 60, () => { calls++; return 'second' })
+    assert.strictEqual(val, 'second')
+    assert.strictEqual(calls, 2)
+  })
 
-    assert.strictEqual(await Cache.get('ttl:key'), null)
-    assert.strictEqual(await Cache.has('ttl:key'), false)
+  it('remember() supports async callbacks', async () => {
+    const val = await Cache.remember('k', 60, async () => {
+      await Promise.resolve()
+      return 42
+    })
+    assert.strictEqual(val, 42)
+  })
+
+  // ── rememberForever() ─────────────────────────────────────
+
+  it('rememberForever() computes and stores without TTL', async () => {
+    let calls = 0
+    const val = await Cache.rememberForever('k', () => { calls++; return 'v' })
+    assert.strictEqual(val, 'v')
+    assert.strictEqual(calls, 1)
+  })
+
+  it('rememberForever() returns cached value on subsequent calls', async () => {
+    let calls = 0
+    await Cache.rememberForever('k', () => { calls++; return 'first' })
+    const val = await Cache.rememberForever('k', () => { calls++; return 'second' })
+    assert.strictEqual(val, 'first')
+    assert.strictEqual(calls, 1)
+  })
+
+  it('rememberForever() value persists (no expiry)', async () => {
+    await Cache.rememberForever('k', () => 'forever')
+    await sleep(20)
+    assert.strictEqual(await Cache.get('k'), 'forever')
+  })
+
+  // ── pull() ────────────────────────────────────────────────
+
+  it('pull() returns the value and removes it', async () => {
+    await Cache.set('k', 'v')
+    const val = await Cache.pull('k')
+    assert.strictEqual(val, 'v')
+    assert.strictEqual(await Cache.get('k'), null)
+  })
+
+  it('pull() returns null for a missing key', async () => {
+    assert.strictEqual(await Cache.pull('missing'), null)
+  })
+
+  it('pull() does not affect other keys', async () => {
+    await Cache.set('a', 1)
+    await Cache.set('b', 2)
+    await Cache.pull('a')
+    assert.strictEqual(await Cache.get('b'), 2)
+  })
+})
+
+// ─── cache() provider ──────────────────────────────────────
+
+describe('cache() provider', () => {
+  beforeEach(() => CacheRegistry.reset())
+
+  const fakeApp = { instance: () => undefined } as never
+
+  it('boots with memory driver and registers adapter', async () => {
+    const Provider = cache({ default: 'memory', stores: { memory: { driver: 'memory' } } })
+    await new Provider(fakeApp).boot?.()
+    assert.ok(CacheRegistry.get() !== null)
+  })
+
+  it('falls back to memory driver when store config is missing', async () => {
+    const Provider = cache({ default: 'missing', stores: {} })
+    await new Provider(fakeApp).boot?.()
+    assert.ok(CacheRegistry.get() !== null)
+  })
+
+  it('throws on an unknown driver', async () => {
+    const Provider = cache({ default: 'bad', stores: { bad: { driver: 'unsupported' } } })
+    await assert.rejects(
+      () => new Provider(fakeApp).boot?.() as Promise<void>,
+      /Unknown driver "unsupported"/
+    )
+  })
+
+  it('register() is a no-op', () => {
+    const Provider = cache({ default: 'memory', stores: { memory: { driver: 'memory' } } })
+    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 })

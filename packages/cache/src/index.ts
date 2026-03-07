@@ -19,8 +19,10 @@ export interface CacheAdapterProvider {
 export class CacheRegistry {
   private static adapter: CacheAdapter | null = null
 
-  static set(adapter: CacheAdapter): void { this.adapter = adapter }
-  static get(): CacheAdapter | null        { return this.adapter }
+  static set(adapter: CacheAdapter): void    { this.adapter = adapter }
+  static get(): CacheAdapter | null          { return this.adapter }
+  /** @internal — clears the registered adapter. Used for testing. */
+  static reset(): void                       { this.adapter = null }
 }
 
 // ─── Cache Facade ──────────────────────────────────────────
@@ -58,6 +60,30 @@ export class Cache {
     return value
   }
 
+  /**
+   * Retrieve a value, or compute + store it forever (no TTL) if missing.
+   */
+  static async rememberForever<T = unknown>(
+    key: string,
+    callback: () => T | Promise<T>,
+  ): Promise<T> {
+    const cached = await this.get<T>(key)
+    if (cached !== null) return cached
+    const value = await callback()
+    await this.set(key, value)
+    return value
+  }
+
+  /**
+   * Retrieve a value and immediately remove it from the cache.
+   * Returns null if the key does not exist.
+   */
+  static async pull<T = unknown>(key: string): Promise<T | null> {
+    const value = await this.get<T>(key)
+    if (value !== null) await this.forget(key)
+    return value
+  }
+
   /** Remove a single key. */
   static forget(key: string): Promise<void>  { return this.store().forget(key) }
 
@@ -75,7 +101,7 @@ interface MemoryEntry {
   expiresAt: number | null   // epoch ms; null = never expires
 }
 
-class MemoryAdapter implements CacheAdapter {
+export class MemoryAdapter implements CacheAdapter {
   private readonly store = new Map<string, MemoryEntry>()
 
   private expired(entry: MemoryEntry): boolean {
