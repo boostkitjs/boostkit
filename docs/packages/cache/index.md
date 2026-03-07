@@ -73,22 +73,31 @@ await Cache.flush()
 
 ### Methods
 
-| Method                                  | Returns          | Description                                                                 |
-|-----------------------------------------|------------------|-----------------------------------------------------------------------------|
-| `get<T>(key)`                           | `Promise<T \| null>` | Retrieve a value by key. Returns `null` if not found or expired.        |
-| `set(key, value, ttlSeconds?)`          | `Promise<void>`  | Store a value. Omit `ttlSeconds` to store indefinitely.                     |
-| `has(key)`                              | `Promise<boolean>` | Check whether a key exists and has not expired.                           |
-| `forget(key)`                           | `Promise<void>`  | Remove a single key from the store.                                         |
-| `remember<T>(key, ttl, fn)`            | `Promise<T>`     | Return the cached value if present; otherwise call `fn`, store, and return. |
-| `flush()`                               | `Promise<void>`  | Clear all entries in the current store.                                     |
-
-### Using a Named Store
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get<T>(key)` | `Promise<T \| null>` | Retrieve a value. Returns `null` if not found or expired. |
+| `set(key, value, ttl?)` | `Promise<void>` | Store a value. Omit `ttl` to store indefinitely. |
+| `has(key)` | `Promise<boolean>` | Check whether a key exists and has not expired. |
+| `forget(key)` | `Promise<void>` | Remove a single key. |
+| `flush()` | `Promise<void>` | Clear all entries in the store. |
+| `remember<T>(key, ttl, fn)` | `Promise<T>` | Return cached value or compute, store with TTL, and return. |
+| `rememberForever<T>(key, fn)` | `Promise<T>` | Return cached value or compute, store without TTL, and return. |
+| `pull<T>(key)` | `Promise<T \| null>` | Get and immediately remove the value. `null` if missing. |
 
 ```ts
-import { Cache } from '@boostkit/cache'
+// remember — fetch from cache or compute and store with TTL
+const user = await Cache.remember('user:1', 60, async () => {
+  return await User.find('1')
+})
 
-const redisCache = Cache.disk('redis')
-await redisCache.set('session:abc', data, 3600)
+// rememberForever — compute once, cache indefinitely
+const config = await Cache.rememberForever('app:config', async () => {
+  return await loadConfig()
+})
+
+// pull — one-time use values
+const token = await Cache.pull<string>('one-time-token')
+if (token) await processToken(token)
 ```
 
 ## Configuration
@@ -154,6 +163,7 @@ For Redis-backed caching, install `ioredis` and set `driver: 'redis'`. See the [
 
 ## Notes
 
-- The `Cache` facade always operates on the `default` store unless you call `Cache.disk(name)` to select a named store.
-- TTL values are in **seconds**.
+- TTL values are always in **seconds**.
 - The `memory` driver stores data in an in-process `Map` — data is lost on process restart and is not shared across multiple server instances.
+- `MemoryAdapter` is exported and can be used standalone without the provider.
+- For Redis-backed caching, install `ioredis` (`pnpm add ioredis`) and set `driver: 'redis'`. See the [Redis driver docs](./redis).
