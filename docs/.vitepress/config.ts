@@ -48,6 +48,7 @@ export default defineConfig({
             { text: 'Routing', link: '/guide/routing' },
             { text: 'Middleware', link: '/guide/middleware' },
             { text: 'Validation', link: '/guide/validation' },
+            { text: 'Database & Models', link: '/guide/database' },
             { text: 'Artisan Console', link: '/guide/artisan' },
           ],
         },
@@ -64,7 +65,7 @@ export default defineConfig({
             { text: 'DI Container', link: '/packages/core/di' },
             { text: '@boostkit/middleware', link: '/packages/core/middleware' },
             { text: 'Rate Limiting & CSRF', link: '/packages/rate-limit' },
-            { text: '@boostkit/validation', link: '/packages/core/validation' },
+            { text: 'Validation (core)', link: '/packages/core/validation' },
           ],
         },
         {

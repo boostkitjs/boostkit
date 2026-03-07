@@ -132,6 +132,7 @@ Adapters may extend this interface with driver-specific methods (e.g. raw query 
 
 ## Notes
 
-- `ModelRegistry.set()` must be called before any `Model.*` static method is invoked. Place it in your `DatabaseServiceProvider.boot()` method.
+- For a complete setup walkthrough including migrations and seeding, see the [Database & Models guide](/guide/database).
+- `ModelRegistry.set()` must be called before any `Model.*` static method is invoked. Register the database provider first in `bootstrap/providers.ts`.
 - `Model.getTable()` defaults to the lowercase class name followed by `s`. Override it with `static table` when the table name does not follow this convention (e.g. Prisma uses the lowercase model name without pluralisation).
 - `@boostkit/orm` contains no runtime database code. It is safe to list as a direct dependency alongside an adapter package.

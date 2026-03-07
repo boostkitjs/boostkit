@@ -43,7 +43,7 @@ BoostKit exposes a standard [WinterCG Fetch handler](https://wintercg.org/) thro
 | HTTP server | `@boostkit/server-hono` | Hono adapter with request logger, CORS, error pages |
 | Routing | `@boostkit/router` | Fluent + decorator-based, middleware support |
 | Middleware | `@boostkit/middleware` | Pipeline, CSRF, rate limiting, throttle, CORS |
-| Validation | `@boostkit/validation` | Zod-powered, `FormRequest`, `validate()`, `validateWith()` |
+| Validation | `@boostkit/core` | Zod-powered, `FormRequest`, `validate()`, `validateWith()` |
 | DI container | `@boostkit/core` | `Container`, `@Injectable`, `@Inject` |
 | ORM | `@boostkit/orm-prisma` / `orm-drizzle` | Prisma or Drizzle adapters |
 | Auth | `@boostkit/auth` | better-auth integration + `AuthMiddleware` |

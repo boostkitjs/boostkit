@@ -1,11 +1,11 @@
 # Validation
 
-BoostKit provides Zod-powered request validation through `@boostkit/validation`. You can validate inline with `validate()`, use middleware factories with `validateWith()`, or extend `FormRequest` for class-based validation.
+BoostKit provides Zod-powered request validation through `@boostkit/core`. You can validate inline with `validate()`, use middleware factories with `validateWith()`, or extend `FormRequest` for class-based validation.
 
 ## Quick Inline Validation
 
 ```ts
-import { validate, z } from '@boostkit/validation'
+import { validate, z } from '@boostkit/core'
 import type { AppRequest, AppResponse } from '@boostkit/contracts'
 
 router.post('/api/users', async (req: AppRequest, res: AppResponse) => {
@@ -30,7 +30,7 @@ router.post('/api/users', async (req: AppRequest, res: AppResponse) => {
 Create reusable validation middleware:
 
 ```ts
-import { validateWith, z } from '@boostkit/validation'
+import { validateWith, z } from '@boostkit/core'
 
 const requireCreateUser = validateWith(
   z.object({
@@ -57,8 +57,7 @@ For complex validation with authorization logic, extend `FormRequest`:
 
 ```ts
 // app/Http/Requests/CreateUserRequest.ts
-import { FormRequest } from '@boostkit/validation'
-import { z } from 'zod'
+import { FormRequest, z } from '@boostkit/core'
 
 export class CreateUserRequest extends FormRequest {
   rules() {
@@ -94,7 +93,7 @@ router.post('/api/users', async (req, res) => {
 `validate()` and `FormRequest.validate()` throw a `ValidationError` on failure. Catch it to return a structured error response:
 
 ```ts
-import { validate, ValidationError, z } from '@boostkit/validation'
+import { validate, ValidationError, z } from '@boostkit/core'
 
 router.post('/api/users', async (req, res) => {
   try {
@@ -126,10 +125,10 @@ Field paths from nested objects are joined with `.` (e.g. `address.city`). Top-l
 
 ## Using Zod Directly
 
-`@boostkit/validation` re-exports `z` from Zod, so you don't need a separate Zod import:
+`@boostkit/core` re-exports `z` from Zod — no separate `zod` install needed:
 
 ```ts
-import { z } from '@boostkit/validation'
+import { z } from '@boostkit/core'
 
 const UserSchema = z.object({
   id:    z.string().cuid(),

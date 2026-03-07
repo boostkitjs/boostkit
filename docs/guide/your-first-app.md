@@ -47,37 +47,32 @@ pnpm exec prisma generate
 pnpm exec prisma db push
 ```
 
-## 3. Create a Service Provider
+## 3. Register the database provider
 
-The service provider connects the database and makes services available to the DI container.
-
-Create `app/Providers/DatabaseServiceProvider.ts`:
+Wire the database in `bootstrap/providers.ts`. The `database()` factory handles connection, `ModelRegistry.set()`, and DI binding automatically:
 
 ```ts
-import { ServiceProvider } from '@boostkit/core'
-import { prisma } from '@boostkit/orm-prisma'
-import { ModelRegistry } from '@boostkit/orm'
-
-export class DatabaseServiceProvider extends ServiceProvider {
-  async boot(): Promise<void> {
-    const adapter = await prisma().create()
-    await adapter.connect()
-    ModelRegistry.set(adapter)
-    this.app.instance('db', adapter)
-  }
-}
-```
-
-Register it in `bootstrap/providers.ts`:
-
-```ts
-import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
+import { database } from '@boostkit/orm-prisma'
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
+import configs from '../config/index.js'
 
 export default [
-  DatabaseServiceProvider,   // must appear before AppServiceProvider — sets ModelRegistry
+  database(configs.database),   // first — connects DB and sets up ModelRegistry
   AppServiceProvider,
 ]
+```
+
+A minimal `config/database.ts`:
+
+```ts
+import { Env } from '@boostkit/support'
+
+export default {
+  default: 'sqlite' as const,
+  connections: {
+    sqlite: { driver: 'sqlite' as const, url: Env.get('DATABASE_URL', 'file:./dev.db') },
+  },
+}
 ```
 
 ## 4. Create a Service
