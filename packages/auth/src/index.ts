@@ -176,7 +176,7 @@ export type BetterAuthInstance = Awaited<ReturnType<typeof import('better-auth')
  *   Route.post('/api/posts', handler, [authMw])
  */
 export function AuthMiddleware(): MiddlewareHandler {
-  return async (req, res, next) => {
+  return async function AuthMiddleware(req, res, next) {
     const auth    = app().make<BetterAuthInstance>('auth')
     const session = await auth.api.getSession({
       headers: new Headers(req.headers as Record<string, string>),

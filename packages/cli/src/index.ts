@@ -174,7 +174,14 @@ async function main(): Promise<void> {
         console.log(`  ${'METHOD'.padEnd(9)}  ${'PATH'.padEnd(pathWidth)}  MIDDLEWARE`)
         console.log(`  ${'─'.repeat(9)}  ${'─'.repeat(pathWidth)}  ${'─'.repeat(mwWidth)}`)
         for (const route of apiRoutes) {
-          const mw = route.middleware.length > 0 ? `${route.middleware.length} handler(s)` : '—'
+          const names = route.middleware
+            .map((fn: unknown) => (typeof fn === 'function' && fn.name) ? fn.name : null)
+            .filter(Boolean) as string[]
+          const mw = names.length > 0
+            ? names.join(', ')
+            : route.middleware.length > 0
+              ? `${route.middleware.length}×`
+              : '—'
           console.log(`  ${methodColor(route.method)}  ${route.path.padEnd(pathWidth)}  ${mw}`)
         }
       }

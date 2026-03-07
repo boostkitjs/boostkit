@@ -12,7 +12,9 @@ export abstract class Middleware {
 
   /** Convert class instance to a handler function */
   toHandler(): MiddlewareHandler {
-    return (req, res, next) => this.handle(req, res, next)
+    const handler = (req: AppRequest, res: AppResponse, next: () => Promise<void>) => this.handle(req, res, next)
+    Object.defineProperty(handler, 'name', { value: this.constructor.name })
+    return handler
   }
 }
 
@@ -241,7 +243,9 @@ class _CsrfMiddleware extends Middleware {
 }
 
 export function CsrfMiddleware(options?: CsrfOptions): MiddlewareHandler {
-  return new _CsrfMiddleware(options).toHandler()
+  const handler = new _CsrfMiddleware(options).toHandler()
+  Object.defineProperty(handler, 'name', { value: 'CsrfMiddleware' })
+  return handler
 }
 
 /**
@@ -301,7 +305,7 @@ function isRateLimitAsset(path: string): boolean {
 }
 
 function makeRateLimitHandler(opts: RateLimitOptions): MiddlewareHandler {
-  return async (req: AppRequest, res: AppResponse, next: () => Promise<void>) => {
+  return async function RateLimit(req: AppRequest, res: AppResponse, next: () => Promise<void>) {
     if (isRateLimitAsset(req.path)) return next()
     if (opts.skipIf?.(req))         return next()
 
