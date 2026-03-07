@@ -325,7 +325,7 @@ function makeDriver(config: SessionConfig): InternalDriver {
 export function sessionMiddleware(config: SessionConfig): MiddlewareHandler {
   const driver = makeDriver(config)
 
-  return async (req: AppRequest, res: AppResponse, next: () => Promise<void>) => {
+  return async function SessionMiddleware(req: AppRequest, res: AppResponse, next: () => Promise<void>) {
     const cookieHeader = (req.headers['cookie'] as string | undefined) ?? ''
     const cookieValue  = parseCookie(cookieHeader, config.cookie.name)
     const payload      = await driver.load(cookieValue)
