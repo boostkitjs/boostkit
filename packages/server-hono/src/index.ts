@@ -139,15 +139,14 @@ function duration(ms: number): string {
 }
 
 // Fixed column widths (pad raw strings BEFORE coloring — ANSI codes must not affect padding)
-const COUNTER_WIDTH = 4   // "#1  " "#10 " "#100"
-const DUR_WIDTH     = 8   // "~7ms    " "~706ms  " "~1.23s  "
-const LOG_WIDTH     = 55  // path + dots combined
+const COUNTER_WIDTH = 3   // " #1" "#10" "#100"
+const LOG_WIDTH     = 61  // path + dots + duration combined
 
 function formatRequestLog(n: number, path: string, status: number, ms: number): string {
-  const counterStr = `#${n}`.padEnd(COUNTER_WIDTH)
-  const durStr     = duration(ms).padEnd(DUR_WIDTH)
-  const dots       = dim('.'.repeat(Math.max(4, LOG_WIDTH - path.length)))
-  return `${dim(ts())}  ${cyan(counterStr)}  ${path} ${dots} ${dim(durStr)} ${statusColor(status)}`
+  const counterStr = `#${n}`.padStart(COUNTER_WIDTH)
+  const durStr     = duration(ms)
+  const dots       = dim('.'.repeat(Math.max(4, LOG_WIDTH - path.length - durStr.length)))
+  return `${dim(ts())}  ${cyan(counterStr)} ${path} ${dots} ${durStr} ${statusColor(status)}`
 }
 
 /**
