@@ -2,7 +2,7 @@ import { Controller, Get, Post, Middleware } from '@boostkit/router'
 import { RateLimit } from '@boostkit/middleware'
 import type { AppRequest, AppResponse } from '@boostkit/contracts'
 
-const limit = RateLimit.perMinute(30).toHandler()
+const limit = RateLimit.perMinute(30)
 
 @Controller('/api/test')
 export class TestController {

@@ -606,6 +606,9 @@ importers:
       '@boostkit/vite':
         specifier: workspace:*
         version: link:../packages/vite
+      '@prisma/adapter-better-sqlite3':
+        specifier: ^7.0.0
+        version: 7.4.2
       '@prisma/client':
         specifier: ^7.0.0
         version: 7.4.2(prisma@7.4.2(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
@@ -9717,7 +9720,6 @@ snapshots:
     dependencies:
       '@prisma/driver-adapter-utils': 7.4.2
       better-sqlite3: 12.6.2
-    optional: true
 
   '@prisma/adapter-libsql@7.4.2':
     dependencies:
@@ -9786,7 +9788,6 @@ snapshots:
   '@prisma/driver-adapter-utils@7.4.2':
     dependencies:
       '@prisma/debug': 7.4.2
-    optional: true
 
   '@prisma/engines-version@7.5.0-10.94a226be1cf2967af2541cca5529f0f7ba866919': {}
 

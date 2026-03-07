@@ -8,7 +8,7 @@
     "dev:clean": "pids=$(lsof -ti :24678 -ti :3000 2>/dev/null); if [ -n \"$pids\" ]; then kill -9 $pids; fi; vike dev",
     "build": "vike build",
     "start": "node ./dist/server/index.mjs",
-    "preview": "node ./dist/server/index.mjs",
+    "preview": "pids=$(lsof -ti :3000 2>/dev/null); if [ -n \"$pids\" ]; then kill -9 $pids; fi; node ./dist/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "artisan": "tsx node_modules/@boostkit/cli/src/index.ts"
   },
@@ -32,6 +32,7 @@
     "@boostkit/server-hono": "workspace:*",
     "@boostkit/storage": "workspace:*",
     "@boostkit/validation": "workspace:*",
+    "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-vue": "^6.0.4",
