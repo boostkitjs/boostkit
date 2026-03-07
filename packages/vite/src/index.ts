@@ -19,6 +19,8 @@ const SSR_EXTERNALS = [
   '@prisma/adapter-better-sqlite3',
   '@prisma/adapter-libsql',
   '@libsql/client',
+  // Redis — server-only
+  'ioredis',
 ]
 
 // ─── SSR no-externals ──────────────────────────────────────
@@ -81,6 +83,7 @@ export function boostkit(): Promise<Plugin[]> {
           // Vite emits these via logger.warnOnce() when published dist/ has sourcemaps
           // referencing the original .ts sources not shipped in the npm package.
           const filter = (msg: string) =>
+            // Suppress sourcemap warnings for published @boostkit/* packages
             msg.includes('Sourcemap') &&
             msg.includes('missing source files') &&
             msg.includes('@boostkit')
@@ -102,6 +105,17 @@ export function boostkit(): Promise<Plugin[]> {
               rollupOptions: {
                 external: (id: string) =>
                   SSR_EXTERNALS.some(e => id === e || id.startsWith(e + '/')),
+                onwarn(warning, warn) {
+                  // Suppress "externalized for browser compatibility" for server-only
+                  // packages — node:crypto (middleware), node:module (support), ioredis.
+                  if (
+                    warning.message.includes('has been externalized for browser compatibility') &&
+                    (warning.message.includes('/packages/middleware/') ||
+                      warning.message.includes('/packages/support/') ||
+                      warning.message.includes('ioredis'))
+                  ) return
+                  warn(warning)
+                },
               },
             },
           }
