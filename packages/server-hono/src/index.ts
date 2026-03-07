@@ -106,14 +106,16 @@ function clr(code: string, s: string): string {
 }
 
 const dim  = (s: string) => clr('2',    s)
-const cyan = (s: string) => clr('1;36', s)
+const cyan = (s: string) => isTTY ? `\x1b[38;2;80;200;220m${s}\x1b[0m` : s
 
 function statusColor(status: number): string {
+  if (!isTTY) return String(status)
   const s = String(status)
-  if (status < 300) return clr('1;35', s)  // 2xx — bold magenta (matches Vike)
-  if (status < 400) return clr('1;36', s)  // 3xx — bold cyan
-  if (status < 500) return clr('1;33', s)  // 4xx — bold yellow
-  return                     clr('1;31', s) // 5xx — bold red
+  // 24-bit truecolor — exact RGB, not subject to terminal theme remapping
+  if (status < 300) return `\x1b[38;2;80;210;100m${s}\x1b[0m`   // green
+  if (status < 400) return `\x1b[38;2;80;200;220m${s}\x1b[0m`   // cyan
+  if (status < 500) return `\x1b[38;2;250;190;50m${s}\x1b[0m`   // yellow
+  return                   `\x1b[38;2;255;85;85m${s}\x1b[0m`    // red
 }
 
 function nextReqId(): number {
@@ -143,7 +145,7 @@ function formatRequestLog(n: number, path: string, status: number, ms: number): 
   const counterStr = `#${n}`.padEnd(COUNTER_WIDTH)
   const durStr     = duration(ms).padEnd(DUR_WIDTH)
   const dots       = dim('.'.repeat(Math.max(4, LOG_WIDTH - path.length)))
-  return `${dim(ts())}  ${cyan(counterStr)}  ${path} ${dots} ${dim(durStr)}  ${statusColor(status)}`
+  return `${dim(ts())}  ${cyan(counterStr)}  ${path} ${dots} ${dim(durStr)} ${statusColor(status)}`
 }
 
 /**
