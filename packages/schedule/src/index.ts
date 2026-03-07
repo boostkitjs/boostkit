@@ -6,15 +6,22 @@ import { Cron } from 'croner'
 export class ScheduledTask {
   private _cron        = '* * * * *'
   private _description = ''
+  private _timezone?:  string
 
   constructor(private readonly callback: () => void | Promise<void>) {}
 
   // ── Cron ───────────────────────────────────────────────
-  /** Set a raw cron expression (5-field: min hour dom month dow) */
+
+  /** Set a raw cron expression (5 or 6-field) */
   cron(expression: string): this { this._cron = expression; return this }
 
-  // ── Convenience helpers ────────────────────────────────
-  everySecond(): this         { return this.cron('* * * * * *') }
+  /** Set the IANA timezone for this task (e.g. 'America/New_York', 'UTC') */
+  timezone(tz: string): this { this._timezone = tz; return this }
+
+  // ── Sub-minute ─────────────────────────────────────────
+  everySecond(): this { return this.cron('* * * * * *') }
+
+  // ── Minute helpers ─────────────────────────────────────
   everyMinute(): this         { return this.cron('* * * * *') }
   everyTwoMinutes(): this     { return this.cron('*/2 * * * *') }
   everyFiveMinutes(): this    { return this.cron('*/5 * * * *') }
@@ -22,36 +29,62 @@ export class ScheduledTask {
   everyFifteenMinutes(): this { return this.cron('*/15 * * * *') }
   everyThirtyMinutes(): this  { return this.cron('*/30 * * * *') }
 
+  // ── Hour helpers ───────────────────────────────────────
   hourly(): this                 { return this.cron('0 * * * *') }
   hourlyAt(minute: number): this { return this.cron(`${minute} * * * *`) }
 
+  // ── Day helpers ────────────────────────────────────────
   daily(): this                      { return this.cron('0 0 * * *') }
-  dailyAt(time: string): this        {
+  dailyAt(time: string): this {
     const [h = '0', m = '0'] = time.split(':')
     return this.cron(`${m} ${h} * * *`)
   }
   twiceDaily(h1 = 1, h2 = 13): this { return this.cron(`0 ${h1},${h2} * * *`) }
 
+  // ── Named-day helpers ──────────────────────────────────
+  sundays(): this    { return this.cron('0 0 * * 0') }
+  mondays(): this    { return this.cron('0 0 * * 1') }
+  tuesdays(): this   { return this.cron('0 0 * * 2') }
+  wednesdays(): this { return this.cron('0 0 * * 3') }
+  thursdays(): this  { return this.cron('0 0 * * 4') }
+  fridays(): this    { return this.cron('0 0 * * 5') }
+  saturdays(): this  { return this.cron('0 0 * * 6') }
+  weekdays(): this   { return this.cron('0 0 * * 1-5') }
+  weekends(): this   { return this.cron('0 0 * * 0,6') }
+
+  // ── Week helpers ───────────────────────────────────────
   weekly(): this                            { return this.cron('0 0 * * 0') }
   weeklyOn(day: number, time = '0:0'): this {
     const [h = '0', m = '0'] = time.split(':')
     return this.cron(`${m} ${h} * * ${day}`)
   }
 
-  monthly(): this                           { return this.cron('0 0 1 * *') }
-  monthlyOn(day = 1, time = '0:0'): this    {
+  // ── Month helpers ──────────────────────────────────────
+  monthly(): this                        { return this.cron('0 0 1 * *') }
+  monthlyOn(day = 1, time = '0:0'): this {
     const [h = '0', m = '0'] = time.split(':')
     return this.cron(`${m} ${h} ${day} * *`)
   }
 
-  yearly(): this  { return this.cron('0 0 1 1 *') }
+  yearly(): this { return this.cron('0 0 1 1 *') }
 
   description(desc: string): this { this._description = desc; return this }
 
-  // ── Internal ───────────────────────────────────────────
-  getCron(): string       { return this._cron }
-  getDescription(): string { return this._description }
+  // ── Accessors ──────────────────────────────────────────
+  getCron(): string              { return this._cron }
+  getTimezone(): string | undefined { return this._timezone }
+  getDescription(): string       { return this._description }
   getCallback(): () => void | Promise<void> { return this.callback }
+
+  /** Returns the next scheduled run time, or null if the cron is invalid. */
+  nextRun(): Date | null {
+    try {
+      const opts = this._timezone ? { timezone: this._timezone } : {}
+      return new Cron(this._cron, { ...opts, paused: true }).nextRun() ?? null
+    } catch {
+      return null
+    }
+  }
 
   /**
    * Returns true if this task is due within the current one-minute window.
@@ -59,7 +92,8 @@ export class ScheduledTask {
    */
   isDue(): boolean {
     try {
-      const job  = new Cron(this._cron, { paused: true })
+      const opts = this._timezone ? { timezone: this._timezone } : {}
+      const job  = new Cron(this._cron, { ...opts, paused: true })
       const next = job.nextRun(new Date(Date.now() - 60_000))
       return next !== null && next.getTime() <= Date.now()
     } catch {
@@ -80,10 +114,22 @@ class Scheduler {
   }
 
   getTasks(): ScheduledTask[] { return [...this._tasks] }
+
+  /** @internal — used for testing and hot-reload */
+  reset(): void { this._tasks.length = 0 }
 }
 
 export const schedule = new Scheduler()
 export const Schedule = schedule
+
+// ─── Helpers ───────────────────────────────────────────────
+
+function formatNextRun(date: Date | null): string {
+  if (!date) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const d   = date
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 // ─── Service Provider Factory ──────────────────────────────
 
@@ -127,7 +173,8 @@ export function scheduler(): new (app: Application) => ServiceProvider {
 
         for (const task of tasks) {
           const label = task.getDescription() || task.getCron()
-          jobs.push(new Cron(task.getCron(), async () => {
+          const opts  = task.getTimezone() ? { timezone: task.getTimezone()! } : {}
+          jobs.push(new Cron(task.getCron(), opts, async () => {
             process.stdout.write(`[Schedule] Running "${label}" ... `)
             try {
               await task.getCallback()()
@@ -146,7 +193,6 @@ export function scheduler(): new (app: Application) => ServiceProvider {
             resolve()
           })
         })
-        process.exit(0)
       }).description('Start the schedule worker (in-process cron, Ctrl+C to stop)')
 
       artisan.command('schedule:list', () => {
@@ -155,10 +201,19 @@ export function scheduler(): new (app: Application) => ServiceProvider {
           console.log('[Schedule] No tasks registered.')
           return
         }
-        console.log('\n  Scheduled Tasks\n  ' + '─'.repeat(50))
+
+        const CRON_W = 22
+        const DESC_W = 28
+        const SEP    = '─'
+        console.log('\n  Scheduled Tasks')
+        console.log(`  ${SEP.repeat(CRON_W)} ${SEP.repeat(DESC_W)} ${SEP.repeat(19)}`)
+        console.log(`  ${'CRON'.padEnd(CRON_W)} ${'DESCRIPTION'.padEnd(DESC_W)} NEXT RUN`)
+        console.log(`  ${SEP.repeat(CRON_W)} ${SEP.repeat(DESC_W)} ${SEP.repeat(19)}`)
         for (const task of tasks) {
-          const desc = task.getDescription()
-          console.log(`  ${task.getCron().padEnd(20)} ${desc || '(no description)'}`)
+          const cron = task.getCron().padEnd(CRON_W)
+          const desc = (task.getDescription() || '—').padEnd(DESC_W)
+          const next = formatNextRun(task.nextRun())
+          console.log(`  ${cron} ${desc} ${next}`)
         }
         console.log()
       }).description('List all registered scheduled tasks')
