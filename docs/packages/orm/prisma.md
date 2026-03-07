@@ -16,22 +16,22 @@ pnpm exec prisma db push       # sync schema to database (dev, no migration file
 pnpm exec prisma generate      # regenerate the Prisma client after schema changes
 ```
 
-## `prismaProvider()` (Recommended)
+## `database()` (Recommended)
 
-The simplest way to wire Prisma is the `prismaProvider()` factory. It handles connection, ModelRegistry setup, and DI binding in one call:
+The simplest way to wire Prisma is the `database()` factory. It handles connection, ModelRegistry setup, and DI binding in one call:
 
 ```ts
 // bootstrap/providers.ts
-import { prismaProvider } from '@boostkit/orm-prisma'
+import { database } from '@boostkit/orm-prisma'
 import configs from '../config/index.js'
 
 export default [
-  prismaProvider(configs.database),  // connect + ModelRegistry.set() + bind 'prisma' to DI
+  database(configs.database),  // connect + ModelRegistry.set() + bind 'prisma' to DI
   // ...
 ]
 ```
 
-`prismaProvider` binds the raw `PrismaClient` to the DI container as `'prisma'`. This lets `auth()` from `@boostkit/auth` auto-discover it — no need to pass database config to `auth()` separately.
+`database()` binds the raw `PrismaClient` to the DI container as `'prisma'`. This lets `auth()` from `@boostkit/auth` auto-discover it — no need to pass database config to `auth()` separately.
 
 A typical `config/database.ts`:
 
@@ -110,15 +110,15 @@ The adapter auto-detects the driver from the `DATABASE_URL` scheme (`file:` → 
 
 ## API
 
-### `prismaProvider(config)`
+### `database(config)`
 
 The high-level factory for `bootstrap/providers.ts`. Accepts the same config shape as `prisma()` but returns a `ServiceProvider` class that handles the full lifecycle:
 
 ```ts
-import { prismaProvider } from '@boostkit/orm-prisma'
+import { database } from '@boostkit/orm-prisma'
 
 export default [
-  prismaProvider({ driver: 'sqlite', url: 'file:./dev.db' }),
+  database({ driver: 'sqlite', url: 'file:./dev.db' }),
 ]
 ```
 
