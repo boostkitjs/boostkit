@@ -36,8 +36,14 @@ export default Application.configure({
     // Global middleware — runs on every request (web + API)
     m.use(RateLimit.perMinute(60))
   })
-  .withExceptions((_e) => {
-    // reserved: custom exception handling
+  .withExceptions((e) => {
+    // Register custom error renderers
+    e.render(PaymentError, (err) =>
+      Response.json({ code: err.code }, { status: 402 })
+    )
+
+    // Ignore an error — lets it surface to the server's default fallback
+    e.ignore(NotFoundError)
   })
   .create()
 ```
@@ -65,7 +71,7 @@ export default {
 |---|---|---|
 | `withRouting` | `(options: { web?, api?, commands? }) => AppBuilder` | Registers lazy route loader functions. Each loader is a dynamic import returning a side-effect module. |
 | `withMiddleware` | `(fn: (m: MiddlewareConfigurator) => void) => AppBuilder` | Registers global middleware that runs on every request before route handlers. |
-| `withExceptions` | `(fn: (e: ExceptionConfigurator) => void) => AppBuilder` | Reserved for custom exception handling (future). |
+| `withExceptions` | `(fn: (e: ExceptionConfigurator) => void) => AppBuilder` | Registers custom error renderers and ignore rules. `ValidationError` is handled automatically as 422 JSON — no catch block needed in routes. |
 | `create` | `() => BoostKit` | Finalises configuration and returns a `BoostKit` instance. Does not boot providers yet. |
 
 ---
@@ -149,6 +155,51 @@ export default [
 | `FormRequest`, `ValidationError`, `validate`, `validateWith`, `z` | Built-in (core Validation) |
 | `Env`, `env`, `Collection`, `ConfigRepository`, `config`, `resolveOptionalPeer`, `defineEnv`, `dump`, `dd`, `sleep`, `tap`, `pick`, `omit`, `ucfirst` | `@boostkit/support` |
 | `AppRequest`, `AppResponse`, `RouteHandler`, `MiddlewareHandler`, `HttpMethod`, `RouteDefinition`, `ServerAdapter`, `FetchHandler`, `ServerAdapterProvider` | `@boostkit/contracts` |
+
+---
+
+## ExceptionConfigurator
+
+`withExceptions(fn)` receives an `ExceptionConfigurator` instance. Use it to register custom error renderers and ignore rules.
+
+### `.render(ErrorClass, fn)`
+
+Register a renderer for a specific error type. Return a `Response` — the route's normal error handling is bypassed.
+
+```ts
+.withExceptions((e) => {
+  e.render(PaymentError, (err, req) =>
+    Response.json({ code: err.code, message: err.message }, { status: 402 })
+  )
+
+  e.render(NotFoundException, (_err, req) =>
+    Response.json({ message: 'Not found.' }, { status: 404 })
+  )
+})
+```
+
+`fn` receives `(err: T, req: AppRequest)` and must return a `Response` or `Promise<Response>`.
+
+### `.ignore(ErrorClass)`
+
+Re-throw an error class so it surfaces to the server's native fallback handler. In development this shows the HTML error page; in production it becomes a `500`.
+
+```ts
+e.ignore(DebugOnlyError)
+```
+
+### Built-in: `ValidationError → 422`
+
+`ValidationError` is automatically rendered as `422 Unprocessable Entity` — no custom renderer needed:
+
+```json
+{
+  "message": "Validation failed.",
+  "errors": { "email": ["Invalid email address"], "name": ["Required"] }
+}
+```
+
+This means you can throw `ValidationError` from any route handler without wrapping it in a `try/catch`. User-registered renderers take precedence for `ValidationError` subclasses.
 
 ---
 

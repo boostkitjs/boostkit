@@ -101,7 +101,7 @@ router.post('/api/users', async (req, res) => {
 | `validate` | Function | `(schema: ZodSchema, req: AppRequest) => Promise<T>` — validates the merged request input and returns the parsed, typed data. |
 | `validateWith` | Function | `(schema: ZodSchema) => MiddlewareHandler` — returns a middleware that validates and attaches `req.body`. |
 | `FormRequest` | Abstract class | Base class for encapsulating validation rules and authorisation logic. |
-| `ValidationError` | Class | Thrown when validation fails. Contains the raw Zod issues and a `flatten()` helper. |
+| `ValidationError` | Class | Thrown when validation fails. `errors` is `Record<string, string[]>`. Auto-handled as 422 JSON by `ExceptionConfigurator`. |
 | `z` | Re-export | Full Zod namespace — same as `import { z } from 'zod'`. Saves a separate Zod install for most cases. |
 
 ---
@@ -117,20 +117,21 @@ try {
   const data = await validate(schema, req)
 } catch (err) {
   if (err instanceof ValidationError) {
-    // err.errors — ZodIssue[] — raw Zod issues
-    // err.flatten() — { formErrors: string[], fieldErrors: Record<string, string[]> }
-    return res.status(422).json({ errors: err.flatten().fieldErrors })
+    // err.errors — Record<string, string[]> — field name → error messages
+    return res.status(422).json({ errors: err.errors })
   }
   throw err
 }
 ```
 
+When using `withExceptions()` in `bootstrap/app.ts`, `ValidationError` is handled automatically as a 422 response — no `try/catch` needed in route handlers.
+
 ### ValidationError Shape
 
-| Property / Method | Type | Description |
+| Property | Type | Description |
 |---|---|---|
-| `errors` | `ZodIssue[]` | The raw array of Zod validation issues. |
-| `flatten()` | `() => { formErrors: string[], fieldErrors: Record<string, string[]> }` | Formats issues into a flat structure suitable for API error responses. |
+| `errors` | `Record<string, string[]>` | Field name → array of human-readable error messages. |
+| `message` | `string` | Always `'Validation failed.'` |
 
 ---
 
