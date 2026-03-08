@@ -66,5 +66,4 @@ export interface ModelClass<T = Record<string, unknown>> {
   create(data: Partial<T>): Promise<T>
   query(): QueryBuilderLike<T>
   where(col: string, value: unknown): QueryBuilderLike<T>
-  paginate(page: number, perPage?: number): Promise<PaginatedResult<T>>
 }

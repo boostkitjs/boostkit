@@ -574,6 +574,9 @@ importers:
       '@boostkit/orm-prisma':
         specifier: workspace:*
         version: link:../packages/orm-prisma
+      '@boostkit/panels':
+        specifier: workspace:*
+        version: link:../packages/panels
       '@boostkit/queue':
         specifier: workspace:*
         version: link:../packages/queue
