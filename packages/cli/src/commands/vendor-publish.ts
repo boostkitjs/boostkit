@@ -1,0 +1,150 @@
+import { cp, mkdir, readdir, stat } from 'node:fs/promises'
+import { resolve, join } from 'node:path'
+import type { Command } from 'commander'
+import { intro, outro, log, spinner } from '@clack/prompts'
+interface PublishGroup {
+  from: string
+  to:   string
+  tag?: string
+}
+
+// ─── Command ───────────────────────────────────────────────
+
+export function vendorPublishCommand(program: Command): void {
+  program
+    .command('vendor:publish')
+    .description('Publish package assets (pages, config, migrations) to your application')
+    .option('--provider <provider>', 'Only publish assets from the given provider')
+    .option('--tag <tag>',           'Only publish assets with the given tag')
+    .option('--list',                'List available publishable assets without copying')
+    .option('--force',               'Overwrite existing files')
+    .action(async (opts: { provider?: string; tag?: string; list?: boolean; force?: boolean }) => {
+      intro('vendor:publish')
+
+      // Read from globalThis — populated by ServiceProvider.publishes() during app boot.
+      // Using globalThis avoids module-cache fragmentation across tsx/ESM load paths.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const registry: Map<string, PublishGroup[]> = (globalThis as any).__boostkit_publish_registry__ ?? new Map()
+      const cwd      = process.cwd()
+
+      // ── Build filtered entries ───────────────────────────
+      let entries: Array<[string, PublishGroup[]]> = [...registry.entries()]
+
+      if (opts.provider) {
+        entries = entries.filter(([name]) => name === opts.provider)
+        if (entries.length === 0) {
+          log.error(`No publishable assets found for provider "${opts.provider}"`)
+          outro('')
+          return
+        }
+      }
+
+      if (opts.tag) {
+        entries = entries
+          .map(([name, groups]): [string, PublishGroup[]] => [
+            name,
+            groups.filter((g) => g.tag === opts.tag),
+          ])
+          .filter(([, groups]) => groups.length > 0)
+
+        if (entries.length === 0) {
+          log.error(`No publishable assets found with tag "${opts.tag}"`)
+          outro('')
+          return
+        }
+      }
+
+      if (entries.length === 0) {
+        log.warn('No publishable assets are registered.')
+        outro('')
+        return
+      }
+
+      // ── List mode ────────────────────────────────────────
+      if (opts.list) {
+        for (const [provider, groups] of entries) {
+          log.message(`\n  ${provider}`)
+          for (const g of groups) {
+            const tag = g.tag ? `  [${g.tag}]` : ''
+            log.message(`    ${g.from}`)
+            log.message(`    → ${g.to}${tag}`)
+          }
+        }
+        outro('Use vendor:publish to copy the files above into your application.')
+        return
+      }
+
+      // ── Copy files ───────────────────────────────────────
+      let published = 0
+
+      for (const [, groups] of entries) {
+        for (const group of groups) {
+          const dest = resolve(cwd, group.to)
+          const s    = spinner()
+          s.start(`Copying to ${group.to}`)
+
+          await mkdir(dest, { recursive: true })
+
+          const skipped = await copyDir(group.from, dest, !!opts.force)
+
+          if (skipped > 0 && !opts.force) {
+            s.stop(`Published to ${group.to}  (${skipped} file(s) skipped — use --force to overwrite)`)
+          } else {
+            s.stop(`Published to ${group.to}`)
+          }
+
+          published++
+        }
+      }
+
+      outro(published > 0 ? 'Assets published successfully.' : 'Nothing was published.')
+    })
+}
+
+// ─── Helpers ───────────────────────────────────────────────
+
+/**
+ * Recursively copy `src` into `dest`.
+ * Returns the number of files skipped (already exist and force=false).
+ */
+async function copyDir(src: string, dest: string, force: boolean): Promise<number> {
+  let skipped = 0
+
+  const srcStat = await stat(src).catch(() => null)
+  if (!srcStat) {
+    log.warn(`Source not found: ${src}`)
+    return 0
+  }
+
+  if (srcStat.isFile()) {
+    if (!force) {
+      const { existsSync } = await import('node:fs')
+      const target = join(dest, src.split('/').pop()!)
+      if (existsSync(target)) return 1
+    }
+    await cp(src, dest, { recursive: true, force })
+    return 0
+  }
+
+  const entries = await readdir(src, { withFileTypes: true })
+  for (const entry of entries) {
+    const srcPath  = join(src, entry.name)
+    const destPath = join(dest, entry.name)
+
+    if (entry.isDirectory()) {
+      await mkdir(destPath, { recursive: true })
+      skipped += await copyDir(srcPath, destPath, force)
+    } else {
+      if (!force) {
+        const { existsSync } = await import('node:fs')
+        if (existsSync(destPath)) {
+          skipped++
+          continue
+        }
+      }
+      await cp(srcPath, destPath, { force })
+    }
+  }
+
+  return skipped
+}

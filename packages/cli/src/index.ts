@@ -4,6 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { makeCommand } from './commands/make.js'
 import { moduleCommand } from './commands/module.js'
+import { vendorPublishCommand } from './commands/vendor-publish.js'
 import { artisan, parseSignature } from '@boostkit/artisan'
 
 const C = {
@@ -119,6 +120,7 @@ async function main(): Promise<void> {
 
   makeCommand(program)
   moduleCommand(program)
+  vendorPublishCommand(program)
 
   // Boot the app (providers + route files) so commands can use DB, etc.
   await bootApp()

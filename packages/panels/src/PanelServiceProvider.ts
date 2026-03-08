@@ -12,6 +12,12 @@ export class PanelServiceProvider extends ServiceProvider {
   register(): void {}
 
   async boot(): Promise<void> {
+    this.publishes({
+      from: new URL('../pages', import.meta.url).pathname,
+      to:   'pages/(panels)',
+      tag:  'panels-pages',
+    })
+
     const { router } = await import('@boostkit/router') as {
       router: {
         get(path: string, handler: (req: AppRequest, res: AppResponse) => unknown, mw?: MiddlewareHandler[]): void
