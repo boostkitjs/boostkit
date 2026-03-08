@@ -86,7 +86,7 @@ export class PanelServiceProvider extends ServiceProvider {
 
       const page    = Number((req.query as Record<string, string>)['page']    ?? 1)
       const perPage = Number((req.query as Record<string, string>)['perPage'] ?? 15)
-      const result  = await Model.paginate(page, perPage)
+      const result  = await Model.query().paginate(page, perPage)
 
       return res.json({
         data: result.data,
