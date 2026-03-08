@@ -12,7 +12,7 @@ npm create boostkit-app@latest
 
 ## Prompts
 
-The installer walks you through 6 questions:
+The installer walks you through up to 8 prompts (2 are conditional):
 
 | Prompt | Options | Default |
 |--------|---------|---------|
