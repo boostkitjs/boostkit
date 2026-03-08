@@ -18,7 +18,8 @@ export { Container, container, Injectable, Inject } from './di.js'
 
 // ─── Service Provider ──────────────────────────────────────
 
-export { ServiceProvider } from './service-provider.js'
+export { ServiceProvider, getPublishGroups } from './service-provider.js'
+export type { PublishGroup } from './service-provider.js'
 
 // ─── Events ────────────────────────────────────────────────
 
