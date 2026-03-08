@@ -100,13 +100,13 @@ APP_URL=http://localhost:3000
 
 ```ts
 // bootstrap/providers.ts
-import { prismaProvider } from '@boostkit/orm-prisma'
+import { database } from '@boostkit/orm-prisma'
 import { auth } from '@boostkit/auth'
 import configs from '../config/index.js'
 
 export default [
-  prismaProvider(configs.database),  // boots first — binds PrismaClient to DI as 'prisma'
-  auth(configs.auth),                // auto-discovers 'prisma' — no DB config needed
+  database(configs.database),  // boots first — binds PrismaClient to DI as 'prisma'
+  auth(configs.auth),          // auto-discovers 'prisma' — no DB config needed
   // ...other providers
 ]
 ```
@@ -182,12 +182,12 @@ export default {
   // ...
   socialProviders: {
     github: {
-      clientId:     Env.require('GITHUB_CLIENT_ID'),
-      clientSecret: Env.require('GITHUB_CLIENT_SECRET'),
+      clientId:     Env.get('GITHUB_CLIENT_ID'),
+      clientSecret: Env.get('GITHUB_CLIENT_SECRET'),
     },
     google: {
-      clientId:     Env.require('GOOGLE_CLIENT_ID'),
-      clientSecret: Env.require('GOOGLE_CLIENT_SECRET'),
+      clientId:     Env.get('GOOGLE_CLIENT_ID'),
+      clientSecret: Env.get('GOOGLE_CLIENT_SECRET'),
     },
   },
 } satisfies BetterAuthConfig
