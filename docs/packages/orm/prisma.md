@@ -112,13 +112,18 @@ The adapter auto-detects the driver from the `DATABASE_URL` scheme (`file:` → 
 
 ### `database(config)`
 
-The high-level factory for `bootstrap/providers.ts`. Accepts the same config shape as `prisma()` but returns a `ServiceProvider` class that handles the full lifecycle:
+The high-level factory for `bootstrap/providers.ts`. Accepts a `DatabaseConfig` and returns a `ServiceProvider` class that handles the full lifecycle:
 
 ```ts
 import { database } from '@boostkit/orm-prisma'
 
 export default [
-  database({ driver: 'sqlite', url: 'file:./dev.db' }),
+  database({
+    default: 'sqlite',
+    connections: {
+      sqlite: { driver: 'sqlite', url: 'file:./dev.db' },
+    },
+  }),
 ]
 ```
 
