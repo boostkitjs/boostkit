@@ -262,8 +262,6 @@ export function cache(config: CacheConfig): new (app: Application) => ServicePro
 
       CacheRegistry.set(adapter)
       this.app.instance('cache', adapter)
-
-      console.log(`[CacheServiceProvider] booted — driver: ${driver}`)
     }
   }
 
