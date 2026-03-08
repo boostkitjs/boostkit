@@ -378,7 +378,6 @@ export function session(config: SessionConfig): new (app: Application) => Servic
 
     boot(): void {
       this.app.instance('session.config', config)
-      console.log(`[SessionServiceProvider] booted — driver: ${config.driver}`)
     }
   }
 

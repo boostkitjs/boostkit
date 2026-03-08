@@ -170,7 +170,6 @@ import { Session } from '@boostkit/session'
 Session.get<T>(key, fallback?)
 Session.put(key, value)
 Session.forget(key)
-Session.flush()
 Session.flash(key, value)
 Session.getFlash<T>(key, fallback?)
 Session.has(key)
