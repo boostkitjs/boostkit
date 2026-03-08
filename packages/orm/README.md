@@ -18,11 +18,11 @@ This package provides the shared abstractions. For a working database connection
 Register a database provider in `bootstrap/providers.ts`:
 
 ```ts
-import { prismaProvider } from '@boostkit/orm-prisma'
+import { database } from '@boostkit/orm-prisma'
 import configs from '../config/index.js'
 
 export default [
-  prismaProvider(configs.database),
+  database(configs.database),
   // ...other providers
 ]
 ```
