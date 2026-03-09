@@ -186,7 +186,7 @@ export class User extends Model {
 ## Notes
 
 - `@prisma/client` is a required peer dependency — install it alongside `@boostkit/orm-prisma`.
-- Run `pnpm exec prisma generate` from the project root (or `playground/`) whenever you change `schema.prisma`.
+- Run `pnpm exec prisma generate` whenever you change `schema.prisma`. If you forget, BoostKit will throw a clear error: `Prisma has no delegate for table "x". Did you run prisma generate?`
 - Use `pnpm exec prisma db push` during development to sync schema changes to the database without creating migration files.
 - Use `pnpm exec prisma migrate dev` when you want tracked migration files for production deployments.
 - The `static table` on a Model must match the Prisma accessor name. Single-word models are lowercase (e.g. model `User` → accessor `user`). Multi-word models use camelCase (e.g. model `BlogPost` → accessor `blogPost`). Always verify the accessor against the generated `PrismaClient` type.
