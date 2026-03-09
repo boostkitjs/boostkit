@@ -376,8 +376,12 @@ Helpers: `detectPackageManager()`, `pmExec(pm, bin)`, `pmRun(pm, script)`, `pmIn
 - `shadcn` dep only added when React + Tailwind are both selected
 - `src/index.css` not generated at all when Tailwind is not selected
 - React + Solid together: Vite plugins use `include`/`exclude` to disambiguate `.tsx` files
-- Secondary frameworks get demo pages at `pages/{fw}-demo/`
+- Secondary frameworks get demo pages at `pages/{fw}-demo/` (each with its own `+config.ts`)
 - `@boostkit/session` is in deps (providers.ts imports it)
+
+### Vike +config.ts Strategy
+- **Single framework**: renderer (`vike-react`/`vike-vue`/`vike-solid`) included in root `pages/+config.ts` alongside `vike-photon`. No `pages/index/+config.ts` generated.
+- **Multi-framework**: root `pages/+config.ts` has `vike-photon` only (no renderer). Each page/folder has its own `+config.ts` extending the correct renderer. `pages/index/+config.ts` is generated for the primary framework.
 
 ### Local Testing
 ```bash
