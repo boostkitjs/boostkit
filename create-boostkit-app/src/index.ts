@@ -150,6 +150,16 @@ async function main(): Promise<void> {
     await fs.writeFile(abs, content, 'utf8')
   }
 
+  // Copy auth pages from installer's own @boostkit/auth dependency
+  if (withAuth) {
+    const authPagesDir = new URL(`../node_modules/@boostkit/auth/pages/${primary}`, import.meta.url).pathname
+    try {
+      await fs.cp(authPagesDir, path.join(target, 'pages'), { recursive: true })
+    } catch {
+      // Package not found — user can publish manually after install
+    }
+  }
+
   s.stop(`${Object.keys(templates).length} files written`)
 
   // ── Install ────────────────────────────────────────────
@@ -164,17 +174,6 @@ async function main(): Promise<void> {
       child.on('error', () => resolve(false))
     })
     s2.stop(ok ? 'Dependencies installed' : `${pmInstall(pm)} failed — run it manually`)
-
-    // Copy auth pages from @boostkit/auth after install
-    if (ok && withAuth) {
-      const authPagesDir = path.join(target, 'node_modules', '@boostkit', 'auth', 'pages', primary)
-      const destDir      = path.join(target, 'pages')
-      try {
-        await fs.cp(authPagesDir, destDir, { recursive: true })
-      } catch {
-        // Silently skip — user can publish manually
-      }
-    }
   }
 
   // ── Done ───────────────────────────────────────────────

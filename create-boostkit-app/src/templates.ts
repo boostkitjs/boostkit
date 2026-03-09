@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process'
+
 export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
 export interface TemplateContext {
@@ -13,13 +15,24 @@ export interface TemplateContext {
   pm:         PackageManager
 }
 
-/** Detect which package manager invoked the installer. */
+/** Detect which package manager invoked the installer.
+ *  1. Check npm_config_user_agent (set by pnpm/npm/yarn/bun create commands)
+ *  2. Fall back to checking which binaries are available on PATH
+ */
 export function detectPackageManager(): PackageManager {
   const ua = process.env['npm_config_user_agent'] ?? ''
   if (ua.startsWith('bun'))  return 'bun'
   if (ua.startsWith('yarn')) return 'yarn'
   if (ua.startsWith('pnpm')) return 'pnpm'
   if (ua.startsWith('npm'))  return 'npm'
+
+  // Fallback: check which binaries exist on PATH (preference: pnpm > bun > yarn > npm)
+  for (const pm of ['pnpm', 'bun', 'yarn'] as const) {
+    try {
+      execSync(`${pm} --version`, { stdio: 'ignore' })
+      return pm
+    } catch { /* not found */ }
+  }
   return 'npm'
 }
 
