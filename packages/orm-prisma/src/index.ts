@@ -26,7 +26,12 @@ class PrismaQueryBuilder<T> implements QueryBuilder<T> {
   ) {}
 
   private get delegate(): any {
-    return (this.prisma as any)[this.table]
+    const d = (this.prisma as any)[this.table]
+    if (!d) throw new Error(
+      `[BoostKit ORM] Prisma has no delegate for table "${this.table}". ` +
+      `Did you run "prisma generate" after adding the model to your schema?`
+    )
+    return d
   }
 
   where(column: string, operatorOrValue: WhereOperator | unknown, value?: unknown): this {

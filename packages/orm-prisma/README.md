@@ -94,6 +94,6 @@ ModelRegistry.set(adapter)
 
 ## Notes
 
-- Run `pnpm exec prisma generate` after any schema change before building.
+- Run `pnpm exec prisma generate` after any schema change. If you forget, BoostKit throws a clear error: `Prisma has no delegate for table "x". Did you run prisma generate?`
 - The `client` option takes precedence — driver/url are ignored when a client is provided.
 - The adapter is bound in the DI container as `'db'` (OrmAdapter) and `'prisma'` (raw PrismaClient).
