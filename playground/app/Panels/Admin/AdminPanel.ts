@@ -1,6 +1,7 @@
 import { Panel } from '@boostkit/panels'
 import { TodoResource } from './resources/TodoResource.js'
 import { UserResource } from './resources/UserResource.js'
+import { CustomPage } from './pages/CustomPage.js'
 
 export const adminPanel = Panel.make('admin')
   .path('/admin')
@@ -11,4 +12,6 @@ export const adminPanel = Panel.make('admin')
   .resources([
     TodoResource,
     UserResource,
+  ]).pages([
+    CustomPage,
   ])
