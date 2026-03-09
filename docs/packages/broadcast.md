@@ -15,6 +15,7 @@ pnpm add @boostkit/broadcast
 import { broadcasting } from '@boostkit/broadcast'
 
 export default [broadcasting()]
+```
 
 ```ts
 // bootstrap/app.ts
