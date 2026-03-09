@@ -1,4 +1,3 @@
-import '@/index.css'
 import { useState } from 'react'
 import { useData } from 'vike-react/useData'
 import { Button } from '@/components/ui/button'

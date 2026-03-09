@@ -1,4 +1,3 @@
-import '@/index.css'
 import type { PanelMeta } from '@boostkit/panels'
 
 interface Props {

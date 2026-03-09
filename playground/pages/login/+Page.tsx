@@ -1,4 +1,3 @@
-import '@/index.css'
 import { useState } from 'react'
 
 export default function LoginPage() {

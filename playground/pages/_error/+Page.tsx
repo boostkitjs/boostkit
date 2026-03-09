@@ -1,4 +1,3 @@
-import '@/index.css'
 import { usePageContext } from 'vike-react/usePageContext'
 import { Button } from '@/components/ui/button'
 
