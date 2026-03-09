@@ -36,16 +36,16 @@ export default Application.configure({ ... })
 Create `routes/channels.ts` to register auth callbacks:
 
 ```ts
-import { broadcasting } from '@boostkit/broadcast'
+import { Broadcast } from '@boostkit/broadcast'
 
 // Private channels — return true/false
-broadcasting.auth('private-orders.*', async (req) => {
+Broadcast.channel('private-orders.*', async (req) => {
   const user = await getUserFromToken(req.token)
   return !!user
 })
 
 // Presence channels — return member info object or false
-broadcasting.auth('presence-room.*', async (req) => {
+Broadcast.channel('presence-room.*', async (req) => {
   const user = await getUserFromToken(req.token)
   if (!user) return false
   return { id: user.id, name: user.name }
@@ -76,12 +76,14 @@ broadcast('orders', 'order.shipped', { orderId: 123 })
 broadcast('private-orders.42', 'status.updated', { status: 'delivered' })
 ```
 
-### `broadcasting.auth(pattern, callback)`
+### `Broadcast.channel(pattern, callback)`
 
 Register an auth callback for private/presence channels. The pattern supports `*` as a wildcard (matches non-dot characters):
 
 ```ts
-broadcasting.auth('private-user.*', async (req, channel) => {
+import { Broadcast } from '@boostkit/broadcast'
+
+Broadcast.channel('private-user.*', async (req, channel) => {
   // req.headers — HTTP headers from the upgrade request
   // req.token   — token sent in the subscribe message
   // req.url     — request URL
