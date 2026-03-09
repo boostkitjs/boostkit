@@ -33,6 +33,7 @@ export default [
   panels([adminPanel]),
   broadcasting(),
   live(configs.live),   // /ws-live — Yjs CRDT sync (after broadcasting so upgrade handler chains correctly)
+  // User Providers
   AppServiceProvider,
   TodoServiceProvider,
 ] satisfies (new (app: Application) => ServiceProvider)[]
