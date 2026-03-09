@@ -1989,7 +1989,11 @@ function demoPage(fw: 'react' | 'vue' | 'solid', ctx: TemplateContext): string {
 
     case 'vue':
       if (tailwind) {
-        return `<template>
+        return `<script setup lang="ts">
+import '@/index.css'
+</script>
+
+<template>
   <div class="flex min-h-svh flex-col items-center justify-center gap-4 p-4">
     <h1 class="text-2xl font-bold">Hello from Vue</h1>
     <p class="text-muted-foreground">Vue demo page — running alongside ${primary}.</p>
@@ -2009,7 +2013,9 @@ function demoPage(fw: 'react' | 'vue' | 'solid', ctx: TemplateContext): string {
 
     case 'solid':
       if (tailwind) {
-        return `export default function Page() {
+        return `import '@/index.css'
+
+export default function Page() {
   return (
     <div class="flex min-h-svh flex-col items-center justify-center gap-4 p-4">
       <h1 class="text-2xl font-bold">Hello from Solid</h1>
