@@ -29,6 +29,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@boostkit/auth": "workspace:*",
     "@clack/prompts": "^1.0.0"
   },
   "devDependencies": {

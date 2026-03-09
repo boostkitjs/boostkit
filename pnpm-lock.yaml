@@ -23,6 +23,9 @@ importers:
 
   create-boostkit-app:
     dependencies:
+      '@boostkit/auth':
+        specifier: workspace:*
+        version: link:../packages/auth
       '@clack/prompts':
         specifier: ^1.0.0
         version: 1.0.1
