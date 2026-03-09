@@ -1,4 +1,3 @@
-import '@/index.css'
 import { useState } from 'react'
 import { getCsrfToken } from '@boostkit/middleware'
 import { Button } from '@/components/ui/button'

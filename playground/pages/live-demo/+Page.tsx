@@ -1,4 +1,3 @@
-import '@/index.css'
 import { useEffect, useRef, useState } from 'react'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
