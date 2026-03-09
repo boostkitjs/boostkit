@@ -3,9 +3,11 @@ import { resolve, join } from 'node:path'
 import type { Command } from 'commander'
 import { intro, outro, log, spinner } from '@clack/prompts'
 interface PublishGroup {
-  from: string
-  to:   string
-  tag?: string
+  from:   string
+  to:     string
+  tag?:   string
+  /** Always overwrite — set by framework-managed pages like panels */
+  force?: boolean
 }
 
 // ─── Command ───────────────────────────────────────────────
@@ -85,9 +87,10 @@ export function vendorPublishCommand(program: Command): void {
 
           await mkdir(dest, { recursive: true })
 
-          const skipped = await copyDir(group.from, dest, !!opts.force)
+          const forceGroup = !!(opts.force || group.force)
+          const skipped    = await copyDir(group.from, dest, forceGroup)
 
-          if (skipped > 0 && !opts.force) {
+          if (skipped > 0 && !forceGroup) {
             s.stop(`Published to ${group.to}  (${skipped} file(s) skipped — use --force to overwrite)`)
           } else {
             s.stop(`Published to ${group.to}`)
