@@ -47,12 +47,12 @@ my-app/
 │   ├── web.ts          # Web/redirect routes
 │   └── console.ts      # Artisan commands
 ├── pages/
-│   ├── +config.ts              # Root vike-photon config
-│   ├── index/+config.ts        # Primary framework config
+│   ├── +config.ts              # Root config — includes renderer when single framework
+│   ├── index/+config.ts        # (multi-framework only) per-page renderer config
 │   ├── index/+data.ts          # SSR data loader
 │   ├── index/+Page.tsx|.vue    # Home page (primary framework)
 │   ├── _error/+Page.tsx|.vue   # Error page (primary framework)
-│   └── {fw}-demo/+Page.*       # Demo pages for secondary frameworks
+│   └── {fw}-demo/+Page.*       # Demo pages for secondary frameworks (with own +config.ts)
 ├── app/Modules/Todo/           # (if Todo selected)
 ├── prisma/schema.prisma
 ├── src/index.css               # (if Tailwind selected)
@@ -73,7 +73,9 @@ my-app/
 | React + Solid | `.tsx` — Vite plugins use include/exclude to disambiguate | `react-jsx` |
 | All three | `.tsx` or `.vue` depending on primary | `react-jsx` |
 
-When multiple frameworks are selected, secondary frameworks get a minimal demo page at `pages/{fw}-demo/`.
+**Single framework:** the renderer (`vike-react`, `vike-vue`, or `vike-solid`) is included directly in the root `+config.ts` — no per-page `+config.ts` needed.
+
+**Multiple frameworks:** the root `+config.ts` has no renderer. Each page/folder declares its own `+config.ts` extending the appropriate renderer. Secondary frameworks get a minimal demo page at `pages/{fw}-demo/`.
 
 ### CSS variants
 
