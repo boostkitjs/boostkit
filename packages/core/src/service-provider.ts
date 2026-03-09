@@ -9,6 +9,12 @@ export interface PublishGroup {
   to:   string
   /** Optional tag for selective publishing (e.g. 'panels-pages'). */
   tag?: string
+  /**
+   * Always overwrite existing files — useful for framework-managed pages
+   * that users should never customize (e.g. admin panel UI).
+   * Auth pages should NOT set this — users may customize them.
+   */
+  force?: boolean
 }
 
 const _g = globalThis as Record<string, unknown>

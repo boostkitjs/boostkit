@@ -79,6 +79,12 @@ All `@boostkit/*` packages are published to npm individually. Install only what 
 | [@boostkit/broadcast](./broadcast) | WebSocket broadcasting — `broadcasting()`, `Broadcast.channel()`, public/private/presence channels, BKSocket client. | `pnpm add @boostkit/broadcast` |
 | [@boostkit/live](./live) | Yjs CRDT real-time document sync — `live()`, `MemoryPersistence`, `liveRedis()`, `livePrisma()`. | `pnpm add @boostkit/live` |
 
+## Admin
+
+| Package | Description | Install |
+|---|---|---|
+| [@boostkit/panels](./panels) | Admin panel builder — define resources, fields, filters, and actions in TypeScript; auto-generates CRUD API routes and a React UI with sidebar or topbar layout. | `pnpm add @boostkit/panels` |
+
 ## Features
 
 | Package | Description | Install |

@@ -38,7 +38,11 @@ export default [
 Publish the React UI pages:
 
 ```bash
+# First install — copies pages into pages/(panels)/
 pnpm artisan vendor:publish --tag=panels-pages
+
+# After upgrading @boostkit/panels — overwrite with latest UI
+pnpm artisan vendor:publish --tag=panels-pages --force
 ```
 
 ---
