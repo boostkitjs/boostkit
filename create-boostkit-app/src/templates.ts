@@ -1,3 +1,5 @@
+export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
+
 export interface TemplateContext {
   name:       string
   db:         'sqlite' | 'postgresql' | 'mysql'
@@ -8,6 +10,36 @@ export interface TemplateContext {
   primary:    'react' | 'vue' | 'solid'
   tailwind:   boolean
   shadcn:     boolean
+  pm:         PackageManager
+}
+
+/** Detect which package manager invoked the installer. */
+export function detectPackageManager(): PackageManager {
+  const ua = process.env['npm_config_user_agent'] ?? ''
+  if (ua.startsWith('bun'))  return 'bun'
+  if (ua.startsWith('yarn')) return 'yarn'
+  if (ua.startsWith('pnpm')) return 'pnpm'
+  if (ua.startsWith('npm'))  return 'npm'
+  return 'npm'
+}
+
+/** `<pm> exec <bin>` equivalent per package manager. */
+export function pmExec(pm: PackageManager, bin: string): string {
+  if (pm === 'bun')  return `bunx ${bin}`
+  if (pm === 'yarn') return `yarn dlx ${bin}`
+  if (pm === 'npm')  return `npx ${bin}`
+  return `pnpm exec ${bin}`
+}
+
+/** `<pm> run <script>` equivalent (yarn/bun allow omitting "run"). */
+export function pmRun(pm: PackageManager, script: string): string {
+  if (pm === 'npm') return `npm run ${script}`
+  return `${pm} ${script}`
+}
+
+/** `<pm> install` command. */
+export function pmInstall(pm: PackageManager): string {
+  return `${pm} install`
 }
 
 function pageExt(fw: 'react' | 'vue' | 'solid'): '.tsx' | '.vue' {
@@ -18,7 +50,9 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   const files: Record<string, string> = {}
 
   files['package.json']         = packageJson(ctx)
-  files['pnpm-workspace.yaml']  = pnpmWorkspace()
+  if (ctx.pm === 'pnpm') {
+    files['pnpm-workspace.yaml'] = pnpmWorkspace()
+  }
   files['tsconfig.json']        = tsconfigJson(ctx)
   files['vite.config.ts']       = viteConfig(ctx)
   files['prisma.config.ts']     = prismaConfig()
@@ -191,8 +225,16 @@ function packageJson(ctx: TemplateContext): string {
     ...dbDevDeps[db],
   }
 
-  const onlyBuilt: string[] = ['@prisma/engines', 'esbuild', 'prisma']
-  if (db === 'sqlite') onlyBuilt.unshift('better-sqlite3')
+  const builtDeps: string[] = ['@prisma/engines', 'esbuild', 'prisma']
+  if (db === 'sqlite') builtDeps.unshift('better-sqlite3')
+
+  const pmField: Record<string, unknown> = {}
+  if (ctx.pm === 'pnpm') {
+    pmField['pnpm'] = { onlyBuiltDependencies: builtDeps }
+  } else if (ctx.pm === 'bun') {
+    pmField['trustedDependencies'] = builtDeps
+  }
+  // npm and yarn allow all lifecycle scripts by default — no extra field needed
 
   return JSON.stringify({
     name:    ctx.name,
@@ -208,9 +250,7 @@ function packageJson(ctx: TemplateContext): string {
       typecheck:    'tsc --noEmit',
       artisan:      'tsx node_modules/@boostkit/cli/src/index.ts',
     },
-    pnpm: {
-      onlyBuiltDependencies: onlyBuilt,
-    },
+    ...pmField,
     dependencies:    deps,
     devDependencies: devDeps,
   }, null, 2) + '\n'

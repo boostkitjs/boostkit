@@ -7,10 +7,11 @@ import fs     from 'node:fs/promises'
 import path   from 'node:path'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { getTemplates } from './templates.js'
+import { getTemplates, detectPackageManager, pmExec, pmRun, pmInstall } from './templates.js'
 
 async function main(): Promise<void> {
   const argName = process.argv[2]
+  const pm      = detectPackageManager()
 
   console.log()
   intro(' create-boostkit-app ')
@@ -118,7 +119,7 @@ async function main(): Promise<void> {
   // ── Install dependencies ───────────────────────────────
 
   const installAnswer = await confirm({
-    message:      'Install dependencies? (requires pnpm)',
+    message:      `Install dependencies?`,
     initialValue: true,
   })
   if (isCancel(installAnswer)) { cancel('Cancelled.'); process.exit(0) }
@@ -141,7 +142,7 @@ async function main(): Promise<void> {
   const s = spinner()
   s.start('Scaffolding project files...')
 
-  const templates = getTemplates({ name, db, withTodo, withAuth, authSecret, frameworks, primary, tailwind, shadcn })
+  const templates = getTemplates({ name, db, withTodo, withAuth, authSecret, frameworks, primary, tailwind, shadcn, pm })
 
   for (const [filePath, content] of Object.entries(templates)) {
     const abs = path.join(target, filePath)
@@ -155,23 +156,24 @@ async function main(): Promise<void> {
 
   if (install) {
     const s2 = spinner()
-    s2.start('Installing dependencies with pnpm...')
+    s2.start(`Installing dependencies with ${pm}...`)
+    const [cmd, ...args] = pmInstall(pm).split(' ')
     const ok = await new Promise<boolean>((resolve) => {
-      const child = spawn('pnpm', ['install'], { cwd: target, stdio: 'pipe' })
+      const child = spawn(cmd!, args, { cwd: target, stdio: 'pipe' })
       child.on('close', (code) => resolve(code === 0))
       child.on('error', () => resolve(false))
     })
-    s2.stop(ok ? 'Dependencies installed' : 'pnpm install failed — run it manually')
+    s2.stop(ok ? 'Dependencies installed' : `${pmInstall(pm)} failed — run it manually`)
   }
 
   // ── Done ───────────────────────────────────────────────
 
   const nextSteps = [
     `  cd ${name}`,
-    ...(!install ? ['  pnpm install'] : []),
-    `  pnpm exec prisma generate`,
-    `  pnpm exec prisma db push`,
-    `  pnpm dev`,
+    ...(!install ? [`  ${pmInstall(pm)}`] : []),
+    `  ${pmExec(pm, 'prisma generate')}`,
+    `  ${pmExec(pm, 'prisma db push')}`,
+    `  ${pmRun(pm, 'dev')}`,
   ]
 
   outro(

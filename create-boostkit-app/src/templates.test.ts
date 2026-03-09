@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { getTemplates, type TemplateContext } from './templates.js'
+import { getTemplates, pmExec, pmRun, pmInstall, type TemplateContext } from './templates.js'
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
     primary:    'react',
     tailwind:   true,
     shadcn:     false,
+    pm:         'pnpm',
     ...overrides,
   }
 }
@@ -25,7 +26,7 @@ describe('getTemplates() — core files always present', () => {
   const files = getTemplates(ctx())
 
   it('generates package.json', () => assert.ok('package.json' in files))
-  it('generates pnpm-workspace.yaml', () => assert.ok('pnpm-workspace.yaml' in files))
+  it('generates pnpm-workspace.yaml for pnpm', () => assert.ok('pnpm-workspace.yaml' in files))
   it('generates tsconfig.json', () => assert.ok('tsconfig.json' in files))
   it('generates vite.config.ts', () => assert.ok('vite.config.ts' in files))
   it('generates .env', () => assert.ok('.env' in files))
@@ -258,11 +259,67 @@ describe('getTemplates() — package.json deps', () => {
     assert.strictEqual(pkg.name, 'cool-app')
   })
 
-  it('includes better-sqlite3 in onlyBuiltDependencies for sqlite', () => {
-    const files = getTemplates(ctx({ db: 'sqlite' }))
+  it('includes better-sqlite3 in pnpm.onlyBuiltDependencies for sqlite + pnpm', () => {
+    const files = getTemplates(ctx({ db: 'sqlite', pm: 'pnpm' }))
     const pkg = JSON.parse(files['package.json']!)
     assert.ok(pkg.pnpm.onlyBuiltDependencies.includes('better-sqlite3'))
   })
+
+  it('uses trustedDependencies for bun', () => {
+    const files = getTemplates(ctx({ db: 'sqlite', pm: 'bun' }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(Array.isArray(pkg.trustedDependencies))
+    assert.ok(pkg.trustedDependencies.includes('better-sqlite3'))
+    assert.ok(!pkg.pnpm)
+  })
+
+  it('has no pnpm or trustedDependencies for npm', () => {
+    const files = getTemplates(ctx({ pm: 'npm' }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(!pkg.pnpm)
+    assert.ok(!pkg.trustedDependencies)
+  })
+
+  it('has no pnpm or trustedDependencies for yarn', () => {
+    const files = getTemplates(ctx({ pm: 'yarn' }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(!pkg.pnpm)
+    assert.ok(!pkg.trustedDependencies)
+  })
+})
+
+// ─── pnpm-workspace.yaml ────────────────────────────────────
+
+describe('getTemplates() — pnpm-workspace.yaml', () => {
+  it('generates pnpm-workspace.yaml only for pnpm', () => {
+    assert.ok('pnpm-workspace.yaml' in getTemplates(ctx({ pm: 'pnpm' })))
+    assert.ok(!('pnpm-workspace.yaml' in getTemplates(ctx({ pm: 'npm' }))))
+    assert.ok(!('pnpm-workspace.yaml' in getTemplates(ctx({ pm: 'yarn' }))))
+    assert.ok(!('pnpm-workspace.yaml' in getTemplates(ctx({ pm: 'bun' }))))
+  })
+})
+
+// ─── PM helpers ────────────────────────────────────────────
+
+describe('pmExec()', () => {
+  it('pnpm: pnpm exec <bin>', () => assert.strictEqual(pmExec('pnpm', 'prisma generate'), 'pnpm exec prisma generate'))
+  it('npm: npx <bin>',        () => assert.strictEqual(pmExec('npm',  'prisma generate'), 'npx prisma generate'))
+  it('yarn: yarn dlx <bin>',  () => assert.strictEqual(pmExec('yarn', 'prisma generate'), 'yarn dlx prisma generate'))
+  it('bun: bunx <bin>',       () => assert.strictEqual(pmExec('bun',  'prisma generate'), 'bunx prisma generate'))
+})
+
+describe('pmRun()', () => {
+  it('npm: npm run <script>',   () => assert.strictEqual(pmRun('npm',  'dev'), 'npm run dev'))
+  it('pnpm: pnpm <script>',    () => assert.strictEqual(pmRun('pnpm', 'dev'), 'pnpm dev'))
+  it('yarn: yarn <script>',    () => assert.strictEqual(pmRun('yarn', 'dev'), 'yarn dev'))
+  it('bun: bun <script>',      () => assert.strictEqual(pmRun('bun',  'dev'), 'bun dev'))
+})
+
+describe('pmInstall()', () => {
+  it('pnpm install', () => assert.strictEqual(pmInstall('pnpm'), 'pnpm install'))
+  it('npm install',  () => assert.strictEqual(pmInstall('npm'),  'npm install'))
+  it('yarn install', () => assert.strictEqual(pmInstall('yarn'), 'yarn install'))
+  it('bun install',  () => assert.strictEqual(pmInstall('bun'),  'bun install'))
 })
 
 // ─── tsconfig.json content ─────────────────────────────────
