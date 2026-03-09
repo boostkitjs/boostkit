@@ -433,6 +433,7 @@ describe('LiveConfig.onAuth', () => {
       },
     }
     await Promise.resolve(config.onAuth?.({ headers: { authorization: 'Bearer token' }, url: '/ws-live/room1' }, 'room1'))
+    assert.strictEqual(received.length, 1)
     assert.strictEqual(received[0]?.docName, 'room1')
     assert.strictEqual(received[0]?.headers['authorization'], 'Bearer token')
   })
