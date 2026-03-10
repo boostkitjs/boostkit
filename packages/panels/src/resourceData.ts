@@ -64,6 +64,14 @@ export async function resourceData(ctx: ResourceDataContext): Promise<ResourceDa
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let q: any = Model.query()
 
+    // Include belongsTo relations so the table can display names instead of raw IDs
+    for (const f of flattenFields(resource.fields()).filter(f => f.getType() === 'belongsTo')) {
+      const extra = f.toMeta().extra
+      const name  = f.getName()
+      const rel   = (extra['relationName'] as string) ?? (name.endsWith('Id') ? name.slice(0, -2) : name)
+      q = q.with(rel)
+    }
+
     if (sort) {
       const sortableFields = flattenFields(resource.fields()).filter((f) => f.isSortable()).map((f) => f.getName())
       if (sortableFields.includes(sort)) q = q.orderBy(sort, dir)

@@ -319,10 +319,10 @@ export default function ResourceListPage() {
                             href={`/${pathSegment}/${slug}/${id}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
-                            <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} />
+                            <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} />
                           </a>
                         )
-                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} />
+                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} />
                       }
                     </td>
                   ))}
@@ -464,11 +464,17 @@ function resolveCellValue(record: Record<string, unknown>, f: { name: string; ty
 
 // ── Sub-components ─────────────────────────────────────────
 
-function CellValue({ value, type, extra }: { value: unknown; type: string; extra?: Record<string, unknown> }) {
+function CellValue({ value, type, extra, pathSegment }: { value: unknown; type: string; extra?: Record<string, unknown>; pathSegment?: string }) {
   if (type === 'belongsTo') {
-    const displayField = (extra?.['displayField'] as string) ?? 'name'
+    const displayField   = (extra?.['displayField'] as string) ?? 'name'
+    const targetResource = extra?.['resource'] as string | undefined
     const related = value as Record<string, unknown> | null | undefined
-    if (related && typeof related === 'object') return <span>{String(related[displayField] ?? '—')}</span>
+    if (related && typeof related === 'object') {
+      const label = String(related[displayField] ?? '—')
+      return (targetResource && pathSegment && related['id'])
+        ? <a href={`/${pathSegment}/${targetResource}/${related['id']}`} className="text-primary hover:underline">{label}</a>
+        : <span>{label}</span>
+    }
     return <span className="text-muted-foreground/40">—</span>
   }
   if (value === null || value === undefined) return <span className="text-muted-foreground/40">—</span>

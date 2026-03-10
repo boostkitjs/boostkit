@@ -22,6 +22,7 @@ export interface ResourceMeta {
   actions:        ReturnType<Action['toMeta']>[]
   defaultSort?:   string
   defaultSortDir?: 'ASC' | 'DESC'
+  titleField?:    string
 }
 
 // ─── Resource base class ───────────────────────────────────
@@ -49,6 +50,12 @@ export class Resource {
   static defaultSort?: string
   /** Default sort direction. Applies with defaultSort. */
   static defaultSortDir?: 'ASC' | 'DESC'
+
+  /**
+   * The field used as the record's display title in the show page header,
+   * breadcrumbs, and anywhere a human-readable label is needed (e.g. 'name', 'title').
+   */
+  static titleField?: string
 
   // ── Abstract / overridable ──────────────────────────────
 
@@ -116,6 +123,7 @@ export class Resource {
     }
     if (Cls.defaultSort    !== undefined) meta.defaultSort    = Cls.defaultSort
     if (Cls.defaultSortDir !== undefined) meta.defaultSortDir = Cls.defaultSortDir
+    if (Cls.titleField     !== undefined) meta.titleField     = Cls.titleField
     return meta
   }
 }
