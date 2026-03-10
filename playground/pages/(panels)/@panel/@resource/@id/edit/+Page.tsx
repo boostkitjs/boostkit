@@ -2,7 +2,10 @@
 
 import { useState } from 'react'
 import { useData } from 'vike-react/useData'
+import { navigate } from 'vike/client/router'
+import { toast } from 'sonner'
 import { AdminLayout } from '../../../../_components/AdminLayout.js'
+import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { FieldInput } from '../../../../_components/FieldInput.js'
 import type { Data } from './+data.js'
 
@@ -45,7 +48,14 @@ export default function EditPage() {
         setErrors(body.errors)
         return
       }
-      if (res.ok) window.location.href = `/${pathSegment}/${slug}`
+      if (res.ok) {
+        toast.success('Changes saved.')
+        void navigate(`/${pathSegment}/${slug}`)
+      } else {
+        toast.error('Failed to save. Please try again.')
+      }
+    } catch {
+      toast.error('Failed to save. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -54,21 +64,18 @@ export default function EditPage() {
   return (
     <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
-        <a href={`/${pathSegment}/${slug}`} className="hover:text-foreground transition-colors">
-          {resourceMeta.label}
-        </a>
-        <span>/</span>
-        <span className="text-foreground font-medium">Edit {resourceMeta.labelSingular}</span>
-      </div>
+      <Breadcrumbs crumbs={[
+        { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
+        { label: resourceMeta.label, href: `/${pathSegment}/${slug}` },
+        { label: `Edit ${resourceMeta.labelSingular}` },
+      ]} />
 
       <div className="max-w-2xl">
         <div className="rounded-xl border bg-card p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             {formFields.map((field) => (
               <div key={field.name}>
-                {field.type !== 'boolean' && (
+                {field.type !== 'boolean' && field.type !== 'hidden' && (
                   <label className="block text-sm font-medium mb-1.5">
                     {field.label}
                     {field.required && <span className="text-destructive ml-0.5">*</span>}
