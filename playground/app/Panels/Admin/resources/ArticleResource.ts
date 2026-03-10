@@ -40,7 +40,8 @@ export class ArticleResource extends Resource {
 
         TextareaField.make('excerpt')
           .label('Excerpt')
-          .rows(3),
+          .rows(3)
+          .hideFromTable(),
 
         FileField.make('coverImage')
           .label('Cover Image')
@@ -79,7 +80,8 @@ export class ArticleResource extends Resource {
             .hideFromCreate(),
 
           ColorField.make('accentColor')
-            .label('Accent Color'),
+            .label('Accent Color')
+            .hideFromTable(),
 
           DateField.make('createdAt')
             .label('Created At')
@@ -96,15 +98,15 @@ export class ArticleResource extends Resource {
         .collapsed()
         .schema(
           TextField.make('metaTitle')
-            .label('Meta Title'),
+            .label('Meta Title').hideFromTable(),
 
           TextareaField.make('metaDescription')
             .label('Meta Description')
-            .rows(2),
+            .rows(2).hideFromTable(),
 
           JsonField.make('metadata')
             .label('Extra Metadata')
-            .rows(4),
+            .rows(4).hideFromTable(),
         ),
 
     ]
