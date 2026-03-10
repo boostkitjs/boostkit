@@ -30,6 +30,19 @@ export class RelationField extends Field {
     return this.display(field)
   }
 
+  /**
+   * Override the Prisma relation name used for eager-loading.
+   * By default derived from the field name: `parentId` → `parent`.
+   * Use this when the convention doesn't apply.
+   *
+   * @example
+   * RelationField.make('authorId').resource('users').as('author')
+   */
+  as(relationName: string): this {
+    this._extra['relationName'] = relationName
+    return this
+  }
+
   /** Allow selecting multiple related records (belongsToMany). */
   multiple(value = true): this {
     this._multiple = value

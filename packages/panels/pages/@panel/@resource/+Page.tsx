@@ -319,10 +319,10 @@ export default function ResourceListPage() {
                             href={`/${pathSegment}/${slug}/${id}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
-                            <CellValue value={record[f.name]} type={f.type} />
+                            <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} />
                           </a>
                         )
-                        : <CellValue value={record[f.name]} type={f.type} />
+                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} />
                       }
                     </td>
                   ))}
@@ -451,9 +451,26 @@ export default function ResourceListPage() {
   )
 }
 
+// ── Helpers ────────────────────────────────────────────────
+
+/** For belongsTo fields, resolve the included relation object instead of raw FK value. */
+function resolveCellValue(record: Record<string, unknown>, f: { name: string; type: string; extra?: Record<string, unknown> }): unknown {
+  if (f.type === 'belongsTo') {
+    const rel = (f.extra?.['relationName'] as string) ?? (f.name.endsWith('Id') ? f.name.slice(0, -2) : f.name)
+    return record[rel]
+  }
+  return record[f.name]
+}
+
 // ── Sub-components ─────────────────────────────────────────
 
-function CellValue({ value, type }: { value: unknown; type: string }) {
+function CellValue({ value, type, extra }: { value: unknown; type: string; extra?: Record<string, unknown> }) {
+  if (type === 'belongsTo') {
+    const displayField = (extra?.['displayField'] as string) ?? 'name'
+    const related = value as Record<string, unknown> | null | undefined
+    if (related && typeof related === 'object') return <span>{String(related[displayField] ?? '—')}</span>
+    return <span className="text-muted-foreground/40">—</span>
+  }
   if (value === null || value === undefined) return <span className="text-muted-foreground/40">—</span>
   if (type === 'boolean' || type === 'toggle') {
     return (
