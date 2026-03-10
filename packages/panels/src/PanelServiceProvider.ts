@@ -9,6 +9,15 @@ import type { PanelContext } from './types.js'
 
 // ─── Helpers ───────────────────────────────────────────────
 
+/** Derive the Prisma relation name from a RelationField. */
+function relationName(field: Field): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const explicit = (field as any)._extra?.['relationName'] as string | undefined
+  if (explicit) return explicit
+  const name = field.getName()
+  return name.endsWith('Id') ? name.slice(0, -2) : name
+}
+
 /** Flatten Section / Tabs groupings to a plain Field array. */
 function flattenFields(items: FieldOrGrouping[]): Field[] {
   const result: Field[] = []
@@ -140,6 +149,11 @@ export class PanelServiceProvider extends ServiceProvider {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let q: any = Model.query()
+
+      // Include belongsTo relations so the table can show display names
+      for (const f of flattenFields(resource.fields()).filter(f => f.getType() === 'belongsTo')) {
+        q = q.with(relationName(f))
+      }
 
       // Sort — only on fields marked sortable()
       if (sort) {

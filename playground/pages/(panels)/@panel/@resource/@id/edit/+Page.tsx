@@ -55,6 +55,7 @@ export default function EditPage() {
     formFields.map((f) => {
       const raw = (record as Record<string, unknown>)[f.name]
       if (f.type === 'belongsToMany') {
+        // ORM returns array of related objects — extract IDs
         const arr = Array.isArray(raw) ? (raw as Array<{ id?: string }>) : []
         return [f.name, arr.map((r) => r.id ?? String(r)).filter(Boolean)]
       }
