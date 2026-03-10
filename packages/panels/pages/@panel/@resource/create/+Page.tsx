@@ -46,7 +46,12 @@ export default function CreatePage() {
   const schema     = resourceMeta.fields as SchemaItem[]
   const formFields = flattenFormFields(schema, 'create')
 
-  const initialValues: Record<string, unknown> = Object.fromEntries(formFields.map((f) => [f.name, '']))
+  const initialValues: Record<string, unknown> = Object.fromEntries(
+    formFields.map((f) => {
+      if (f.type === 'boolean' || f.type === 'toggle') return [f.name, false]
+      return [f.name, '']
+    }),
+  )
   // Initialize hidden fields with their defaults
   for (const hf of formFields.filter((f) => f.type === 'hidden')) {
     if (initialValues[hf.name] === undefined && hf.extra?.['default'] !== undefined) {
