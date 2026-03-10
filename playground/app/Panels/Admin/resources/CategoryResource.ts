@@ -31,6 +31,12 @@ export class CategoryResource extends Resource {
         .label('Sub-categories')
         .resource('categories')
         .foreignKey('parentId'),
+
+      HasMany.make('articles')
+        .label('Articles')
+        .resource('articles')
+        .foreignKey('categories')
+        .throughMany(),
     ]
   }
 }

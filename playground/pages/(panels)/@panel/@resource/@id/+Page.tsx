@@ -165,7 +165,9 @@ function HasManyTable({ field, parentId, pathSegment }: HasManyTableProps) {
   useEffect(() => {
     if (!resourceSlug || !foreignKey) { setLoading(false); return }
     setLoading(true)
-    fetch(`/${pathSegment}/api/${resourceSlug}/_related?fk=${encodeURIComponent(foreignKey)}&id=${encodeURIComponent(parentId)}&page=${page}`)
+    const throughMany = field.extra?.['throughMany'] === true
+    const relatedUrl  = `/${pathSegment}/api/${resourceSlug}/_related?fk=${encodeURIComponent(foreignKey)}&id=${encodeURIComponent(parentId)}&page=${page}${throughMany ? '&through=true' : ''}`
+    fetch(relatedUrl)
       .then(r => r.json())
       .then((d: { data: RelatedRecord[]; meta: PaginationMeta }) => {
         setRecords(d.data)
