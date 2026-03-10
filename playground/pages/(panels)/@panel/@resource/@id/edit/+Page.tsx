@@ -122,7 +122,7 @@ export default function EditPage() {
         <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
           <div
             className={['flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border', section.collapsible ? 'cursor-pointer select-none' : ''].join(' ')}
-            onClick={() => section.collapsible && setCollapsedSections((p) => ({ ...p, [key]: !p[key] ?? !section.collapsed }))}
+            onClick={() => section.collapsible && setCollapsedSections((p) => ({ ...p, [key]: !(p[key] ?? section.collapsed) }))}
           >
             <div>
               <p className="text-sm font-semibold">{section.title}</p>
