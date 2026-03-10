@@ -212,7 +212,8 @@ export class PanelServiceProvider extends ServiceProvider {
       if (!await resource.policy('create', ctx)) return res.status(403).json({ message: 'Forbidden.' })
       if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-      const body   = req.body as Record<string, unknown>
+      const raw    = req.body as Record<string, unknown>
+      const body   = this.coercePayload(resource, raw)
       const errors = this.validatePayload(resource, body, 'create')
       if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
@@ -231,7 +232,8 @@ export class PanelServiceProvider extends ServiceProvider {
       const exists = await Model.find(id)
       if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
-      const body   = req.body as Record<string, unknown>
+      const raw    = req.body as Record<string, unknown>
+      const body   = this.coercePayload(resource, raw)
       const errors = this.validatePayload(resource, body, 'update')
       if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
@@ -290,6 +292,34 @@ export class PanelServiceProvider extends ServiceProvider {
       headers: req.headers as Record<string, string>,
       path:    req.path,
     }
+  }
+
+  /**
+   * Coerce raw form values to the correct JS types before hitting the ORM.
+   * - boolean / toggle  → true | false
+   * - number            → number | null
+   * - date / datetime   → Date | null  (empty string → null)
+   * Empty strings for optional fields are left as-is (ORM handles them).
+   */
+  private coercePayload(
+    resource: Resource,
+    body: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const result = { ...body }
+    for (const field of flattenFields(resource.fields())) {
+      const name = field.getName()
+      if (!(name in result)) continue
+      const val  = result[name]
+      const type = field.getType()
+      if (type === 'boolean' || type === 'toggle') {
+        result[name] = val === true || val === 'true' || val === '1' || val === 1
+      } else if (type === 'number') {
+        result[name] = (val === '' || val === null || val === undefined) ? null : Number(val)
+      } else if (type === 'date' || type === 'datetime') {
+        result[name] = (val === '' || val === null || val === undefined) ? null : val
+      }
+    }
+    return result
   }
 
   private validatePayload(
