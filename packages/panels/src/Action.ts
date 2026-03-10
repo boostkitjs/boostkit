@@ -8,6 +8,7 @@ export interface ActionMeta {
   requiresConfirm: boolean
   confirmMessage:  string | undefined
   bulk:            boolean
+  row:             boolean
 }
 
 // ─── Action handler type ───────────────────────────────────
@@ -24,6 +25,7 @@ export class Action {
   protected _destructive     = false
   protected _confirm?:       string
   protected _bulk            = true
+  protected _row             = false
   protected _handler?:       ActionHandler
 
   constructor(name: string) {
@@ -62,6 +64,12 @@ export class Action {
     return this
   }
 
+  /** Show this action as a button on each table row. */
+  row(value = true): this {
+    this._row = value
+    return this
+  }
+
   /** The function to execute. Receives an array of selected records. */
   handler(fn: ActionHandler): this {
     this._handler = fn
@@ -72,6 +80,7 @@ export class Action {
 
   getName(): string  { return this._name }
   isBulk():  boolean { return this._bulk }
+  isRow():   boolean { return this._row }
 
   getLabel(): string {
     if (this._label) return this._label
@@ -95,6 +104,7 @@ export class Action {
       requiresConfirm: this._confirm !== undefined,
       confirmMessage:  this._confirm,
       bulk:            this._bulk,
+      row:             this._row,
     }
   }
 }

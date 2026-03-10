@@ -1,4 +1,5 @@
 import '@/index.css'
+import { Toaster } from 'sonner'
 import type { PanelMeta } from '@boostkit/panels'
 
 interface Props {
@@ -92,6 +93,8 @@ function SidebarLayout({ panelMeta, currentSlug, children }: InternalProps) {
         </main>
       </div>
 
+      {/* Toasts */}
+      <Toaster richColors position="bottom-right" />
     </div>
   )
 }
@@ -145,6 +148,8 @@ function TopbarLayout({ panelMeta, currentSlug, children }: InternalProps) {
         {children}
       </main>
 
+      {/* Toasts */}
+      <Toaster richColors position="bottom-right" />
     </div>
   )
 }

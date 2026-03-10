@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useData } from 'vike-react/useData'
 import { navigate } from 'vike/client/router'
+import { toast } from 'sonner'
 import { Checkbox } from '@base-ui-components/react/checkbox'
 import { AdminLayout } from '../../_components/AdminLayout.js'
 import { ConfirmDialog } from '../../_components/ConfirmDialog.js'
@@ -26,6 +27,7 @@ export default function ResourceListPage() {
   const currentSort   = urlParams.get('sort') ?? ''
   const currentDir    = urlParams.get('dir') ?? 'ASC'
   const currentSearch = urlParams.get('search') ?? ''
+  const hasActiveFilters = urlParams.has('search') || [...urlParams.keys()].some((k) => k.startsWith('filter['))
 
   // ── Search state ────────────────────────────────────────
   const searchRef = useRef<HTMLInputElement>(null)
@@ -86,16 +88,23 @@ export default function ResourceListPage() {
     await executeAction(action)
   }
 
-  async function executeAction(action: typeof resourceMeta.actions[0]) {
+  async function executeAction(action: typeof resourceMeta.actions[0], ids?: string[]) {
     setActionPending(true)
     try {
-      await fetch(`/${pathSegment}/api/${slug}/_action/${action.name}`, {
+      const res = await fetch(`/${pathSegment}/api/${slug}/_action/${action.name}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ids: selected }),
+        body:    JSON.stringify({ ids: ids ?? selected }),
       })
+      if (res.ok) {
+        toast.success('Action completed successfully.')
+      } else {
+        toast.error('Action failed. Please try again.')
+      }
       setSelected([])
       window.location.reload()
+    } catch {
+      toast.error('Action failed. Please try again.')
     } finally {
       setActionPending(false)
       setConfirm(null)
@@ -110,6 +119,7 @@ export default function ResourceListPage() {
   }
 
   const bulkActions = resourceMeta.actions.filter((a) => a.bulk)
+  const rowActions  = resourceMeta.actions.filter((a) => a.row)
 
   return (
     <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
@@ -279,20 +289,51 @@ export default function ResourceListPage() {
                       </Checkbox.Indicator>
                     </Checkbox.Root>
                   </td>
-                  {tableFields.map((f) => (
+                  {tableFields.map((f, fi) => (
                     <td key={f.name} className="px-4 py-3 text-foreground">
-                      <CellValue value={record[f.name]} type={f.type} />
+                      {fi === 0
+                        ? (
+                          <a
+                            href={`/${pathSegment}/${slug}/${id}`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            <CellValue value={record[f.name]} type={f.type} />
+                          </a>
+                        )
+                        : <CellValue value={record[f.name]} type={f.type} />
+                      }
                     </td>
                   ))}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {rowActions.map((action) => (
+                        <button
+                          key={action.name}
+                          onClick={() => {
+                            if (action.requiresConfirm) {
+                              setConfirm({ action, records: [(record as { id: string })] })
+                            } else {
+                              void executeAction(action, [id])
+                            }
+                          }}
+                          className={[
+                            'px-2 py-1 rounded text-xs font-medium transition-colors',
+                            action.destructive
+                              ? 'text-destructive hover:bg-destructive/10'
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                          ].join(' ')}
+                        >
+                          {action.icon && <span className="mr-1">{action.icon}</span>}
+                          {action.label}
+                        </button>
+                      ))}
                       <a
                         href={`/${pathSegment}/${slug}/${id}/edit`}
                         className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
                         Edit
                       </a>
-                      <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} />
+                      <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} labelSingular={resourceMeta.labelSingular} />
                     </div>
                   </td>
                 </tr>
@@ -300,8 +341,28 @@ export default function ResourceListPage() {
             })}
             {records.length === 0 && (
               <tr>
-                <td colSpan={tableFields.length + 2} className="px-4 py-16 text-center text-muted-foreground">
-                  No records found.
+                <td colSpan={tableFields.length + 2} className="py-16 text-center">
+                  {hasActiveFilters
+                    ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-2xl">🔍</span>
+                        <p className="text-sm font-medium">No results</p>
+                        <p className="text-sm text-muted-foreground">Try adjusting your search or filters.</p>
+                      </div>
+                    )
+                    : (
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="text-3xl">📭</span>
+                        <p className="text-sm font-medium">No {resourceMeta.label} yet</p>
+                        <a
+                          href={`/${pathSegment}/${slug}/create`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Create your first {resourceMeta.labelSingular}
+                        </a>
+                      </div>
+                    )
+                  }
                 </td>
               </tr>
             )}
@@ -310,27 +371,46 @@ export default function ResourceListPage() {
       </div>
 
       {/* ── Pagination ────────────────────────────────────── */}
-      {pagination && pagination.lastPage > 1 && (
+      {pagination && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-muted-foreground">
-            Page {pagination.currentPage} of {pagination.lastPage}
-          </p>
-          <div className="flex gap-1">
-            {Array.from({ length: pagination.lastPage }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                onClick={() => goToPage(p)}
-                className={[
-                  'w-8 h-8 text-sm rounded-md transition-colors',
-                  p === pagination.currentPage
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                ].join(' ')}
-              >
-                {p}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              {pagination.lastPage > 1 ? `Page ${pagination.currentPage} of ${pagination.lastPage}` : `${pagination.total} records`}
+            </p>
+            {/* Per-page selector */}
+            <select
+              value={pagination.perPage}
+              onChange={(e) => {
+                const url = new URL(window.location.href)
+                url.searchParams.set('perPage', e.target.value)
+                url.searchParams.delete('page')
+                void navigate(url.pathname + url.search)
+              }}
+              className="text-sm border border-input rounded-md px-2 py-1 bg-background"
+            >
+              {[10, 15, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>{n} / page</option>
+              ))}
+            </select>
           </div>
+          {pagination.lastPage > 1 && (
+            <div className="flex gap-1">
+              {Array.from({ length: pagination.lastPage }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => goToPage(p)}
+                  className={[
+                    'w-8 h-8 text-sm rounded-md transition-colors',
+                    p === pagination.currentPage
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ].join(' ')}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -353,7 +433,7 @@ export default function ResourceListPage() {
 
 function CellValue({ value, type }: { value: unknown; type: string }) {
   if (value === null || value === undefined) return <span className="text-muted-foreground/40">—</span>
-  if (type === 'boolean') {
+  if (type === 'boolean' || type === 'toggle') {
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${value ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
         {value ? 'Yes' : 'No'}
@@ -362,6 +442,31 @@ function CellValue({ value, type }: { value: unknown; type: string }) {
   }
   if (type === 'date' || type === 'datetime') {
     return <span className="text-muted-foreground">{new Date(value as string).toLocaleDateString()}</span>
+  }
+  if (type === 'color') {
+    return (
+      <span className="flex items-center gap-2">
+        <span
+          className="inline-block h-4 w-4 rounded-full border"
+          style={{ backgroundColor: String(value) }}
+        />
+        <span className="font-mono text-xs">{String(value)}</span>
+      </span>
+    )
+  }
+  if (type === 'tags' && Array.isArray(value)) {
+    return (
+      <span className="flex flex-wrap gap-1">
+        {(value as string[]).map((tag) => (
+          <span key={tag} className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+            {tag}
+          </span>
+        ))}
+      </span>
+    )
+  }
+  if (type === 'json' || type === 'repeater' || type === 'builder') {
+    return <span className="text-xs text-muted-foreground font-mono">[JSON]</span>
   }
   return <span>{String(value)}</span>
 }
@@ -388,11 +493,20 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'ASC' | 'DESC' }) {
   )
 }
 
-function DeleteRowButton({ slug, id, pathSegment }: { slug: string; id: string; pathSegment: string }) {
+function DeleteRowButton({ slug, id, pathSegment, labelSingular }: { slug: string; id: string; pathSegment: string; labelSingular: string }) {
   const [open, setOpen] = useState(false)
 
   async function handleDelete() {
-    await fetch(`/${pathSegment}/api/${slug}/${id}`, { method: 'DELETE' })
+    try {
+      const res = await fetch(`/${pathSegment}/api/${slug}/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success(`${labelSingular} deleted.`)
+      } else {
+        toast.error('Failed to delete. Please try again.')
+      }
+    } catch {
+      toast.error('Failed to delete. Please try again.')
+    }
     setOpen(false)
     window.location.reload()
   }
