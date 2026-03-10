@@ -5,7 +5,6 @@ export class TodoResource extends Resource {
   static model = Todo
   static label = 'Todos'
   static labelSingular = 'Todo'
-  static icon = 'check-square'
 
   fields() {
     return [
