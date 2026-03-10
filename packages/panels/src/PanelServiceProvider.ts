@@ -199,15 +199,20 @@ export class PanelServiceProvider extends ServiceProvider {
     router.get(`${base}/_related`, async (req, res) => {
       if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-      const url  = new URL(req.url, 'http://localhost')
-      const fk   = url.searchParams.get('fk')
-      const id   = url.searchParams.get('id')
-      const page = Number(url.searchParams.get('page') ?? 1)
+      const url     = new URL(req.url, 'http://localhost')
+      const fk      = url.searchParams.get('fk')
+      const id      = url.searchParams.get('id')
+      const through = url.searchParams.get('through') === 'true'
+      const page    = Number(url.searchParams.get('page') ?? 1)
 
       if (!fk || !id) return res.status(422).json({ message: 'fk and id query params are required.' })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let q: any = Model.query().where(fk, id)
+      let q: any = through
+        // M2M: WHERE relation.some.id = parentId (Prisma nested filter)
+        ? Model.query().where(fk, { some: { id } })
+        // FK:  WHERE foreignKey = parentId
+        : Model.query().where(fk, id)
 
       // Include belongsTo relations so display names are available
       for (const f of flattenFields(new ResourceClass().fields())) {
