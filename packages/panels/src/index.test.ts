@@ -8,14 +8,24 @@ import { Field } from './Field.js'
 import { Filter, SelectFilter, SearchFilter } from './Filter.js'
 import { Action } from './Action.js'
 import { PanelRegistry } from './PanelRegistry.js'
-import { TextField } from './fields/TextField.js'
-import { EmailField } from './fields/EmailField.js'
-import { NumberField } from './fields/NumberField.js'
+import { TextField }    from './fields/TextField.js'
+import { EmailField }   from './fields/EmailField.js'
+import { NumberField }  from './fields/NumberField.js'
 import { TextareaField } from './fields/TextareaField.js'
-import { SelectField } from './fields/SelectField.js'
+import { SelectField }  from './fields/SelectField.js'
 import { BooleanField } from './fields/BooleanField.js'
-import { DateField } from './fields/DateField.js'
+import { DateField }    from './fields/DateField.js'
 import { RelationField } from './fields/RelationField.js'
+import { PasswordField } from './fields/PasswordField.js'
+import { SlugField }     from './fields/SlugField.js'
+import { TagsField }     from './fields/TagsField.js'
+import { HiddenField }   from './fields/HiddenField.js'
+import { ToggleField }   from './fields/ToggleField.js'
+import { ColorField }    from './fields/ColorField.js'
+import { JsonField }     from './fields/JsonField.js'
+import { RepeaterField } from './fields/RepeaterField.js'
+import { BuilderField }  from './fields/BuilderField.js'
+import { Block }         from './Block.js'
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -669,6 +679,229 @@ describe('List query logic', () => {
     const search = applied['_search'] as { value: string; columns: string[] }
     assert.equal(search.value, 'hello')
     assert.deepEqual(search.columns, ['title', 'body'])
+  })
+})
+
+// ─── Action (row) ───────────────────────────────────────────
+
+describe('Action.row()', () => {
+  it('row() marks action as row action', () => {
+    const a = Action.make('impersonate').row()
+    assert.equal(a.toMeta().row, true)
+  })
+
+  it('row defaults to false', () => {
+    assert.equal(Action.make('x').toMeta().row, false)
+  })
+
+  it('bulk defaults to true', () => {
+    assert.equal(Action.make('x').toMeta().bulk, true)
+  })
+})
+
+// ─── Resource defaultSort ────────────────────────────────────
+
+describe('Resource.defaultSort', () => {
+  it('defaultSort defaults to undefined', () => {
+    class R extends Resource { fields() { return [] } }
+    assert.equal(R.defaultSort, undefined)
+  })
+
+  it('defaultSort and defaultSortDir appear in meta', () => {
+    class R extends Resource {
+      static defaultSort    = 'createdAt'
+      static defaultSortDir = 'DESC' as const
+      fields() { return [] }
+    }
+    const meta = new R().toMeta()
+    assert.equal(meta.defaultSort, 'createdAt')
+    assert.equal(meta.defaultSortDir, 'DESC')
+  })
+})
+
+// ─── New field types ─────────────────────────────────────────
+
+describe('PasswordField', () => {
+  it('type is password', () => {
+    assert.equal(PasswordField.make('password').toMeta().type, 'password')
+  })
+
+  it('confirm() sets confirm flag', () => {
+    assert.equal(PasswordField.make('password').confirm().toMeta().extra['confirm'], true)
+  })
+
+  it('confirm defaults to false', () => {
+    assert.equal(PasswordField.make('password').toMeta().extra['confirm'], false)
+  })
+
+  it('is hidden from table by default', () => {
+    assert.ok(PasswordField.make('password').toMeta().hidden.includes('table'))
+  })
+})
+
+describe('SlugField', () => {
+  it('type is slug', () => {
+    assert.equal(SlugField.make('slug').toMeta().type, 'slug')
+  })
+
+  it('from() sets source field', () => {
+    assert.equal(SlugField.make('slug').from('title').toMeta().extra['from'], 'title')
+  })
+
+  it('from defaults to undefined', () => {
+    assert.equal(SlugField.make('slug').toMeta().extra['from'], undefined)
+  })
+})
+
+describe('TagsField', () => {
+  it('type is tags', () => {
+    assert.equal(TagsField.make('tags').toMeta().type, 'tags')
+  })
+
+  it('placeholder() sets placeholder', () => {
+    assert.equal(TagsField.make('tags').placeholder('Add a tag').toMeta().extra['placeholder'], 'Add a tag')
+  })
+})
+
+describe('HiddenField', () => {
+  it('type is hidden', () => {
+    assert.equal(HiddenField.make('userId').toMeta().type, 'hidden')
+  })
+
+  it('default() sets default value', () => {
+    assert.equal(HiddenField.make('status').default('draft').toMeta().extra['default'], 'draft')
+  })
+
+  it('is hidden from table by default', () => {
+    const meta = HiddenField.make('x').toMeta()
+    assert.ok(meta.hidden.includes('table'))
+  })
+})
+
+describe('ToggleField', () => {
+  it('type is toggle', () => {
+    assert.equal(ToggleField.make('active').toMeta().type, 'toggle')
+  })
+
+  it('onLabel/offLabel defaults', () => {
+    const meta = ToggleField.make('active').toMeta()
+    assert.equal(meta.extra['onLabel'],  'On')
+    assert.equal(meta.extra['offLabel'], 'Off')
+  })
+
+  it('custom labels', () => {
+    const meta = ToggleField.make('published')
+      .onLabel('Published').offLabel('Draft').toMeta()
+    assert.equal(meta.extra['onLabel'],  'Published')
+    assert.equal(meta.extra['offLabel'], 'Draft')
+  })
+})
+
+describe('ColorField', () => {
+  it('type is color', () => {
+    assert.equal(ColorField.make('brandColor').toMeta().type, 'color')
+  })
+})
+
+describe('JsonField', () => {
+  it('type is json', () => {
+    assert.equal(JsonField.make('metadata').toMeta().type, 'json')
+  })
+
+  it('rows() sets row count', () => {
+    assert.equal(JsonField.make('metadata').rows(10).toMeta().extra['rows'], 10)
+  })
+
+  it('rows defaults to 6', () => {
+    assert.equal(JsonField.make('metadata').toMeta().extra['rows'], 6)
+  })
+})
+
+describe('RepeaterField', () => {
+  it('type is repeater', () => {
+    assert.equal(RepeaterField.make('items').toMeta().type, 'repeater')
+  })
+
+  it('schema() stores field metas in extra', () => {
+    const f = RepeaterField.make('features').schema([
+      TextField.make('title'),
+      BooleanField.make('active'),
+    ])
+    const meta = f.toMeta()
+    const schema = meta.extra['schema'] as Array<{ type: string; name: string }>
+    assert.equal(schema.length, 2)
+    assert.equal(schema[0]?.type, 'text')
+    assert.equal(schema[1]?.type, 'boolean')
+  })
+
+  it('addLabel() sets the add button label', () => {
+    const f = RepeaterField.make('items').addLabel('Add Feature')
+    assert.equal(f.toMeta().extra['addLabel'], 'Add Feature')
+  })
+
+  it('addLabel defaults to "Add item"', () => {
+    assert.equal(RepeaterField.make('items').toMeta().extra['addLabel'], 'Add item')
+  })
+
+  it('maxItems() sets max', () => {
+    assert.equal(RepeaterField.make('items').maxItems(5).toMeta().extra['maxItems'], 5)
+  })
+})
+
+describe('Block', () => {
+  it('make() sets name', () => {
+    assert.equal(Block.make('hero').toMeta().name, 'hero')
+  })
+
+  it('label() sets label, defaults to name', () => {
+    assert.equal(Block.make('hero').toMeta().label, 'hero')
+    assert.equal(Block.make('hero').label('Hero Section').toMeta().label, 'Hero Section')
+  })
+
+  it('icon() sets icon', () => {
+    assert.equal(Block.make('hero').icon('🦸').toMeta().icon, '🦸')
+  })
+
+  it('icon defaults to undefined', () => {
+    assert.equal(Block.make('hero').toMeta().icon, undefined)
+  })
+
+  it('schema() stores field metas', () => {
+    const b = Block.make('hero').schema([TextField.make('heading')])
+    assert.equal(b.toMeta().schema.length, 1)
+    assert.equal(b.toMeta().schema[0]?.name, 'heading')
+  })
+})
+
+describe('BuilderField', () => {
+  it('type is builder', () => {
+    assert.equal(BuilderField.make('content').toMeta().type, 'builder')
+  })
+
+  it('blocks() stores block metas in extra', () => {
+    const f = BuilderField.make('content').blocks([
+      Block.make('hero').schema([TextField.make('heading')]),
+      Block.make('text').schema([TextareaField.make('body')]),
+    ])
+    const blocks = f.toMeta().extra['blocks'] as Array<{ name: string }>
+    assert.equal(blocks.length, 2)
+    assert.equal(blocks[0]?.name, 'hero')
+    assert.equal(blocks[1]?.name, 'text')
+  })
+
+  it('addLabel defaults to "Add block"', () => {
+    assert.equal(BuilderField.make('content').toMeta().extra['addLabel'], 'Add block')
+  })
+
+  it('addLabel() sets label', () => {
+    assert.equal(
+      BuilderField.make('content').addLabel('Add section').toMeta().extra['addLabel'],
+      'Add section',
+    )
+  })
+
+  it('maxItems() sets max', () => {
+    assert.equal(BuilderField.make('content').maxItems(10).toMeta().extra['maxItems'], 10)
   })
 })
 

@@ -1,16 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useData } from 'vike-react/useData'
+import { navigate } from 'vike/client/router'
+import { toast } from 'sonner'
 import { AdminLayout } from '../../../_components/AdminLayout.js'
+import { Breadcrumbs } from '../../../_components/Breadcrumbs.js'
 import { FieldInput } from '../../../_components/FieldInput.js'
 import type { Data } from './+data.js'
+
+function generateSlug(str: string): string {
+  return str.toLowerCase().trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 export default function CreatePage() {
   const { panelMeta, resourceMeta, pathSegment, slug } = useData<Data>()
 
-  const formFields    = resourceMeta.fields.filter((f) => !f.hidden.includes('create'))
-  const initialValues = Object.fromEntries(formFields.map((f) => [f.name, '']))
+  const formFields = resourceMeta.fields.filter((f) => !f.hidden.includes('create'))
+  const initialValues: Record<string, unknown> = Object.fromEntries(formFields.map((f) => [f.name, '']))
+  // Initialize hidden fields with their defaults
+  for (const hf of resourceMeta.fields.filter((f) => f.type === 'hidden')) {
+    if (initialValues[hf.name] === undefined && hf.extra?.['default'] !== undefined) {
+      initialValues[hf.name] = hf.extra['default']
+    }
+  }
   const [values, setValues] = useState<Record<string, unknown>>(initialValues)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
@@ -19,6 +35,19 @@ export default function CreatePage() {
     setValues((prev) => ({ ...prev, [name]: value }))
     setErrors((prev) => ({ ...prev, [name]: [] }))
   }
+
+  // Auto-generate slug from source field
+  useEffect(() => {
+    const slugFields = resourceMeta.fields.filter((f) => f.type === 'slug' && f.extra?.['from'])
+    for (const slugField of slugFields) {
+      const sourceField = String(slugField.extra?.['from'] ?? '')
+      const sourceValue = String(values[sourceField] ?? '')
+      const currentSlug = String(values[slugField.name] ?? '')
+      if (!currentSlug || currentSlug === generateSlug(currentSlug)) {
+        setValues((prev) => ({ ...prev, [slugField.name]: generateSlug(sourceValue) }))
+      }
+    }
+  }, [Object.values(values).join(',')])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +64,14 @@ export default function CreatePage() {
         setErrors(body.errors)
         return
       }
-      if (res.ok) window.location.href = `/${pathSegment}/${slug}`
+      if (res.ok) {
+        toast.success(`${resourceMeta.labelSingular} created successfully.`)
+        void navigate(`/${pathSegment}/${slug}`)
+      } else {
+        toast.error('Something went wrong. Please try again.')
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -44,21 +80,18 @@ export default function CreatePage() {
   return (
     <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
-        <a href={`/${pathSegment}/${slug}`} className="hover:text-foreground transition-colors">
-          {resourceMeta.label}
-        </a>
-        <span>/</span>
-        <span className="text-foreground font-medium">New {resourceMeta.labelSingular}</span>
-      </div>
+      <Breadcrumbs crumbs={[
+        { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
+        { label: resourceMeta.label, href: `/${pathSegment}/${slug}` },
+        { label: `New ${resourceMeta.labelSingular}` },
+      ]} />
 
       <div className="max-w-2xl">
         <div className="rounded-xl border bg-card p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             {formFields.map((field) => (
               <div key={field.name}>
-                {field.type !== 'boolean' && (
+                {field.type !== 'boolean' && field.type !== 'hidden' && (
                   <label className="block text-sm font-medium mb-1.5">
                     {field.label}
                     {field.required && <span className="text-destructive ml-0.5">*</span>}

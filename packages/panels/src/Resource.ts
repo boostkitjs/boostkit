@@ -6,13 +6,15 @@ import type { PolicyAction, PanelContext, ModelClass } from './types.js'
 // ─── Resource meta (for UI / meta endpoint) ────────────────
 
 export interface ResourceMeta {
-  label:         string
-  labelSingular: string
-  slug:          string
-  icon:          string | undefined
-  fields:        ReturnType<Field['toMeta']>[]
-  filters:       ReturnType<Filter['toMeta']>[]
-  actions:       ReturnType<Action['toMeta']>[]
+  label:          string
+  labelSingular:  string
+  slug:           string
+  icon:           string | undefined
+  fields:         ReturnType<Field['toMeta']>[]
+  filters:        ReturnType<Filter['toMeta']>[]
+  actions:        ReturnType<Action['toMeta']>[]
+  defaultSort?:   string
+  defaultSortDir?: 'ASC' | 'DESC'
 }
 
 // ─── Resource base class ───────────────────────────────────
@@ -35,6 +37,11 @@ export class Resource {
 
   /** Icon name for the sidebar (optional — any icon library string). */
   static icon?: string
+
+  /** Default sort column (e.g. 'createdAt'). Applied when no ?sort param in URL. */
+  static defaultSort?: string
+  /** Default sort direction. Applies with defaultSort. */
+  static defaultSortDir?: 'ASC' | 'DESC'
 
   // ── Abstract / overridable ──────────────────────────────
 
@@ -89,7 +96,7 @@ export class Resource {
   /** @internal */
   toMeta(): ResourceMeta {
     const Cls = this.constructor as typeof Resource
-    return {
+    const meta: ResourceMeta = {
       label:         Cls.getLabel(),
       labelSingular: Cls.getLabelSingular(),
       slug:          Cls.getSlug(),
@@ -98,5 +105,8 @@ export class Resource {
       filters:       this.filters().map((f) => f.toMeta()),
       actions:       this.actions().map((a) => a.toMeta()),
     }
+    if (Cls.defaultSort    !== undefined) meta.defaultSort    = Cls.defaultSort
+    if (Cls.defaultSortDir !== undefined) meta.defaultSortDir = Cls.defaultSortDir
+    return meta
   }
 }

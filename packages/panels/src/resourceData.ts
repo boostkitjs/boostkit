@@ -35,11 +35,14 @@ export async function resourceData(ctx: ResourceDataContext): Promise<ResourceDa
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Model  = ResourceClass.model as any
-  const params = new URLSearchParams(url.split('?')[1] ?? '')
-  const page   = Number(params.get('page') ?? 1)
-  const sort   = params.get('sort') ?? undefined
-  const dir    = (params.get('dir') ?? 'ASC').toUpperCase() as 'ASC' | 'DESC'
-  const search = params.get('search') ?? undefined
+  const params         = new URLSearchParams(url.split('?')[1] ?? '')
+  const page           = Number(params.get('page') ?? 1)
+  const perPage        = Math.min(Number(params.get('perPage') ?? 15), 100)
+  const sortDefault    = ResourceClass.defaultSort
+  const sortDirDefault = ResourceClass.defaultSortDir ?? 'ASC'
+  const sort           = params.get('sort') ?? sortDefault
+  const dir            = (params.get('dir') ?? sortDirDefault).toUpperCase() as 'ASC' | 'DESC'
+  const search         = params.get('search') ?? undefined
 
   let records: unknown[]  = []
   let pagination: { total: number; currentPage: number; lastPage: number; perPage: number } | null = null
@@ -78,7 +81,7 @@ export async function resourceData(ctx: ResourceDataContext): Promise<ResourceDa
       }
     }
 
-    const result = await q.paginate(page, 15)
+    const result = await q.paginate(page, perPage)
     records    = result.data
     pagination = {
       total:       result.total,
