@@ -5,7 +5,10 @@ export class TodoResource extends Resource {
   static model = Todo
   static label = 'Todos'
   static labelSingular = 'Todo'
-
+  static paginationType = 'loadMore' as const
+  static perPage = 5
+  static persistFilters = true
+  
   fields() {
     return [
       TextField.make('title')

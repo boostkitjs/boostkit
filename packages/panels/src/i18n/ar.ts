@@ -29,6 +29,8 @@ export const ar: PanelI18n = {
   records:         ':n \u0633\u062c\u0644',
   page:            '\u0627\u0644\u0635\u0641\u062d\u0629 :current \u0645\u0646 :last',
   perPage:         ':n / \u0635\u0641\u062d\u0629',
+  loadMore:        '\u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0632\u064a\u062f',
+  showing:         '\u0639\u0631\u0636 :n \u0645\u0646 :total',
 
   // Boolean
   yes:             '\u0646\u0639\u0645',
