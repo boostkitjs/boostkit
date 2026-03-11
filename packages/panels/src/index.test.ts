@@ -1517,6 +1517,37 @@ describe('conditional fields', () => {
   })
 })
 
+// ─── Per-field validation ────────────────────────────────────
+
+describe('per-field validation', () => {
+  it('validate() async validator returning true passes', async () => {
+    const f = TextField.make('slug')
+      .validate(async (value) => value ? true : 'Slug is required')
+    assert.equal(await f.runValidate('hello', {}), true)
+  })
+
+  it('validate() returns error string when invalid', async () => {
+    const f = TextField.make('slug')
+      .validate(async (value) => value ? true : 'Slug is required')
+    assert.equal(await f.runValidate('', {}), 'Slug is required')
+  })
+
+  it('validate() receives full form data', async () => {
+    const f = TextField.make('endDate')
+      .validate(async (value, data) => {
+        if ((value as string) < (data as any).startDate) return 'End must be after start'
+        return true
+      })
+    const result = await f.runValidate('2020-01-01', { startDate: '2021-01-01' })
+    assert.equal(result, 'End must be after start')
+  })
+
+  it('without validate(), runValidate returns true', async () => {
+    const f = TextField.make('x')
+    assert.equal(await f.runValidate('anything', {}), true)
+  })
+})
+
 // ─── Field-level access control ─────────────────────────────
 
 describe('field-level access control', () => {
