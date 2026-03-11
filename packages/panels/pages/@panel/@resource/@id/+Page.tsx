@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react'
 import { useData }     from 'vike-react/useData'
 import { useConfig }   from 'vike-react/useConfig'
 import { navigate }    from 'vike/client/router'
-import { AdminLayout } from '../../../_components/AdminLayout.js'
 import { Breadcrumbs } from '../../../_components/Breadcrumbs.js'
 import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
 import type { Data }   from './+data.js'
@@ -100,8 +99,7 @@ export default function ShowPage() {
   }
 
   return (
-    <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
-      <div className="max-w-4xl">
+    <div className="max-w-4xl">
         <Breadcrumbs crumbs={[
           { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
           { label: resourceMeta.label, href: `/${pathSegment}/${slug}` },
@@ -159,8 +157,7 @@ export default function ShowPage() {
             ← Back to {resourceMeta.label}
           </a>
         </div>
-      </div>
-    </AdminLayout>
+    </div>
   )
 }
 

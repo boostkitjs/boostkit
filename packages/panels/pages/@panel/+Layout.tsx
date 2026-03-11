@@ -1,0 +1,16 @@
+'use client'
+
+import type { ReactNode } from 'react'
+import { usePageContext } from 'vike-react/usePageContext'
+import { AdminLayout }    from '../_components/AdminLayout.js'
+import type { PanelMeta } from '@boostkit/panels'
+
+export default function PanelLayout({ children }: { children: ReactNode }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = usePageContext() as { data: { panelMeta: PanelMeta; slug?: string } }
+  return (
+    <AdminLayout panelMeta={data.panelMeta} currentSlug={data.slug}>
+      {children}
+    </AdminLayout>
+  )
+}
