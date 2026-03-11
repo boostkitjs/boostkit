@@ -11,6 +11,7 @@ export const adminPanel = Panel.make('admin')
     title: 'BoostKit Admin',
   })
   .layout('sidebar')
+  .guard(async (ctx) => ctx.user?.role === 'admin')
   .resources([
     ArticleResource,
     CategoryResource,

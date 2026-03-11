@@ -1,4 +1,5 @@
 import '@/index.css'
+import { useState, useEffect, useRef } from 'react'
 import { Toaster } from 'sonner'
 import type { PanelMeta } from '@boostkit/panels'
 
@@ -21,12 +22,29 @@ interface NavItem {
   href:  string
 }
 
+interface SessionUser {
+  name?:  string
+  email?: string
+  image?: string
+}
+
 function buildNavItems(panelMeta: PanelMeta): NavItem[] {
   const path = panelMeta.path
   return [
-    ...panelMeta.resources.map((r) => ({ slug: r.slug, label: r.label, icon: r.icon,        href: `${path}/${r.slug}` })),
-    ...panelMeta.pages.map((p)     => ({ slug: p.slug, label: p.label, icon: p.icon,        href: `${path}/${p.slug}` })),
+    ...panelMeta.resources.map((r) => ({ slug: r.slug, label: r.label, icon: r.icon, href: `${path}/${r.slug}` })),
+    ...panelMeta.pages.map((p)     => ({ slug: p.slug, label: p.label, icon: p.icon, href: `${path}/${p.slug}` })),
   ]
+}
+
+function useSessionUser(): SessionUser | null {
+  const [user, setUser] = useState<SessionUser | null>(null)
+  useEffect(() => {
+    fetch('/api/auth/get-session')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { user?: SessionUser } | null) => { if (data?.user) setUser(data.user) })
+      .catch(() => {})
+  }, [])
+  return user
 }
 
 export function AdminLayout({ panelMeta, currentSlug, children }: Props) {
@@ -36,12 +54,73 @@ export function AdminLayout({ panelMeta, currentSlug, children }: Props) {
     : <SidebarLayout panelMeta={panelMeta} currentSlug={slug}>{children}</SidebarLayout>
 }
 
+// ─── User Dropdown ───────────────────────────────────────────
+
+function UserDropdown({ user }: { user: SessionUser }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const initials = (user.name ?? user.email ?? '?')
+    .split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()
+
+  async function handleLogout() {
+    await fetch('/api/auth/sign-out', { method: 'POST' })
+    window.location.href = '/login'
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
+      >
+        {user.image
+          ? <img src={user.image} alt="" className="h-6 w-6 rounded-full object-cover" />
+          : <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">{initials}</span>
+        }
+        <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">
+          {user.name ?? user.email}
+        </span>
+        <svg className="h-3.5 w-3.5 text-muted-foreground" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border bg-popover shadow-md z-50 py-1">
+          <div className="px-3 py-2 border-b">
+            {user.name && <p className="text-sm font-medium truncate">{user.name}</p>}
+            {user.email && <p className="text-xs text-muted-foreground truncate">{user.email}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Sidebar Layout ─────────────────────────────────────────
 
 function SidebarLayout({ panelMeta, currentSlug, children }: InternalProps) {
   const brand    = panelMeta.branding?.title ?? panelMeta.name
   const navItems = buildNavItems(panelMeta)
   const current  = navItems.find((n) => n.slug === currentSlug)
+  const user     = useSessionUser()
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -83,10 +162,11 @@ function SidebarLayout({ panelMeta, currentSlug, children }: InternalProps) {
 
       {/* Content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-14 shrink-0 border-b flex items-center px-6">
+        <header className="h-14 shrink-0 border-b flex items-center justify-between px-6">
           <span className="text-sm font-medium text-muted-foreground">
             {current?.label ?? brand}
           </span>
+          {user && <UserDropdown user={user} />}
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           {children}
@@ -104,6 +184,7 @@ function SidebarLayout({ panelMeta, currentSlug, children }: InternalProps) {
 function TopbarLayout({ panelMeta, currentSlug, children }: InternalProps) {
   const brand    = panelMeta.branding?.title ?? panelMeta.name
   const navItems = buildNavItems(panelMeta)
+  const user     = useSessionUser()
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -140,6 +221,8 @@ function TopbarLayout({ panelMeta, currentSlug, children }: InternalProps) {
             )
           })}
         </nav>
+
+        {user && <UserDropdown user={user} />}
 
       </header>
 
