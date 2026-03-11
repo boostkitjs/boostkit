@@ -1517,6 +1517,32 @@ describe('conditional fields', () => {
   })
 })
 
+// ─── Field-level access control ─────────────────────────────
+
+describe('field-level access control', () => {
+  it('readableBy stores function — not in meta', () => {
+    const fn = (ctx: any) => ctx.user?.role === 'admin'
+    const f = TextField.make('x').readableBy(fn)
+    assert.equal((f.toMeta().extra as any)['readableBy'], undefined)
+    assert.ok(f.canRead({ user: { role: 'admin' } }))
+    assert.equal(f.canRead({ user: { role: 'user' } }), false)
+  })
+
+  it('editableBy stores function — not in meta', () => {
+    const f = TextField.make('x').editableBy((ctx: any) => ctx.user?.role === 'admin')
+    assert.ok(f.canEdit({ user: { role: 'admin' } }))
+    assert.equal(f.canEdit({ user: { role: 'user' } }), false)
+  })
+
+  it('without readableBy, canRead returns true', () => {
+    assert.ok(TextField.make('x').canRead({}))
+  })
+
+  it('without editableBy, canEdit returns true', () => {
+    assert.ok(TextField.make('x').canEdit({}))
+  })
+})
+
 // ─── Duplicate — i18n keys ───────────────────────────────────
 
 describe('duplicate i18n keys', () => {

@@ -253,6 +253,16 @@ export class PanelServiceProvider extends ServiceProvider {
 
       const result = await q.paginate(page, perPage)
 
+      // Strip unreadable fields from each record
+      const allFields = flattenFields(resource.fields())
+      const readableNames = new Set(
+        allFields.filter(f => f.canRead(ctx)).map(f => f.getName())
+      )
+      readableNames.add('id')
+      result.data = (result.data as Record<string, unknown>[]).map((r) =>
+        Object.fromEntries(Object.entries(r).filter(([k]) => readableNames.has(k)))
+      )
+
       return res.json({
         data: result.data,
         meta: {
@@ -345,7 +355,16 @@ export class PanelServiceProvider extends ServiceProvider {
 
       if (!record) return res.status(404).json({ message: 'Record not found.' })
 
-      return res.json({ data: record })
+      // Strip unreadable fields
+      const allFieldsForShow = flattenFields(resource.fields())
+      const readableNamesForShow = new Set(
+        allFieldsForShow.filter(f => f.canRead(ctx)).map(f => f.getName())
+      )
+      readableNamesForShow.add('id')
+      const filteredRecord = Object.fromEntries(
+        Object.entries(record as Record<string, unknown>).filter(([k]) => readableNamesForShow.has(k))
+      )
+      return res.json({ data: filteredRecord })
     }, mw)
 
     // ── POST /panel/api/resource — create ─────────────────
