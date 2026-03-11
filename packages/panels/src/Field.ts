@@ -46,6 +46,8 @@ export abstract class Field {
   protected _extra:      Record<string, unknown> = {}
   protected _component?: string
   protected _conditions: Condition[] = []
+  protected _readableFn?: (ctx: unknown) => boolean
+  protected _editableFn?: (ctx: unknown) => boolean
 
   constructor(name: string) {
     this._name = name
@@ -164,6 +166,42 @@ export abstract class Field {
       this._conditions.push({ type, field, op: '=', value: opOrValue })
     }
     return this
+  }
+
+  /**
+   * Control which users can see this field in list/show responses.
+   * Evaluated server-side. Field is stripped from the response when fn returns false.
+   * Inspired by PayloadCMS's `access.read`.
+   *
+   * @example
+   * TextField.make('internalNotes').readableBy((ctx) => ctx.user?.role === 'admin')
+   */
+  readableBy(fn: (ctx: unknown) => boolean): this {
+    this._readableFn = fn
+    return this
+  }
+
+  /**
+   * Control which users can edit this field.
+   * When fn returns false, the field is marked readonly in the form.
+   * Inspired by PayloadCMS's `access.update`.
+   *
+   * @example
+   * EmailField.make('email').editableBy((ctx) => ctx.user?.role === 'admin')
+   */
+  editableBy(fn: (ctx: unknown) => boolean): this {
+    this._editableFn = fn
+    return this
+  }
+
+  /** @internal */
+  canRead(ctx: unknown): boolean {
+    return this._readableFn ? this._readableFn(ctx) : true
+  }
+
+  /** @internal */
+  canEdit(ctx: unknown): boolean {
+    return this._editableFn ? this._editableFn(ctx) : true
   }
 
   // ── Getters ────────────────────────────────────────────
