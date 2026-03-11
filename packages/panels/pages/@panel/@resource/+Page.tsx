@@ -26,10 +26,15 @@ function flattenFields(schema: SchemaItem[]): FieldMeta[] {
   return result
 }
 
+function t(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/:([a-z]+)/g, (_, k: string) => String(vars[k] ?? `:${k}`))
+}
+
 export default function ResourceListPage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, records, pagination, pathSegment, slug } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
+  const i18n = panelMeta.i18n
   config({ title: `${resourceMeta.label} — ${panelName}` })
 
   const [selected,       setSelected]       = useState<string[]>([])
@@ -150,14 +155,14 @@ export default function ResourceListPage() {
         <div>
           <h1 className="text-xl font-semibold">{resourceMeta.label}</h1>
           {pagination && (
-            <p className="text-sm text-muted-foreground mt-0.5">{pagination.total} records</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{t(i18n.records, { n: pagination.total })}</p>
           )}
         </div>
         <a
           href={`/${pathSegment}/${slug}/create`}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:opacity-90 transition-opacity shrink-0"
         >
-          <span aria-hidden>+</span> New {resourceMeta.labelSingular}
+          {t(i18n.newButton, { label: resourceMeta.labelSingular })}
         </a>
       </div>
 
