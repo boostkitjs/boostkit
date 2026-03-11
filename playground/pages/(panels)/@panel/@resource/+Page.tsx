@@ -40,6 +40,8 @@ export default function ResourceListPage() {
   const [selected,       setSelected]       = useState<string[]>([])
   const [confirm,        setConfirm]        = useState<{ action: typeof resourceMeta.actions[0]; records: unknown[] } | null>(null)
   const [actionPending,  setActionPending]  = useState(false)
+  const [bulkDeletePending,     setBulkDeletePending]     = useState(false)
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false)
 
   const allFields    = flattenFields(resourceMeta.fields as SchemaItem[])
   const tableFields  = allFields.filter((f) => !f.hidden.includes('table'))
@@ -137,6 +139,29 @@ export default function ResourceListPage() {
     }
   }
 
+  async function handleBulkDelete() {
+    setBulkDeletePending(true)
+    try {
+      const res = await fetch(`/${pathSegment}/api/${slug}`, {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ids: selected }),
+      })
+      if (res.ok) {
+        toast.success(t(i18n.bulkDeletedToast, { n: selected.length }))
+        setSelected([])
+        window.location.reload()
+      } else {
+        toast.error(i18n.deleteError)
+      }
+    } catch {
+      toast.error(i18n.deleteError)
+    } finally {
+      setBulkDeletePending(false)
+      setBulkDeleteConfirmOpen(false)
+    }
+  }
+
   // ── Pagination ─────────────────────────────────────────
   function goToPage(p: number) {
     const url = new URL(window.location.href)
@@ -224,7 +249,7 @@ export default function ResourceListPage() {
       )}
 
       {/* ── Bulk action bar ────────────────────────────────── */}
-      {selected.length > 0 && bulkActions.length > 0 && (
+      {selected.length > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
           <span className="text-sm font-medium">{t(i18n.selected, { n: selected.length })}</span>
           <div className="flex gap-2">
@@ -232,7 +257,7 @@ export default function ResourceListPage() {
               <button
                 key={action.name}
                 onClick={() => runAction(action)}
-                disabled={actionPending}
+                disabled={actionPending || bulkDeletePending}
                 className={[
                   'px-3 py-1 text-sm rounded-md font-medium transition-colors disabled:opacity-50',
                   action.destructive
@@ -243,6 +268,13 @@ export default function ResourceListPage() {
                 {action.label}
               </button>
             ))}
+            <button
+              onClick={() => setBulkDeleteConfirmOpen(true)}
+              disabled={actionPending || bulkDeletePending}
+              className="px-3 py-1 text-sm rounded-md font-medium transition-colors disabled:opacity-50 bg-destructive/10 text-destructive hover:bg-destructive/20"
+            >
+              {bulkDeletePending ? i18n.loading : t(i18n.deleteSelected, { n: selected.length })}
+            </button>
           </div>
           <button
             onClick={() => setSelected([])}
@@ -363,6 +395,13 @@ export default function ResourceListPage() {
                       >
                         {i18n.edit}
                       </button>
+                      <DuplicateRowButton
+                        slug={slug}
+                        id={id}
+                        pathSegment={pathSegment}
+                        schema={allFields}
+                        i18n={i18n}
+                      />
                       <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} labelSingular={resourceMeta.labelSingular} i18n={i18n} />
                     </div>
                   </td>
@@ -455,6 +494,18 @@ export default function ResourceListPage() {
           title={confirm.action.label}
           message={confirm.action.confirmMessage ?? i18n.areYouSure}
           danger={confirm.action.destructive}
+          confirmLabel={i18n.confirm}
+          cancelLabel={i18n.cancel}
+        />
+      )}
+      {bulkDeleteConfirmOpen && (
+        <ConfirmDialog
+          open
+          onClose={() => setBulkDeleteConfirmOpen(false)}
+          onConfirm={handleBulkDelete}
+          title={t(i18n.deleteSelected, { n: selected.length })}
+          message={t(i18n.bulkDeleteConfirm, { n: selected.length })}
+          danger
           confirmLabel={i18n.confirm}
           cancelLabel={i18n.cancel}
         />
@@ -613,5 +664,69 @@ function MiniCheckIcon() {
     <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
       <path d="M1 3.5L3 5.5L8 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+function DuplicateRowButton({ slug, id, pathSegment, schema, i18n }: {
+  slug:        string
+  id:          string
+  pathSegment: string
+  schema:      FieldMeta[]
+  i18n:        PanelI18n
+}) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleDuplicate() {
+    setLoading(true)
+    try {
+      const res  = await fetch(`/${pathSegment}/api/${slug}/${id}`)
+      if (!res.ok) { toast.error(i18n.deleteError); return }
+      const body = await res.json() as { data: Record<string, unknown> }
+      const record = body.data
+
+      const params = new URLSearchParams()
+
+      for (const field of schema) {
+        if (field.hidden.includes('create')) continue
+        if (field.readonly) continue
+        if (field.name === 'id') continue
+        if (field.type === 'password' || field.type === 'hidden') continue
+
+        const val = record[field.name]
+        if (val === null || val === undefined) continue
+
+        if (field.type === 'belongsToMany') {
+          const items = Array.isArray(val) ? (val as Array<{ id?: string }>) : []
+          const ids   = items.map(r => r.id ?? String(r)).filter(Boolean)
+          if (ids.length > 0) params.set(`prefill[${field.name}]`, ids.join(','))
+        } else if (field.type === 'boolean' || field.type === 'toggle') {
+          params.set(`prefill[${field.name}]`, val ? 'true' : 'false')
+        } else if (typeof val === 'object') {
+          params.set(`prefill[${field.name}]`, JSON.stringify(val))
+        } else {
+          params.set(`prefill[${field.name}]`, String(val))
+        }
+      }
+
+      const back = window.location.pathname + window.location.search
+      params.set('back', back)
+
+      void navigate(`/${pathSegment}/${slug}/create?${params.toString()}`)
+    } catch {
+      toast.error(i18n.deleteError)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleDuplicate}
+      disabled={loading}
+      className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+    >
+      {loading ? i18n.loading : i18n.duplicate}
+    </button>
   )
 }
