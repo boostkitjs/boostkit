@@ -376,7 +376,7 @@ export class PanelServiceProvider extends ServiceProvider {
 
       const raw    = req.body as Record<string, unknown>
       const body   = this.coercePayload(resource, raw, 'create')
-      const errors = this.validatePayload(resource, body, 'create')
+      const errors = await this.validatePayload(resource, body, 'create')
       if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
       const record = await Model.create(body)
@@ -396,7 +396,7 @@ export class PanelServiceProvider extends ServiceProvider {
 
       const raw    = req.body as Record<string, unknown>
       const body   = this.coercePayload(resource, raw, 'update')
-      const errors = this.validatePayload(resource, body, 'update')
+      const errors = await this.validatePayload(resource, body, 'update')
       if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
       const record = await Model.query().update(id, body)
@@ -522,11 +522,11 @@ export class PanelServiceProvider extends ServiceProvider {
     return result
   }
 
-  private validatePayload(
+  private async validatePayload(
     resource: Resource,
     body: Record<string, unknown>,
     mode: 'create' | 'update',
-  ): Record<string, string[]> | null {
+  ): Promise<Record<string, string[]> | null> {
     const fields = flattenFields(resource.fields())
     const errors: Record<string, string[]> = {}
 
@@ -541,6 +541,22 @@ export class PanelServiceProvider extends ServiceProvider {
 
       if (field.isRequired() && (value === undefined || value === null || value === '')) {
         errors[name] = [`${field.getLabel()} is required.`]
+      }
+    }
+
+    // Per-field custom validators (inspired by PayloadCMS)
+    for (const field of flattenFields(resource.fields())) {
+      if (!field.hasValidate()) continue
+      if (field.isReadonly()) continue
+      const name = field.getName()
+      const value = body[name]
+      const result = await field.runValidate(value, body)
+      if (result !== true) {
+        if (errors[name]) {
+          errors[name] = [...errors[name]!, result]
+        } else {
+          errors[name] = [result]
+        }
       }
     }
 

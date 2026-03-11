@@ -48,6 +48,7 @@ export abstract class Field {
   protected _conditions: Condition[] = []
   protected _readableFn?: (ctx: unknown) => boolean
   protected _editableFn?: (ctx: unknown) => boolean
+  protected _validateFn?: (value: unknown, data: Record<string, unknown>) => Promise<string | true> | string | true
 
   constructor(name: string) {
     this._name = name
@@ -203,6 +204,38 @@ export abstract class Field {
   canEdit(ctx: unknown): boolean {
     return this._editableFn ? this._editableFn(ctx) : true
   }
+
+  /**
+   * Custom async validator for this field. Runs server-side alongside Zod validation.
+   * Return `true` to pass, or an error string to fail.
+   * Receives the field value AND the full form payload — use `data` to cross-validate.
+   *
+   * Inspired by PayloadCMS's `validate: async (value, { data }) => string | true`.
+   *
+   * @example
+   * SlugField.make('slug')
+   *   .validate(async (value, data) => {
+   *     const exists = await Article.query().where('slug', value).where('id', '!=', data.id).first()
+   *     return exists ? 'Slug already in use' : true
+   *   })
+   *
+   * TextField.make('endDate')
+   *   .validate((value, data) => {
+   *     return value >= data.startDate ? true : 'End date must be after start date'
+   *   })
+   */
+  validate(fn: (value: unknown, data: Record<string, unknown>) => Promise<string | true> | string | true): this {
+    this._validateFn = fn
+    return this
+  }
+
+  /** @internal */
+  async runValidate(value: unknown, data: Record<string, unknown>): Promise<string | true> {
+    return this._validateFn ? this._validateFn(value, data) : true
+  }
+
+  /** @internal */
+  hasValidate(): boolean { return this._validateFn !== undefined }
 
   // ── Getters ────────────────────────────────────────────
 
