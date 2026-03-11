@@ -7,7 +7,7 @@ export class TodoResource extends Resource {
   static labelSingular = 'Todo'
   static paginationType = 'loadMore' as const
   static perPage = 5
-  static persistFilters = true
+  static persistTableState = true
   
   fields() {
     return [

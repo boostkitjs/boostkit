@@ -23,7 +23,7 @@ export interface ResourceMeta {
   defaultSort?:      string
   defaultSortDir?:   'ASC' | 'DESC'
   titleField?:       string
-  persistFilters:    boolean
+  persistTableState:    boolean
   perPage:           number
   perPageOptions:    number[]
   paginationType:    'pagination' | 'loadMore'
@@ -62,11 +62,10 @@ export class Resource {
   static titleField?: string
 
   /**
-   * Persist table filters, sort, and search in the user's session.
+   * Persist table state (filters, sort, search, page, selected rows) in sessionStorage.
    * When true, navigating away and back restores the previous table state.
-   * Inspired by FilamentPHP's `->persistFiltersInSession()`.
    */
-  static persistFilters = false
+  static persistTableState = false
 
   /** Number of records per page. */
   static perPage = 15
@@ -140,7 +139,7 @@ export class Resource {
       fields:        this.fields().map((f) => f.toMeta()) as SchemaItemMeta[],
       filters:       this.filters().map((f) => f.toMeta()),
       actions:       this.actions().map((a) => a.toMeta()),
-      persistFilters:  Cls.persistFilters,
+      persistTableState:  Cls.persistTableState,
       perPage:         Cls.perPage,
       perPageOptions:  Cls.perPageOptions,
       paginationType:  Cls.paginationType,

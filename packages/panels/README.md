@@ -58,6 +58,10 @@ export class UserResource extends Resource {
   static label = 'Users'
   static labelSingular = 'User'
   static titleField = 'name'   // used as show page heading, breadcrumbs, and relation displays
+  static perPage = 25               // records per page (default: 15)
+  static perPageOptions = [25, 50, 100]    // per-page dropdown choices (default: [10, 15, 25, 50, 100])
+  static paginationType = 'pagination'     // 'pagination' | 'loadMore'
+  static persistTableState = true          // persist filters, sort, search, page & selection
 
   fields() {
     return [
@@ -724,6 +728,38 @@ The list page sends `?search=foo` and `?sort=name&dir=ASC` query params automati
 
 ---
 
+## Pagination
+
+**Numbered pages** (default):
+
+```ts
+static perPage = 25                       // default: 15
+static perPageOptions = [25, 50, 100]     // default: [10, 15, 25, 50, 100]
+```
+
+**Load more** — replaces page numbers with an append button:
+
+```ts
+static paginationType = 'loadMore'
+static perPage = 10   // batch size
+```
+
+All data is SSR — `?page=3` loads pages 1–3 server-side in a single query.
+
+---
+
+## Table State Persistence
+
+Persist filters, sort, search, page position, and selected rows in `sessionStorage`. Sidebar links auto-restore the saved URL.
+
+```ts
+static persistTableState = true   // default: false
+```
+
+Cleared on tab close. "Clear filters" and bulk actions clear saved state.
+
+---
+
 ## Actions
 
 ```ts
@@ -828,7 +864,7 @@ For each resource, the following routes are automatically mounted:
 | `GET` | `/{panel}/api/{resource}/_related` | HasMany records — `?fk=col&id=val[&through=true]` |
 
 The `GET` list endpoint supports:
-- `?page=1&perPage=15` — pagination
+- `?page=1&perPage=15` — pagination (defaults configurable via `static perPage` / `static perPageOptions`)
 - `?search=foo` — search across `.searchable()` fields (LIKE)
 - `?sort=name&dir=ASC` — sort by `.sortable()` field
 - `?filter[field]=value` — apply filters

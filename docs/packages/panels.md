@@ -74,6 +74,10 @@ export class UserResource extends Resource {
   static titleField      = 'name'            // show page heading, breadcrumbs, and relation displays
   static defaultSort     = 'createdAt'       // default sort column
   static defaultSortDir  = 'DESC' as const   // applied when no ?sort in URL
+  static perPage         = 25               // records per page (default: 15)
+  static perPageOptions  = [25, 50, 100]    // per-page dropdown choices (default: [10, 15, 25, 50, 100])
+  static paginationType  = 'pagination'     // 'pagination' (numbered pages) or 'loadMore'
+  static persistTableState = true           // persist filters, sort, search, page & selection in sessionStorage
 
   fields() {
     return [
@@ -692,6 +696,55 @@ Multiple filters compose with AND logic.
 
 ---
 
+## Pagination
+
+### Numbered pages (default)
+
+```ts
+export class UserResource extends Resource {
+  static perPage = 25                       // default: 15
+  static perPageOptions = [25, 50, 100]     // default: [10, 15, 25, 50, 100]
+}
+```
+
+The table renders numbered page buttons and a per-page dropdown.
+
+### Load more
+
+```ts
+export class CommentResource extends Resource {
+  static paginationType = 'loadMore'
+  static perPage = 10                       // batch size per "Load more" click
+}
+```
+
+Replaces numbered pages with a "Load more" button. Records accumulate in the table. Shows "Showing N of Total". All data is SSR — navigating to `?page=3` loads pages 1–3 server-side in a single query.
+
+---
+
+## Table State Persistence
+
+Opt-in per resource — saves filters, sort, search, page position, and selected rows to `sessionStorage`. State restores when the user navigates back. Sidebar links automatically point to the saved URL.
+
+```ts
+export class ArticleResource extends Resource {
+  static persistTableState = true   // default: false
+}
+```
+
+What gets persisted:
+
+| State | Storage key |
+|---|---|
+| Filters, sort, search, page | `panels:{panel}:{slug}:tableState` |
+| Selected row IDs | `panels:{panel}:{slug}:selected` |
+
+- Cleared when the browser tab closes (sessionStorage)
+- "Clear filters" button clears the saved state
+- Bulk actions clear the saved selection
+
+---
+
 ## Actions
 
 ### Bulk actions
@@ -878,7 +931,7 @@ List query params:
 | Param | Example | Description |
 |---|---|---|
 | `page` | `?page=2` | Page number (default: 1) |
-| `perPage` | `?perPage=25` | Records per page (default: 15) |
+| `perPage` | `?perPage=25` | Records per page (default: `static perPage`, max: 100) |
 | `search` | `?search=alice` | Search across `.searchable()` fields |
 | `sort` | `?sort=name` | Sort column (must be `.sortable()`) |
 | `dir` | `?dir=DESC` | Sort direction — `ASC` or `DESC` (default: `ASC`) |

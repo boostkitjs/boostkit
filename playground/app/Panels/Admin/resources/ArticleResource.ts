@@ -25,7 +25,7 @@ export class ArticleResource extends Resource {
   static titleField     = 'title'
   static defaultSort    = 'createdAt'
   static defaultSortDir = 'DESC' as const
-  static persistFilters = true
+  static persistTableState = true
   static perPage = 5 
   static perPageOptions = [5,10, 15, 25, 50, 100]
 

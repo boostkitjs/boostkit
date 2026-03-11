@@ -57,11 +57,10 @@ export default function ResourceListPage() {
   const hasSearch    = searchFields.length > 0
   const hasFilters   = resourceMeta.filters.length > 0
 
-  // ── Persist table state (filters, sort, search) across navigation ──
-  const storageKey = `panels:${pathSegment}:${slug}:tableState`
-
-  // ── Persist table state (opt-in via Resource.persistFilters) ──
-  const persist = resourceMeta.persistFilters
+  // ── Persist table state (opt-in via Resource.persistTableState) ──
+  const storageKey          = `panels:${pathSegment}:${slug}:tableState`
+  const selectionStorageKey = `panels:${pathSegment}:${slug}:selected`
+  const persist = resourceMeta.persistTableState
 
   // Compute on every render: does the URL lack params but sessionStorage has saved ones?
   const needsRestore = persist
@@ -97,10 +96,23 @@ export default function ResourceListPage() {
   // Reset selection and loadMore state when navigating to a different resource
   const searchRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    setSelected([])
+    // Restore persisted selection for this resource
+    if (persist) {
+      const saved = sessionStorage.getItem(selectionStorageKey)
+      setSelected(saved ? JSON.parse(saved) as string[] : [])
+    } else {
+      setSelected([])
+    }
     setExtraRecords([])
     restoredRef.current = null  // allow restore for the new resource
-  }, [slug])
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist selection changes
+  useEffect(() => {
+    if (!persist) return
+    if (selected.length > 0) sessionStorage.setItem(selectionStorageKey, JSON.stringify(selected))
+    else sessionStorage.removeItem(selectionStorageKey)
+  }, [selected, persist, selectionStorageKey])
 
   // Sync search input value with URL (covers restore + navigation)
   useEffect(() => {
@@ -129,7 +141,7 @@ export default function ResourceListPage() {
       if (res.ok) {
         const body = await res.json() as { data: unknown[] }
         setExtraRecords((prev) => [...prev, ...body.data])
-        // Update URL without navigation so persistFilters can save the position
+        // Update URL without navigation so persistTableState can save the position
         window.history.replaceState(null, '', url.pathname + url.search)
         if (persist) sessionStorage.setItem(storageKey, url.search)
       }
