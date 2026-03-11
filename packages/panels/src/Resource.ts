@@ -20,9 +20,12 @@ export interface ResourceMeta {
   fields:         SchemaItemMeta[]
   filters:        ReturnType<Filter['toMeta']>[]
   actions:        ReturnType<Action['toMeta']>[]
-  defaultSort?:   string
-  defaultSortDir?: 'ASC' | 'DESC'
-  titleField?:    string
+  defaultSort?:      string
+  defaultSortDir?:   'ASC' | 'DESC'
+  titleField?:       string
+  persistFilters:    boolean
+  perPage:           number
+  perPageOptions:    number[]
 }
 
 // ─── Resource base class ───────────────────────────────────
@@ -56,6 +59,19 @@ export class Resource {
    * breadcrumbs, and anywhere a human-readable label is needed (e.g. 'name', 'title').
    */
   static titleField?: string
+
+  /**
+   * Persist table filters, sort, and search in the user's session.
+   * When true, navigating away and back restores the previous table state.
+   * Inspired by FilamentPHP's `->persistFiltersInSession()`.
+   */
+  static persistFilters = false
+
+  /** Number of records per page. */
+  static perPage = 15
+
+  /** Options shown in the per-page dropdown. */
+  static perPageOptions = [10, 15, 25, 50, 100]
 
   // ── Abstract / overridable ──────────────────────────────
 
@@ -120,6 +136,9 @@ export class Resource {
       fields:        this.fields().map((f) => f.toMeta()) as SchemaItemMeta[],
       filters:       this.filters().map((f) => f.toMeta()),
       actions:       this.actions().map((a) => a.toMeta()),
+      persistFilters:  Cls.persistFilters,
+      perPage:         Cls.perPage,
+      perPageOptions:  Cls.perPageOptions,
     }
     if (Cls.defaultSort    !== undefined) meta.defaultSort    = Cls.defaultSort
     if (Cls.defaultSortDir !== undefined) meta.defaultSortDir = Cls.defaultSortDir

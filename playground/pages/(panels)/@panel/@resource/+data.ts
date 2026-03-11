@@ -70,7 +70,8 @@ export async function data(pageContext: PageContextServer) {
       }
     }
 
-    const result = await q.paginate(page, 15)
+    const perPage = Math.min(Number(params.get('perPage') ?? (ResourceClass as any).perPage ?? 15), 100)
+    const result = await q.paginate(page, perPage)
 
     // Apply display transforms + computed fields
     const allFields = flattenFields(resource.fields())
