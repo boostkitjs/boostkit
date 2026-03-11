@@ -53,6 +53,25 @@ export default function ResourceListPage() {
   const hasSearch    = searchFields.length > 0
   const hasFilters   = resourceMeta.filters.length > 0
 
+  // ── Persist table state (filters, sort, search) across navigation ──
+  const storageKey = `panels:${pathSegment}:${slug}:tableState`
+
+  // On mount: if URL has no query params, restore from sessionStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const search = window.location.search
+    if (search && search !== '?') {
+      // Save current params
+      sessionStorage.setItem(storageKey, search)
+    } else {
+      // Restore saved params
+      const saved = sessionStorage.getItem(storageKey)
+      if (saved) {
+        void navigate(`${window.location.pathname}${saved}`, { overwriteLastHistoryEntry: true })
+      }
+    }
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Current URL params ─────────────────────────────────
   const urlParams  = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const currentSort   = urlParams.get('sort') ?? resourceMeta.defaultSort ?? ''
@@ -63,6 +82,14 @@ export default function ResourceListPage() {
   // ── Search state ────────────────────────────────────────
   const searchRef = useRef<HTMLInputElement>(null)
 
+  /** Navigate and persist query string to sessionStorage */
+  function navigateAndPersist(url: URL) {
+    const search = url.search || ''
+    if (search && search !== '?') sessionStorage.setItem(storageKey, search)
+    else sessionStorage.removeItem(storageKey)
+    void navigate(url.pathname + url.search)
+  }
+
   function applySearch(e: React.FormEvent) {
     e.preventDefault()
     const q   = searchRef.current?.value ?? ''
@@ -70,7 +97,7 @@ export default function ResourceListPage() {
     if (q) url.searchParams.set('search', q)
     else url.searchParams.delete('search')
     url.searchParams.delete('page')
-    void navigate(url.pathname + url.search)
+    navigateAndPersist(url)
   }
 
   // ── Sort ────────────────────────────────────────────────
@@ -83,7 +110,7 @@ export default function ResourceListPage() {
       url.searchParams.set('dir', 'ASC')
     }
     url.searchParams.delete('page')
-    void navigate(url.pathname + url.search)
+    navigateAndPersist(url)
   }
 
   // ── Filter ──────────────────────────────────────────────
@@ -92,7 +119,7 @@ export default function ResourceListPage() {
     if (value) url.searchParams.set(`filter[${name}]`, value)
     else url.searchParams.delete(`filter[${name}]`)
     url.searchParams.delete('page')
-    void navigate(url.pathname + url.search)
+    navigateAndPersist(url)
   }
 
   // ── Selection helpers ──────────────────────────────────
@@ -242,6 +269,11 @@ export default function ResourceListPage() {
           {(currentSearch || resourceMeta.filters.some(f => urlParams.has(`filter[${f.name}]`))) && (
             <a
               href={`/${pathSegment}/${slug}`}
+              onClick={(e) => {
+                e.preventDefault()
+                sessionStorage.removeItem(storageKey)
+                void navigate(`/${pathSegment}/${slug}`)
+              }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {i18n.clearFilters}
