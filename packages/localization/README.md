@@ -79,6 +79,8 @@ await trans('messages.items', 0) // 'no items'
 
 Loads the namespace JSON from disk on first call, then caches in memory.
 
+> **Vike / SSR note:** Always use `trans()` (not `__()`) in Vike `+data.ts` files. The registry config and translation cache are stored on `globalThis` so they survive Vike's SSR module isolation. `__()` is safe inside middleware and request handlers that run after the namespace is already loaded.
+
 ---
 
 ## Pluralization
