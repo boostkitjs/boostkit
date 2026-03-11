@@ -26,6 +26,7 @@ export interface ResourceMeta {
   persistFilters:    boolean
   perPage:           number
   perPageOptions:    number[]
+  paginationType:    'pagination' | 'loadMore'
 }
 
 // ─── Resource base class ───────────────────────────────────
@@ -72,6 +73,9 @@ export class Resource {
 
   /** Options shown in the per-page dropdown. */
   static perPageOptions = [10, 15, 25, 50, 100]
+
+  /** Pagination style: 'pagination' (numbered pages) or 'loadMore' (append button). */
+  static paginationType: 'pagination' | 'loadMore' = 'pagination'
 
   // ── Abstract / overridable ──────────────────────────────
 
@@ -139,6 +143,7 @@ export class Resource {
       persistFilters:  Cls.persistFilters,
       perPage:         Cls.perPage,
       perPageOptions:  Cls.perPageOptions,
+      paginationType:  Cls.paginationType,
     }
     if (Cls.defaultSort    !== undefined) meta.defaultSort    = Cls.defaultSort
     if (Cls.defaultSortDir !== undefined) meta.defaultSortDir = Cls.defaultSortDir

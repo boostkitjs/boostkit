@@ -27,6 +27,8 @@ export const en = {
   records:         ':n records',
   page:            'Page :current of :last',
   perPage:         ':n / page',
+  loadMore:        'Load more',
+  showing:         'Showing :n of :total',
 
   // Boolean
   yes:             'Yes',

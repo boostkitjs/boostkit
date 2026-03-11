@@ -32,7 +32,7 @@ function t(template: string, vars: Record<string, string | number>): string {
 
 export default function ResourceListPage() {
   const config = useConfig()
-  const { panelMeta, resourceMeta, records, pagination, pathSegment, slug } = useData<Data>()
+  const { panelMeta, resourceMeta, records, pagination, pathSegment, slug, urlSearch } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
   const i18n = panelMeta.i18n
   config({ title: `${resourceMeta.label} — ${panelName}` })
@@ -42,6 +42,13 @@ export default function ResourceListPage() {
   const [actionPending,  setActionPending]  = useState(false)
   const [bulkDeletePending,     setBulkDeletePending]     = useState(false)
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false)
+
+  // ── Load-more state ──────────────────────────────────
+  const isLoadMore = resourceMeta.paginationType === 'loadMore'
+  const [extraRecords,     setExtraRecords]     = useState<unknown[]>([])
+  const [loadMorePage,     setLoadMorePage]     = useState(pagination?.currentPage ?? 1)
+  const [loadMorePending,  setLoadMorePending]  = useState(false)
+  const allRecords = isLoadMore ? [...(records as unknown[]), ...extraRecords] : records as unknown[]
 
   const allFields    = flattenFields(resourceMeta.fields as SchemaItem[])
   const tableFields  = allFields.filter((f) => !f.hidden.includes('table'))
@@ -59,12 +66,12 @@ export default function ResourceListPage() {
   // Compute on every render: does the URL lack params but sessionStorage has saved ones?
   const needsRestore = persist
     && typeof window !== 'undefined'
-    && (!window.location.search || window.location.search === '?')
+    && !urlSearch
     && !!sessionStorage.getItem(storageKey)
 
   // Save params to sessionStorage whenever URL has them
-  if (persist && typeof window !== 'undefined' && window.location.search && window.location.search !== '?') {
-    sessionStorage.setItem(storageKey, window.location.search)
+  if (persist && typeof window !== 'undefined' && urlSearch) {
+    sessionStorage.setItem(storageKey, '?' + urlSearch)
   }
 
   // Trigger the restore navigation (once per restore)
@@ -78,17 +85,19 @@ export default function ResourceListPage() {
     }
   }) // no deps — runs every render but the ref guard prevents re-firing
 
-  // ── Current URL params ─────────────────────────────────
-  const urlParams  = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+  // ── Current URL params (use SSR-provided urlSearch to avoid hydration mismatch) ──
+  const urlParams  = new URLSearchParams(urlSearch)
   const currentSort   = urlParams.get('sort') ?? resourceMeta.defaultSort ?? ''
   const currentDir    = (urlParams.get('dir') ?? resourceMeta.defaultSortDir ?? 'ASC') as 'ASC' | 'DESC'
   const currentSearch = urlParams.get('search') ?? ''
   const hasActiveFilters = urlParams.has('search') || [...urlParams.keys()].some((k) => k.startsWith('filter['))
 
-  // Reset selection when navigating to a different resource
+  // Reset selection and loadMore state when navigating to a different resource
   const searchRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     setSelected([])
+    setExtraRecords([])
+    setLoadMorePage(1)
     restoredRef.current = null  // allow restore for the new resource
   }, [slug])
 
@@ -96,6 +105,33 @@ export default function ResourceListPage() {
   useEffect(() => {
     if (searchRef.current) searchRef.current.value = currentSearch
   }, [currentSearch])
+
+  // Reset loadMore accumulated records when SSR data changes (filter/sort/search)
+  const recordsRef = useRef(records)
+  useEffect(() => {
+    if (recordsRef.current !== records) {
+      recordsRef.current = records
+      setExtraRecords([])
+      setLoadMorePage(pagination?.currentPage ?? 1)
+    }
+  }, [records, pagination?.currentPage])
+
+  async function handleLoadMore() {
+    if (!pagination || loadMorePending) return
+    const nextPage = loadMorePage + 1
+    setLoadMorePending(true)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('page', String(nextPage))
+      const res = await fetch(`/${pathSegment}/api/${slug}${url.search}`)
+      if (res.ok) {
+        const body = await res.json() as { data: unknown[] }
+        setExtraRecords((prev) => [...prev, ...body.data])
+        setLoadMorePage(nextPage)
+      }
+    } catch { /* ignore */ }
+    finally { setLoadMorePending(false) }
+  }
 
   /** Navigate and persist query string to sessionStorage */
   function navigateAndPersist(url: URL) {
@@ -140,7 +176,7 @@ export default function ResourceListPage() {
   }
 
   // ── Selection helpers ──────────────────────────────────
-  const allIds      = (records as Array<{ id: string }>).map((r) => r.id)
+  const allIds      = (allRecords as Array<{ id: string }>).map((r) => r.id)
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
 
   function toggleAll(checked: boolean) {
@@ -383,7 +419,7 @@ export default function ResourceListPage() {
             {needsRestore ? (
               <tr><td colSpan={tableFields.length + 2} className="px-6 py-12 text-center text-muted-foreground text-sm">Loading…</td></tr>
             ) : (<>
-            {(records as Array<Record<string, unknown>>).map((record) => {
+            {(allRecords as Array<Record<string, unknown>>).map((record) => {
               const id       = record['id'] as string
               const isChecked = selected.includes(id)
               return (
@@ -463,7 +499,7 @@ export default function ResourceListPage() {
                 </tr>
               )
             })}
-            {records.length === 0 && (
+            {allRecords.length === 0 && (
               <tr>
                 <td colSpan={tableFields.length + 2} className="py-16 text-center">
                   {hasActiveFilters
@@ -496,7 +532,23 @@ export default function ResourceListPage() {
       </div>
 
       {/* ── Pagination ────────────────────────────────────── */}
-      {pagination && (
+      {pagination && isLoadMore && (
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-sm text-muted-foreground">
+            {t(i18n.showing, { n: allRecords.length, total: pagination.total })}
+          </p>
+          {loadMorePage < pagination.lastPage && (
+            <button
+              onClick={handleLoadMore}
+              disabled={loadMorePending}
+              className="px-6 py-2 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+            >
+              {loadMorePending ? i18n.loading : i18n.loadMore}
+            </button>
+          )}
+        </div>
+      )}
+      {pagination && !isLoadMore && (
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground">
@@ -641,9 +693,11 @@ function CellValue({ value, type, extra, displayTransformed, pathSegment, i18n }
     return <span className="text-xs text-muted-foreground font-mono">[JSON]</span>
   }
   if (type === 'image') {
+    const src = String(value)
+    if (!src) return <span className="text-muted-foreground/40">—</span>
     return (
       <img
-        src={String(value)}
+        src={src}
         alt=""
         className="h-10 w-16 object-cover rounded"
       />

@@ -98,5 +98,6 @@ export async function data(pageContext: PageContextServer) {
   }
 
   const sessionUser = await getSessionUser(pageContext)
-  return { panelMeta, resourceMeta, records, pagination, pathSegment, slug, sessionUser }
+  const urlSearch = pageContext.urlOriginal.split('?')[1] ?? ''
+  return { panelMeta, resourceMeta, records, pagination, pathSegment, slug, sessionUser, urlSearch }
 }
