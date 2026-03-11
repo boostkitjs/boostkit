@@ -210,7 +210,7 @@ export class PanelServiceProvider extends ServiceProvider {
       if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
       const page    = Number((req.query as Record<string, string>)['page']    ?? 1)
-      const perPage = Number((req.query as Record<string, string>)['perPage'] ?? 15)
+      const perPage = Math.min(Number((req.query as Record<string, string>)['perPage'] ?? ResourceClass.perPage), 100)
 
       const url    = new URL(req.url, 'http://localhost')
       const sort   = url.searchParams.get('sort') ?? undefined

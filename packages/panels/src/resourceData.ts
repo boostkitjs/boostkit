@@ -50,7 +50,7 @@ export async function resourceData(ctx: ResourceDataContext): Promise<ResourceDa
   const Model  = ResourceClass.model as any
   const params         = new URLSearchParams(url.split('?')[1] ?? '')
   const page           = Number(params.get('page') ?? 1)
-  const perPage        = Math.min(Number(params.get('perPage') ?? 15), 100)
+  const perPage        = Math.min(Number(params.get('perPage') ?? ResourceClass.perPage), 100)
   const sortDefault    = ResourceClass.defaultSort
   const sortDirDefault = ResourceClass.defaultSortDir ?? 'ASC'
   const sort           = params.get('sort') ?? sortDefault

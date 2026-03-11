@@ -53,14 +53,17 @@ export default function ResourceListPage() {
   // ── Persist table state (filters, sort, search) across navigation ──
   const storageKey = `panels:${pathSegment}:${slug}:tableState`
 
-  // ── Persist table state (synchronous — no flash) ──────
+  // ── Persist table state (opt-in via Resource.persistFilters) ──
+  const persist = resourceMeta.persistFilters
+
   // Compute on every render: does the URL lack params but sessionStorage has saved ones?
-  const needsRestore = typeof window !== 'undefined'
+  const needsRestore = persist
+    && typeof window !== 'undefined'
     && (!window.location.search || window.location.search === '?')
     && !!sessionStorage.getItem(storageKey)
 
   // Save params to sessionStorage whenever URL has them
-  if (typeof window !== 'undefined' && window.location.search && window.location.search !== '?') {
+  if (persist && typeof window !== 'undefined' && window.location.search && window.location.search !== '?') {
     sessionStorage.setItem(storageKey, window.location.search)
   }
 
@@ -96,9 +99,11 @@ export default function ResourceListPage() {
 
   /** Navigate and persist query string to sessionStorage */
   function navigateAndPersist(url: URL) {
-    const search = url.search || ''
-    if (search && search !== '?') sessionStorage.setItem(storageKey, search)
-    else sessionStorage.removeItem(storageKey)
+    if (persist) {
+      const search = url.search || ''
+      if (search && search !== '?') sessionStorage.setItem(storageKey, search)
+      else sessionStorage.removeItem(storageKey)
+    }
     void navigate(url.pathname + url.search)
   }
 
@@ -283,7 +288,7 @@ export default function ResourceListPage() {
               href={`/${pathSegment}/${slug}`}
               onClick={(e) => {
                 e.preventDefault()
-                sessionStorage.removeItem(storageKey)
+                if (persist) sessionStorage.removeItem(storageKey)
                 void navigate(`/${pathSegment}/${slug}`)
               }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -510,7 +515,7 @@ export default function ResourceListPage() {
               }}
               className="text-sm border border-input rounded-md px-2 py-1 bg-background"
             >
-              {[10, 15, 25, 50, 100].map((n) => (
+              {resourceMeta.perPageOptions.map((n) => (
                 <option key={n} value={n}>{t(i18n.perPage, { n })}</option>
               ))}
             </select>
