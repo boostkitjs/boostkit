@@ -27,7 +27,7 @@ function flattenFields(schema: SchemaItem[]): FieldMeta[] {
 
 export default function ShowPage() {
   const config = useConfig()
-  const { panelMeta, resourceMeta, record, pathSegment, slug, id } = useData<Data>()
+  const { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
   const rec = record as Record<string, unknown> | null
 
@@ -112,6 +112,7 @@ export default function ShowPage() {
             field={field}
             parentId={id}
             pathSegment={pathSegment}
+            initialData={hasManyData[field.name]}
           />
         ))}
 
@@ -130,39 +131,41 @@ export default function ShowPage() {
 
 // ── HasMany table component ───────────────────────────────
 
-interface HasManyTableProps {
-  field:       FieldMeta
-  parentId:    string
-  pathSegment: string
-}
-
 interface RelatedRecord { id: string; [key: string]: unknown }
 interface PaginationMeta { total: number; currentPage: number; lastPage: number; perPage: number }
+interface HasManyInitialData { records: RelatedRecord[]; schema: FieldMeta[]; pagination: PaginationMeta }
 
-function HasManyTable({ field, parentId, pathSegment }: HasManyTableProps) {
+interface HasManyTableProps {
+  field:        FieldMeta
+  parentId:     string
+  pathSegment:  string
+  initialData?: HasManyInitialData
+}
+
+function HasManyTable({ field, parentId, pathSegment, initialData }: HasManyTableProps) {
   const resourceSlug = field.extra?.['resource'] as string | undefined
   const foreignKey   = field.extra?.['foreignKey'] as string | undefined
 
-  const [records, setRecords] = useState<RelatedRecord[]>([])
-  const [schema,  setSchema]  = useState<FieldMeta[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null)
+  const [records, setRecords] = useState<RelatedRecord[]>(initialData?.records ?? [])
+  const [schema,  setSchema]  = useState<FieldMeta[]>(initialData?.schema ?? [])
+  const [pagination, setPagination] = useState<PaginationMeta | null>(initialData?.pagination ?? null)
   const [page, setPage]    = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialData)
 
-  // Load schema once
+  // Load schema once — only if not provided via SSR
   useEffect(() => {
-    if (!resourceSlug) return
+    if (initialData || !resourceSlug) return
     fetch(`/${pathSegment}/api/${resourceSlug}/_schema`)
       .then(r => r.json())
       .then((d: { resourceMeta: { fields: SchemaItem[] } }) => {
-        // table columns: flatten sections/tabs, then filter out hidden-from-table and hasMany
         setSchema(flattenFields(d.resourceMeta.fields).filter(f => !f.hidden.includes('table') && f.type !== 'hasMany'))
       })
       .catch(() => {})
   }, [resourceSlug, pathSegment])
 
-  // Load records when page changes
+  // Load records when page changes (skip page 1 if SSR data already available)
   useEffect(() => {
+    if (page === 1 && initialData) return
     if (!resourceSlug || !foreignKey) { setLoading(false); return }
     setLoading(true)
     const throughMany = field.extra?.['throughMany'] === true
