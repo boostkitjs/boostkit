@@ -6,6 +6,7 @@ import type { Field } from './Field.js'
 import type { Resource, FieldOrGrouping } from './Resource.js'
 import type { Action } from './Action.js'
 import type { PanelContext } from './types.js'
+import { ComputedField } from './fields/ComputedField.js'
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -474,11 +475,18 @@ export class PanelServiceProvider extends ServiceProvider {
 
   private applyTransforms(resource: Resource, records: unknown[]): unknown[] {
     const fields = flattenFields(resource.fields())
-    const displayFields = fields.filter(f => f.hasDisplay())
-    if (!displayFields.length) return records
+    const displayFields  = fields.filter(f => f.hasDisplay())
+    const computedFields = fields.filter((f): f is ComputedField => f instanceof ComputedField)
+
+    if (!displayFields.length && !computedFields.length) return records
 
     return records.map((r) => {
       const rec = { ...(r as Record<string, unknown>) }
+      // Apply computed fields first (they produce the value)
+      for (const f of computedFields) {
+        rec[f.getName()] = f.apply(rec)
+      }
+      // Then apply display transforms (which may further format computed or DB values)
       for (const f of displayFields) {
         rec[f.getName()] = f.applyDisplay(rec[f.getName()], rec)
       }

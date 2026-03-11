@@ -27,6 +27,7 @@ import { JsonField }     from './fields/JsonField.js'
 import { RepeaterField } from './fields/RepeaterField.js'
 import { BuilderField }  from './fields/BuilderField.js'
 import { FileField }     from './fields/FileField.js'
+import { ComputedField } from './fields/ComputedField.js'
 import { Block }         from './Block.js'
 import { Section }       from './Section.js'
 import { Tabs }          from './Tabs.js'
@@ -1514,6 +1515,37 @@ describe('conditional fields', () => {
   it('multiple conditions stack', () => {
     const f = TextField.make('x').showWhen('a', '1').hideWhen('b', '2')
     assert.equal(f.toMeta().conditions?.length, 2)
+  })
+})
+
+// ─── ComputedField ───────────────────────────────────────────
+
+describe('ComputedField', () => {
+  it('type is "computed"', () => {
+    const f = ComputedField.make('x').compute(() => '')
+    assert.equal(f.toMeta().type, 'computed')
+  })
+
+  it('is auto-readonly and hidden from create/edit', () => {
+    const meta = ComputedField.make('x').compute(() => '').toMeta()
+    assert.equal(meta.readonly, true)
+    assert.ok(meta.hidden.includes('create'))
+    assert.ok(meta.hidden.includes('edit'))
+  })
+
+  it('apply() calls compute function', () => {
+    const f = ComputedField.make('fullName')
+      .compute((r) => `${(r as any).first} ${(r as any).last}`)
+    assert.equal(f.apply({ first: 'Jane', last: 'Doe' }), 'Jane Doe')
+  })
+
+  it('can chain .display()', () => {
+    const f = ComputedField.make('wordCount')
+      .compute((r) => ((r as any).body ?? '').split(/\s+/).length)
+      .display((v) => `${v} words`)
+    assert.equal(f.toMeta().displayTransformed, true)
+    assert.equal(f.apply({ body: 'hello world foo' }), 3)
+    assert.equal(f.applyDisplay(3, {}), '3 words')
   })
 })
 
