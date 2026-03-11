@@ -72,7 +72,11 @@ function UserDropdown({ user }: { user: SessionUser }) {
     .split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()
 
   async function handleLogout() {
-    await fetch('/api/auth/sign-out', { method: 'POST' })
+    await fetch('/api/auth/sign-out', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    '{}',
+    })
     window.location.href = '/login'
   }
 
