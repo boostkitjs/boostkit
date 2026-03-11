@@ -395,6 +395,13 @@ export default function ResourceListPage() {
                       >
                         {i18n.edit}
                       </button>
+                      <DuplicateRowButton
+                        slug={slug}
+                        id={id}
+                        pathSegment={pathSegment}
+                        schema={allFields}
+                        i18n={i18n}
+                      />
                       <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} labelSingular={resourceMeta.labelSingular} i18n={i18n} />
                     </div>
                   </td>
@@ -657,5 +664,69 @@ function MiniCheckIcon() {
     <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
       <path d="M1 3.5L3 5.5L8 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+function DuplicateRowButton({ slug, id, pathSegment, schema, i18n }: {
+  slug:        string
+  id:          string
+  pathSegment: string
+  schema:      FieldMeta[]
+  i18n:        PanelI18n
+}) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleDuplicate() {
+    setLoading(true)
+    try {
+      const res  = await fetch(`/${pathSegment}/api/${slug}/${id}`)
+      if (!res.ok) { toast.error(i18n.deleteError); return }
+      const body = await res.json() as { data: Record<string, unknown> }
+      const record = body.data
+
+      const params = new URLSearchParams()
+
+      for (const field of schema) {
+        if (field.hidden.includes('create')) continue
+        if (field.readonly) continue
+        if (field.name === 'id') continue
+        if (field.type === 'password' || field.type === 'hidden') continue
+
+        const val = record[field.name]
+        if (val === null || val === undefined) continue
+
+        if (field.type === 'belongsToMany') {
+          const items = Array.isArray(val) ? (val as Array<{ id?: string }>) : []
+          const ids   = items.map(r => r.id ?? String(r)).filter(Boolean)
+          if (ids.length > 0) params.set(`prefill[${field.name}]`, ids.join(','))
+        } else if (field.type === 'boolean' || field.type === 'toggle') {
+          params.set(`prefill[${field.name}]`, val ? 'true' : 'false')
+        } else if (typeof val === 'object') {
+          params.set(`prefill[${field.name}]`, JSON.stringify(val))
+        } else {
+          params.set(`prefill[${field.name}]`, String(val))
+        }
+      }
+
+      const back = window.location.pathname + window.location.search
+      params.set('back', back)
+
+      void navigate(`/${pathSegment}/${slug}/create?${params.toString()}`)
+    } catch {
+      toast.error(i18n.deleteError)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleDuplicate}
+      disabled={loading}
+      className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+    >
+      {loading ? i18n.loading : i18n.duplicate}
+    </button>
   )
 }
