@@ -6,7 +6,6 @@ import { useConfig } from 'vike-react/useConfig'
 import { navigate } from 'vike/client/router'
 import { toast } from 'sonner'
 import { Checkbox } from '@base-ui-components/react/checkbox'
-import { AdminLayout } from '../../_components/AdminLayout.js'
 import { ConfirmDialog } from '../../_components/ConfirmDialog.js'
 import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
 import type { Data } from './+data.js'
@@ -144,7 +143,7 @@ export default function ResourceListPage() {
   const rowActions  = resourceMeta.actions.filter((a) => a.row)
 
   return (
-    <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
+    <>
 
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-5 gap-4">
@@ -451,7 +450,7 @@ export default function ResourceListPage() {
           danger={confirm.action.destructive}
         />
       )}
-    </AdminLayout>
+    </>
   )
 }
 

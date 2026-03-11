@@ -5,7 +5,6 @@ import { useData }   from 'vike-react/useData'
 import { useConfig } from 'vike-react/useConfig'
 import { navigate } from 'vike/client/router'
 import { toast } from 'sonner'
-import { AdminLayout } from '../../../../_components/AdminLayout.js'
 import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { FieldInput } from '../../../../_components/FieldInput.js'
 import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
@@ -44,11 +43,7 @@ export default function EditPage() {
     : `/${pathSegment}/${slug}`
 
   if (!record) {
-    return (
-      <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
-        <p className="text-muted-foreground">Record not found.</p>
-      </AdminLayout>
-    )
+    return <p className="text-muted-foreground">Record not found.</p>
   }
 
   const uploadBase = `/${pathSegment}/api`
@@ -194,7 +189,7 @@ export default function EditPage() {
   }
 
   return (
-    <AdminLayout panelMeta={panelMeta} currentSlug={slug}>
+    <>
 
       <Breadcrumbs crumbs={[
         { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
@@ -229,6 +224,6 @@ export default function EditPage() {
         </form>
       </div>
 
-    </AdminLayout>
+    </>
   )
 }
