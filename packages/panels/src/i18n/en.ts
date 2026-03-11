@@ -1,0 +1,80 @@
+export const en = {
+  // Layout
+  signOut:         'Sign out',
+
+  // Table toolbar
+  newButton:       '+ New :label',
+  search:          'Search :label\u2026',
+  searchButton:    'Search',
+  actions:         'Actions',
+  edit:            'Edit',
+  view:            'View',
+  clearFilters:    'Clear filters',
+  selected:        ':n selected',
+  clearSelection:  'Clear',
+  viewAll:         'View all \u2192',
+  newRecord:       '+ New',
+
+  // Empty states
+  noResultsTitle:  'No results',
+  noResultsHint:   'Try adjusting your search or filters.',
+  noRecordsTitle:  'No :label yet',
+  createFirstLink: 'Create your first :singular',
+  noRecordsFound:  'No records found.',
+  recordNotFound:  'Record not found.',
+
+  // Pagination
+  records:         ':n records',
+  page:            'Page :current of :last',
+  perPage:         ':n / page',
+
+  // Boolean
+  yes:             'Yes',
+  no:              'No',
+
+  // Confirm / delete
+  areYouSure:      'Are you sure?',
+  deleteRecord:    'Delete record',
+  deleteConfirm:   'This action cannot be undone.',
+  confirm:         'Confirm',
+  cancel:          'Cancel',
+
+  // Form buttons
+  save:            'Save Changes',
+  create:          'Create :singular',
+  saving:          'Saving\u2026',
+  creating:        'Creating\u2026',
+
+  // Loading / progress
+  loading:         'Loading\u2026',
+  uploading:       'Uploading\u2026',
+  loadingForm:     'Loading form\u2026',
+
+  // Navigation
+  backTo:          '\u2190 Back to :label',
+
+  // Toasts
+  createdToast:    ':singular created successfully.',
+  savedToast:      'Changes saved.',
+  deletedToast:    ':singular deleted.',
+  saveError:       'Failed to save. Please try again.',
+  createError:     'Something went wrong. Please try again.',
+  deleteError:     'Failed to delete. Please try again.',
+
+  // Field UI
+  none:            '\u2014 None \u2014',
+  invalidJson:     'Invalid JSON',
+  addItem:         'Add item',
+  addBlock:        'Add block',
+  addTag:          'Add tag\u2026',
+  addMore:         'Add more\u2026',
+  remove:          'Remove',
+  item:            'Item :n',
+  moveUp:          'Move up',
+  moveDown:        'Move down',
+  confirmPassword: 'Confirm password',
+  createOption:    'Create ":query"',
+  createNew:       'Create new :singular',
+}
+
+export type PanelI18n = typeof en

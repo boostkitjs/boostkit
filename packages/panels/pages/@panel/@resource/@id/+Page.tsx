@@ -6,8 +6,12 @@ import { useData }     from 'vike-react/useData'
 import { useConfig }   from 'vike-react/useConfig'
 import { navigate }    from 'vike/client/router'
 import { Breadcrumbs } from '../../../_components/Breadcrumbs.js'
-import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
+import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n } from '@boostkit/panels'
 import type { Data }   from './+data.js'
+
+function t(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/:([a-z]+)/g, (_, k: string) => String(vars[k] ?? `:${k}`))
+}
 
 type SchemaItem = FieldMeta | SectionMeta | TabsMeta
 
@@ -29,6 +33,7 @@ export default function ShowPage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
+  const i18n = panelMeta.i18n
   const rec = record as Record<string, unknown> | null
 
   const recordTitle = resourceMeta.titleField && rec
@@ -54,7 +59,7 @@ export default function ShowPage() {
         : <span>{label}</span>
     }
     if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>
-    if (field.type === 'boolean')  return value ? 'Yes' : 'No'
+    if (field.type === 'boolean')  return value ? i18n.yes : i18n.no
     if (field.type === 'date')     return new Date(String(value)).toLocaleDateString()
     if (field.type === 'datetime') return new Date(String(value)).toLocaleString()
     if (field.type === 'color') return (
@@ -116,7 +121,7 @@ export default function ShowPage() {
             }}
             className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            Edit
+            {i18n.edit}
           </button>
         </div>
 
@@ -145,7 +150,8 @@ export default function ShowPage() {
             parentId={id}
             parentSlug={slug}
             pathSegment={pathSegment}
-            initialData={hasManyData[field.name]}
+            {...(hasManyData[field.name] !== undefined ? { initialData: hasManyData[field.name] } : {})}
+            i18n={i18n}
           />
         ))}
 
@@ -154,7 +160,7 @@ export default function ShowPage() {
             href={`/${pathSegment}/${slug}`}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            ← Back to {resourceMeta.label}
+            {t(i18n.backTo, { label: resourceMeta.label })}
           </a>
         </div>
     </div>
@@ -173,9 +179,10 @@ interface HasManyTableProps {
   parentSlug:   string
   pathSegment:  string
   initialData?: HasManyInitialData
+  i18n:         PanelI18n
 }
 
-function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData }: HasManyTableProps) {
+function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData, i18n }: HasManyTableProps) {
   const resourceSlug = field.extra?.['resource'] as string | undefined
   const foreignKey   = field.extra?.['foreignKey'] as string | undefined
 
@@ -229,15 +236,15 @@ function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData }:
           href={createHref}
           className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
         >
-          + New
+          {i18n.newRecord}
         </a>
       </div>
 
       <div className="rounded-lg border bg-card overflow-hidden">
         {loading ? (
-          <p className="px-6 py-8 text-sm text-muted-foreground text-center">Loading…</p>
+          <p className="px-6 py-8 text-sm text-muted-foreground text-center">{i18n.loading}</p>
         ) : records.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-muted-foreground text-center">No records found.</p>
+          <p className="px-6 py-8 text-sm text-muted-foreground text-center">{i18n.noRecordsFound}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -255,15 +262,15 @@ function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData }:
                 <tr key={row.id} className="hover:bg-muted/30 transition-colors">
                   {schema.map(col => (
                     <td key={col.name} className="px-4 py-3 text-sm">
-                      <CellValue col={col} row={row} pathSegment={pathSegment} resourceSlug={resourceSlug} />
+                      <CellValue col={col} row={row} pathSegment={pathSegment} resourceSlug={resourceSlug} i18n={i18n} />
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <a
                       href={`/${pathSegment}/${resourceSlug}/${row.id}`}
                       className="text-xs text-primary hover:underline"
                     >
-                      View
+                      {i18n.view}
                     </a>
                   </td>
                 </tr>
@@ -276,7 +283,7 @@ function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData }:
       {/* Pagination */}
       {pagination && pagination.lastPage > 1 && (
         <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-          <span>{pagination.total} record{pagination.total !== 1 ? 's' : ''}</span>
+          <span>{t(i18n.records, { n: pagination.total })}</span>
           <div className="flex gap-1">
             {Array.from({ length: pagination.lastPage }, (_, i) => i + 1).map(p => (
               <button
@@ -300,7 +307,7 @@ function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData }:
   )
 }
 
-function CellValue({ col, row, pathSegment, resourceSlug }: { col: FieldMeta; row: RelatedRecord; pathSegment: string; resourceSlug: string }) {
+function CellValue({ col, row, pathSegment, resourceSlug, i18n }: { col: FieldMeta; row: RelatedRecord; pathSegment: string; resourceSlug: string; i18n: PanelI18n }) {
   const raw = row[col.name]
 
   if (col.type === 'belongsTo') {
@@ -316,7 +323,7 @@ function CellValue({ col, row, pathSegment, resourceSlug }: { col: FieldMeta; ro
   }
 
   if (raw === null || raw === undefined || raw === '') return <span className="text-muted-foreground">—</span>
-  if (col.type === 'boolean') return raw ? 'Yes' : 'No'
+  if (col.type === 'boolean') return raw ? i18n.yes : i18n.no
   if (col.type === 'image')   return <img src={String(raw)} alt="" className="h-8 w-8 rounded object-cover" />
   if (col.type === 'color')   return (
     <span className="flex items-center gap-1.5">
