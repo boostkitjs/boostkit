@@ -7,8 +7,12 @@ import { navigate } from 'vike/client/router'
 import { toast } from 'sonner'
 import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { FieldInput } from '../../../../_components/FieldInput.js'
-import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
+import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n } from '@boostkit/panels'
 import type { Data } from './+data.js'
+
+function t(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/:([a-z]+)/g, (_, k: string) => String(vars[k] ?? `:${k}`))
+}
 
 type SchemaItem = FieldMeta | SectionMeta | TabsMeta
 
@@ -36,14 +40,15 @@ export default function EditPage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, record, pathSegment, slug, id } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  config({ title: `Edit ${resourceMeta.labelSingular} — ${panelName}` })
+  const i18n = panelMeta.i18n
+  config({ title: `${i18n.edit} ${resourceMeta.labelSingular} — ${panelName}` })
 
   const backHref = typeof window !== 'undefined'
     ? (new URLSearchParams(window.location.search).get('back') ?? `/${pathSegment}/${slug}`)
     : `/${pathSegment}/${slug}`
 
   if (!record) {
-    return <p className="text-muted-foreground">Record not found.</p>
+    return <p className="text-muted-foreground">{i18n.recordNotFound}</p>
   }
 
   const uploadBase = `/${pathSegment}/api`
@@ -88,13 +93,13 @@ export default function EditPage() {
         return
       }
       if (res.ok) {
-        toast.success('Changes saved.')
+        toast.success(i18n.savedToast)
         void navigate(backHref)
       } else {
-        toast.error('Failed to save. Please try again.')
+        toast.error(i18n.saveError)
       }
     } catch {
-      toast.error('Failed to save. Please try again.')
+      toast.error(i18n.saveError)
     } finally {
       setSaving(false)
     }
@@ -109,7 +114,7 @@ export default function EditPage() {
             {field.required && <span className="text-destructive ml-0.5">*</span>}
           </label>
         )}
-        <FieldInput field={field} value={values[field.name]} onChange={(v: unknown) => setValue(field.name, v)} uploadBase={uploadBase} />
+        <FieldInput field={field} value={values[field.name]} onChange={(v: unknown) => setValue(field.name, v)} uploadBase={uploadBase} i18n={i18n} />
         {errors[field.name]?.map((e) => (
           <p key={e} className="mt-1 text-xs text-destructive">{e}</p>
         ))}
@@ -194,7 +199,7 @@ export default function EditPage() {
       <Breadcrumbs crumbs={[
         { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
         { label: resourceMeta.label, href: `/${pathSegment}/${slug}` },
-        { label: `Edit ${resourceMeta.labelSingular}` },
+        { label: `${i18n.edit} ${resourceMeta.labelSingular}` },
       ]} />
 
       <div className="max-w-2xl">
@@ -212,13 +217,13 @@ export default function EditPage() {
               disabled={saving}
               className="px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? i18n.saving : i18n.save}
             </button>
             <a
               href={backHref}
               className="px-5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Cancel
+              {i18n.cancel}
             </a>
           </div>
         </form>

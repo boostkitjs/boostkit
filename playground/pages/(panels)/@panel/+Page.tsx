@@ -3,7 +3,7 @@
 import { useData }   from 'vike-react/useData'
 import { useConfig } from 'vike-react/useConfig'
 import type { Data } from './+data.js'
-import type { PanelSchemaElementMeta, PanelStatMeta, PanelColumnMeta } from '@boostkit/panels'
+import type { PanelSchemaElementMeta, PanelStatMeta, PanelColumnMeta, PanelI18n } from '@boostkit/panels'
 
 export default function PanelRootPage() {
   const config = useConfig()
@@ -13,16 +13,18 @@ export default function PanelRootPage() {
 
   if (!schemaData || schemaData.length === 0) return null
 
+  const i18n = panelMeta.i18n
+
   return (
     <div className="flex flex-col gap-6">
       {schemaData.map((el, i) => (
-        <SchemaElement key={i} element={el} panelPath={panelMeta.path} />
+        <SchemaElement key={i} element={el} panelPath={panelMeta.path} i18n={i18n} />
       ))}
     </div>
   )
 }
 
-function SchemaElement({ element, panelPath }: { element: PanelSchemaElementMeta; panelPath: string }) {
+function SchemaElement({ element, panelPath, i18n }: { element: PanelSchemaElementMeta; panelPath: string; i18n: PanelI18n }) {
   if (element.type === 'text') {
     return <p className="text-sm text-muted-foreground">{element.content}</p>
   }
@@ -42,7 +44,7 @@ function SchemaElement({ element, panelPath }: { element: PanelSchemaElementMeta
   }
 
   if (element.type === 'table') {
-    return <SchemaTable element={element} panelPath={panelPath} />
+    return <SchemaTable element={element} panelPath={panelPath} i18n={i18n} />
   }
 
   return null
@@ -69,7 +71,7 @@ function StatsRow({ stats }: { stats: PanelStatMeta[] }) {
   )
 }
 
-function SchemaTable({ element, panelPath: _ }: { element: Extract<PanelSchemaElementMeta, { type: 'table' }>; panelPath: string }) {
+function SchemaTable({ element, panelPath: _, i18n }: { element: Extract<PanelSchemaElementMeta, { type: 'table' }>; panelPath: string; i18n: PanelI18n }) {
   const records = element.records as Record<string, unknown>[]
 
   return (
@@ -77,11 +79,11 @@ function SchemaTable({ element, panelPath: _ }: { element: Extract<PanelSchemaEl
       <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/40">
         <p className="text-sm font-semibold">{element.title}</p>
         <a href={element.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-          View all →
+          {i18n.viewAll}
         </a>
       </div>
       {records.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">No records found.</p>
+        <p className="px-5 py-4 text-sm text-muted-foreground">{i18n.noRecordsFound}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -100,7 +102,7 @@ function SchemaTable({ element, panelPath: _ }: { element: Extract<PanelSchemaEl
                 <tr key={(record['id'] as string) ?? i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   {element.columns.map((col: PanelColumnMeta) => (
                     <td key={col.name} className="px-4 py-2.5 text-muted-foreground">
-                      {formatCellValue(record[col.name])}
+                      {formatCellValue(record[col.name], i18n)}
                     </td>
                   ))}
                   <td className="px-4 py-2.5 text-right">
@@ -121,9 +123,9 @@ function SchemaTable({ element, panelPath: _ }: { element: Extract<PanelSchemaEl
   )
 }
 
-function formatCellValue(value: unknown): string {
+function formatCellValue(value: unknown, i18n: PanelI18n): string {
   if (value === null || value === undefined) return '—'
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'boolean') return value ? i18n.yes : i18n.no
   if (value instanceof Date) return value.toLocaleDateString()
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     return new Date(value).toLocaleDateString()

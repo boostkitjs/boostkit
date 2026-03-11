@@ -3,7 +3,7 @@ import { Checkbox } from '@base-ui-components/react/checkbox'
 import { Dialog } from '@base-ui-components/react/dialog'
 import { Select } from '@base-ui-components/react/select'
 import { Switch } from '@base-ui-components/react/switch'
-import type { FieldMeta } from '@boostkit/panels'
+import type { FieldMeta, PanelI18n } from '@boostkit/panels'
 import { customFieldRenderers } from './CustomFieldRenderers.js'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onChange:    (value: unknown) => void
   /** API base URL for the active panel (e.g. '/admin/api'). Required for FileField / ImageField. */
   uploadBase?: string
+  i18n:        PanelI18n
 }
 
 function generateSlug(str: string): string {
@@ -21,7 +22,11 @@ function generateSlug(str: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
+function t(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/:([a-z]+)/g, (_, k) => String(vars[k] ?? `:${k}`))
+}
+
+export function FieldInput({ field, value, onChange, uploadBase = '', i18n }: Props) {
   const inputCls = 'w-full rounded-md border border-input px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:bg-muted disabled:text-muted-foreground'
 
   // ── Boolean ─────────────────────────────────────────────
@@ -111,11 +116,11 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
           autoComplete="new-password"
           className={inputCls}
         />
-        {Boolean(field.extra?.confirm) && (
+        {!!field.extra?.confirm && (
           <input
             type="password"
             name={`${field.name}_confirmation`}
-            placeholder="Confirm password"
+            placeholder={i18n.confirmPassword}
             autoComplete="new-password"
             className={inputCls}
           />
@@ -173,7 +178,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
         ))}
         <input
           type="text"
-          placeholder={(field.extra?.placeholder as string) ?? 'Add tag…'}
+          placeholder={(field.extra?.placeholder as string) ?? i18n.addTag}
           className="flex-1 min-w-[80px] text-sm outline-none bg-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ',') {
@@ -270,7 +275,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
               setJsonError(null)
               onChange(e.target.value)
             } catch {
-              setJsonError('Invalid JSON')
+              setJsonError(i18n.invalidJson)
             }
           }}
         />
@@ -282,7 +287,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
   // ── Repeater ─────────────────────────────────────────────
   if (field.type === 'repeater') {
     const schema   = (field.extra?.schema ?? []) as FieldMeta[]
-    const addLabel = (field.extra?.addLabel as string) ?? 'Add item'
+    const addLabel = (field.extra?.addLabel as string) ?? i18n.addItem
     const maxItems = field.extra?.maxItems as number | undefined
     const items    = Array.isArray(value) ? (value as Record<string, unknown>[]) : []
 
@@ -310,14 +315,14 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
           <div key={index} className="rounded-lg border border-input bg-card p-4 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Item {index + 1}
+                {t(i18n.item, { n: index + 1 })}
               </span>
               <button
                 type="button"
                 onClick={() => removeItem(index)}
                 className="text-xs text-destructive hover:underline"
               >
-                Remove
+                {i18n.remove}
               </button>
             </div>
 
@@ -332,6 +337,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
                   value={item[subField.name]}
                   onChange={(v) => updateItem(index, subField.name, v)}
                   uploadBase={uploadBase}
+                  i18n={i18n}
                 />
               </div>
             ))}
@@ -357,7 +363,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
     const blockDefs = (field.extra?.blocks ?? []) as Array<{
       name: string; label: string; icon?: string; schema: FieldMeta[]
     }>
-    const addLabel  = (field.extra?.addLabel as string) ?? 'Add block'
+    const addLabel  = (field.extra?.addLabel as string) ?? i18n.addBlock
     const maxItems  = field.extra?.maxItems as number | undefined
     const items     = Array.isArray(value)
       ? (value as Array<{ _type: string } & Record<string, unknown>>)
@@ -414,20 +420,20 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
                     onClick={() => moveBlock(index, -1)}
                     disabled={index === 0}
                     className="px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    title="Move up"
+                    title={i18n.moveUp}
                   >↑</button>
                   <button
                     type="button"
                     onClick={() => moveBlock(index, 1)}
                     disabled={index === items.length - 1}
                     className="px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    title="Move down"
+                    title={i18n.moveDown}
                   >↓</button>
                   <button
                     type="button"
                     onClick={() => removeBlock(index)}
                     className="px-1.5 py-0.5 text-xs text-destructive hover:underline ml-1"
-                  >Remove</button>
+                  >{i18n.remove}</button>
                 </div>
               </div>
 
@@ -444,6 +450,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
                       value={item[subField.name]}
                       onChange={(v) => updateBlock(index, subField.name, v)}
                       uploadBase={uploadBase}
+                      i18n={i18n}
                     />
                   </div>
                 ))}
@@ -546,7 +553,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
           className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-input file:text-sm file:bg-background file:text-foreground hover:file:bg-accent cursor-pointer disabled:opacity-50"
           onChange={(e) => void handleFiles(e.target.files)}
         />
-        {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+        {uploading && <p className="text-xs text-muted-foreground">{i18n.uploading}</p>}
       </div>
     )
   }
@@ -574,7 +581,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
         disabled={loading || field.readonly}
         className={inputCls}
       >
-        <option value="">{loading ? 'Loading…' : '— None —'}</option>
+        <option value="">{loading ? i18n.loading : i18n.none}</option>
         {opts.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
@@ -590,6 +597,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '' }: Props) {
         value={value}
         onChange={onChange}
         uploadBase={uploadBase}
+        i18n={i18n}
       />
     )
   }
@@ -651,9 +659,10 @@ interface BelongsToManyComboboxProps {
   value:       unknown
   onChange:    (value: unknown) => void
   uploadBase?: string
+  i18n:        PanelI18n
 }
 
-function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: BelongsToManyComboboxProps) {
+function BelongsToManyCombobox({ field, value, onChange, uploadBase = '', i18n }: BelongsToManyComboboxProps) {
   const resourceSlug = field.extra?.['resource'] as string | undefined
   const labelField   = (field.extra?.['displayField'] as string) ?? 'name'
   const creatable    = field.extra?.['creatable'] === true
@@ -849,7 +858,7 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
           ref={inputRef}
           type="text"
           value={query}
-          placeholder={loading ? 'Loading…' : selected.length > 0 ? 'Add more…' : `Search ${field.label}…`}
+          placeholder={loading ? i18n.loading : selected.length > 0 ? i18n.addMore : t(i18n.search, { label: field.label })}
           disabled={loading || field.readonly}
           className="flex-1 min-w-[120px] px-1 py-1 text-sm bg-transparent outline-none"
           onChange={(e) => { setQuery(e.target.value); setOpen(true); setFocusedIdx(-1) }}
@@ -895,7 +904,7 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
               ].join(' ')}
             >
               <span className="font-bold w-4 shrink-0">+</span>
-              <span>Create &ldquo;{query.trim()}&rdquo;</span>
+              <span>{t(i18n.createOption, { query: query.trim() })}</span>
             </div>
           )}
         </div>
@@ -908,13 +917,13 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
           <Dialog.Popup className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg rounded-lg border border-border bg-popover shadow-xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <Dialog.Title className="text-base font-semibold">
-                Create new {field.extra?.['labelSingular'] as string ?? field.label}
+                {t(i18n.createNew, { singular: (field.extra?.['labelSingular'] as string) ?? field.label })}
               </Dialog.Title>
               <Dialog.Close className="text-muted-foreground hover:text-foreground text-lg leading-none">×</Dialog.Close>
             </div>
 
             <div className="flex flex-col gap-4 p-6 overflow-y-auto">
-              {schemaLoading && <p className="text-sm text-muted-foreground">Loading form…</p>}
+              {schemaLoading && <p className="text-sm text-muted-foreground">{i18n.loadingForm}</p>}
 
               {!schemaLoading && createSchema.length > 0 && createSchema.map((f) => (
                 <div key={f.name}>
@@ -929,6 +938,7 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
                     value={createValues[f.name]}
                     onChange={(v) => setCreateValues(prev => ({ ...prev, [f.name]: v }))}
                     uploadBase={uploadBase}
+                    i18n={i18n}
                   />
                 </div>
               ))}
@@ -951,7 +961,7 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
 
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
               <Dialog.Close className="px-4 py-2 rounded-md text-sm border border-input hover:bg-accent transition-colors">
-                Cancel
+                {i18n.cancel}
               </Dialog.Close>
               <button
                 type="button"
@@ -959,7 +969,7 @@ function BelongsToManyCombobox({ field, value, onChange, uploadBase = '' }: Belo
                 disabled={creating}
                 className="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {creating ? 'Creating…' : 'Create'}
+                {creating ? i18n.creating : i18n.create.replace(/:singular/g, '')}
               </button>
             </div>
           </Dialog.Popup>

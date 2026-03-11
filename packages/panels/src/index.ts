@@ -2,6 +2,8 @@
 
 export { Panel } from './Panel.js'
 export type { PanelMeta } from './Panel.js'
+export type { PanelI18n } from './i18n/index.js'
+export { getPanelI18n, getPanelDir } from './i18n/index.js'
 
 // ─── Page ──────────────────────────────────────────────────
 

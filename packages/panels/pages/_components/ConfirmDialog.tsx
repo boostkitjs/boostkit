@@ -1,15 +1,17 @@
 import { Dialog } from '@base-ui-components/react/dialog'
 
 interface Props {
-  open:      boolean
-  onClose:   () => void
-  onConfirm: () => void
-  title:     string
-  message:   string
-  danger?:   boolean
+  open:          boolean
+  onClose:       () => void
+  onConfirm:     () => void
+  title:         string
+  message:       string
+  danger?:       boolean
+  confirmLabel?: string
+  cancelLabel?:  string
 }
 
-export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger }: Props) {
+export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <Dialog.Portal>
@@ -23,7 +25,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger
           </Dialog.Description>
           <div className="flex justify-end gap-3">
             <Dialog.Close className="px-4 py-2 text-sm rounded-md border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-              Cancel
+              {cancelLabel}
             </Dialog.Close>
             <button
               onClick={onConfirm}
@@ -34,7 +36,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger
                   : 'bg-primary text-primary-foreground hover:opacity-90',
               ].join(' ')}
             >
-              Confirm
+              {confirmLabel}
             </button>
           </div>
         </Dialog.Popup>

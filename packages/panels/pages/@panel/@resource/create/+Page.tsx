@@ -7,8 +7,12 @@ import { navigate } from 'vike/client/router'
 import { toast } from 'sonner'
 import { Breadcrumbs } from '../../../_components/Breadcrumbs.js'
 import { FieldInput } from '../../../_components/FieldInput.js'
-import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
+import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n } from '@boostkit/panels'
 import type { Data } from './+data.js'
+
+function t(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/:([a-z]+)/g, (_, k: string) => String(vars[k] ?? `:${k}`))
+}
 
 type SchemaItem = FieldMeta | SectionMeta | TabsMeta
 
@@ -43,7 +47,8 @@ export default function CreatePage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, pathSegment, slug } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  config({ title: `New ${resourceMeta.labelSingular} — ${panelName}` })
+  const i18n = panelMeta.i18n
+  config({ title: `${t(i18n.create, { singular: resourceMeta.labelSingular })} — ${panelName}` })
 
   const uploadBase = `/${pathSegment}/api`
   const schema     = resourceMeta.fields as SchemaItem[]
@@ -62,12 +67,13 @@ export default function CreatePage() {
 
   const initialValues: Record<string, unknown> = Object.fromEntries(
     formFields.map((f) => {
-      if (prefill[f.name] !== undefined) {
+      const prefillVal = prefill[f.name]
+      if (prefillVal !== undefined) {
         if (f.type === 'belongsToMany') {
           // prefill value is a single ID or comma-separated IDs → array
-          return [f.name, prefill[f.name].split(',').map(s => s.trim()).filter(Boolean)]
+          return [f.name, prefillVal.split(',').map((s: string) => s.trim()).filter(Boolean)]
         }
-        return [f.name, prefill[f.name]]
+        return [f.name, prefillVal]
       }
       if (f.extra?.['default'] !== undefined)     return [f.name, f.extra['default']]
       if (f.type === 'boolean' || f.type === 'toggle') return [f.name, false]
@@ -116,13 +122,13 @@ export default function CreatePage() {
         return
       }
       if (res.ok) {
-        toast.success(`${resourceMeta.labelSingular} created successfully.`)
+        toast.success(t(i18n.createdToast, { singular: resourceMeta.labelSingular }))
         void navigate(backHref)
       } else {
-        toast.error('Something went wrong. Please try again.')
+        toast.error(i18n.createError)
       }
     } catch {
-      toast.error('Something went wrong. Please try again.')
+      toast.error(i18n.createError)
     } finally {
       setSaving(false)
     }
@@ -137,7 +143,7 @@ export default function CreatePage() {
             {field.required && <span className="text-destructive ml-0.5">*</span>}
           </label>
         )}
-        <FieldInput field={field} value={values[field.name]} onChange={(v) => setValue(field.name, v)} uploadBase={uploadBase} />
+        <FieldInput field={field} value={values[field.name]} onChange={(v) => setValue(field.name, v)} uploadBase={uploadBase} i18n={i18n} />
         {errors[field.name]?.map((e) => (
           <p key={e} className="mt-1 text-xs text-destructive">{e}</p>
         ))}
@@ -222,7 +228,7 @@ export default function CreatePage() {
       <Breadcrumbs crumbs={[
         { label: panelMeta.branding?.title ?? panelMeta.name, href: `/${pathSegment}/${slug}` },
         { label: resourceMeta.label, href: `/${pathSegment}/${slug}` },
-        { label: `New ${resourceMeta.labelSingular}` },
+        { label: t(i18n.create, { singular: resourceMeta.labelSingular }) },
       ]} />
 
       <div className="max-w-2xl">
@@ -240,13 +246,13 @@ export default function CreatePage() {
               disabled={saving}
               className="px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {saving ? 'Saving…' : `Create ${resourceMeta.labelSingular}`}
+              {saving ? i18n.creating : t(i18n.create, { singular: resourceMeta.labelSingular })}
             </button>
             <a
               href={backHref}
               className="px-5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Cancel
+              {i18n.cancel}
             </a>
           </div>
         </form>

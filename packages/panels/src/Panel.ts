@@ -1,6 +1,8 @@
 import type { PanelGuard, BrandingOptions, PanelLayout, PanelContext } from './types.js'
 import type { Resource, ResourceMeta } from './Resource.js'
 import type { Page, PageMeta } from './Page.js'
+import { getPanelI18n, getPanelDir, getActiveLocale } from './i18n/index.js'
+import type { PanelI18n } from './i18n/index.js'
 
 type PanelSchemaElement = { getType(): string }
 
@@ -17,6 +19,9 @@ export interface PanelMeta {
   resources: ResourceMeta[]
   pages:     PageMeta[]
   layout:    PanelLayout
+  locale:    string
+  dir:       'ltr' | 'rtl'
+  i18n:      PanelI18n
 }
 
 // ─── Panel builder ─────────────────────────────────────────
@@ -29,6 +34,7 @@ export class Panel {
   protected _resources: (typeof Resource)[] = []
   protected _pages:     (typeof Page)[] = []
   protected _layout:    PanelLayout = 'sidebar'
+  protected _locale?:   string
   protected _schema?:   PanelSchemaDefinition
 
   protected constructor(name: string) {
@@ -79,6 +85,18 @@ export class Panel {
     return this
   }
 
+  /**
+   * Override the locale for this panel's UI strings and text direction.
+   * Defaults to the locale configured in @boostkit/localization (or 'en').
+   *
+   * @example
+   * Panel.make('admin').locale('ar')
+   */
+  locale(locale: string): this {
+    this._locale = locale
+    return this
+  }
+
   /** Resource classes to register in this panel. */
   resources(list: (typeof Resource)[]): this {
     this._resources = list
@@ -123,6 +141,7 @@ export class Panel {
 
   /** @internal */
   toMeta(): PanelMeta {
+    const locale = this._locale ?? getActiveLocale()
     return {
       name:      this._name,
       path:      this._path,
@@ -130,6 +149,9 @@ export class Panel {
       resources: this._resources.map((R) => new R().toMeta()),
       pages:     this._pages.map((P) => P.toMeta()),
       layout:    this._layout,
+      locale,
+      dir:       getPanelDir(locale),
+      i18n:      getPanelI18n(locale),
     }
   }
 }

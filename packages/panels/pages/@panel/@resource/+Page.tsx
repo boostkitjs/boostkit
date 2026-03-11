@@ -7,7 +7,7 @@ import { navigate } from 'vike/client/router'
 import { toast } from 'sonner'
 import { Checkbox } from '@base-ui-components/react/checkbox'
 import { ConfirmDialog } from '../../_components/ConfirmDialog.js'
-import type { FieldMeta, SectionMeta, TabsMeta } from '@boostkit/panels'
+import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n } from '@boostkit/panels'
 import type { Data } from './+data.js'
 
 type SchemaItem = FieldMeta | SectionMeta | TabsMeta
@@ -178,14 +178,14 @@ export default function ResourceListPage() {
                 type="search"
                 name="search"
                 defaultValue={currentSearch}
-                placeholder={`Search ${resourceMeta.label.toLowerCase()}…`}
+                placeholder={t(i18n.search, { label: resourceMeta.label.toLowerCase() })}
                 className="h-9 px-3 text-sm rounded-md border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[220px]"
               />
               <button
                 type="submit"
                 className="h-9 px-3 text-sm rounded-md border bg-background hover:bg-accent transition-colors"
               >
-                Search
+                {i18n.searchButton}
               </button>
             </form>
           )}
@@ -202,7 +202,7 @@ export default function ResourceListPage() {
                 onChange={(e) => applyFilter(filter.name, e.target.value)}
                 className="h-9 px-3 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="">{filter.label}: All</option>
+                <option value="">{filter.label}</option>
                 {options.map((o) => (
                   <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                 ))}
@@ -216,7 +216,7 @@ export default function ResourceListPage() {
               href={`/${pathSegment}/${slug}`}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Clear filters
+              {i18n.clearFilters}
             </a>
           )}
 
@@ -226,7 +226,7 @@ export default function ResourceListPage() {
       {/* ── Bulk action bar ────────────────────────────────── */}
       {selected.length > 0 && bulkActions.length > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
-          <span className="text-sm font-medium">{selected.length} selected</span>
+          <span className="text-sm font-medium">{t(i18n.selected, { n: selected.length })}</span>
           <div className="flex gap-2">
             {bulkActions.map((action) => (
               <button
@@ -246,9 +246,9 @@ export default function ResourceListPage() {
           </div>
           <button
             onClick={() => setSelected([])}
-            className="ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="ms-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Clear
+            {i18n.clearSelection}
           </button>
         </div>
       )}
@@ -290,8 +290,8 @@ export default function ResourceListPage() {
                   </th>
                 )
               })}
-              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Actions
+              <th className="px-4 py-3 text-end text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {i18n.actions}
               </th>
             </tr>
           </thead>
@@ -323,14 +323,14 @@ export default function ResourceListPage() {
                             href={`/${pathSegment}/${slug}/${id}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
-                            <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} />
+                            <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} i18n={i18n} />
                           </a>
                         )
-                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} />
+                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} pathSegment={pathSegment} i18n={i18n} />
                       }
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <div className="flex items-center justify-end gap-2">
                       {rowActions.map((action) => (
                         <button
@@ -349,7 +349,7 @@ export default function ResourceListPage() {
                               : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                           ].join(' ')}
                         >
-                          {action.icon && <span className="mr-1">{action.icon}</span>}
+                          {action.icon && <span className="me-1">{action.icon}</span>}
                           {action.label}
                         </button>
                       ))}
@@ -361,9 +361,9 @@ export default function ResourceListPage() {
                         }}
                         className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
-                        Edit
+                        {i18n.edit}
                       </button>
-                      <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} labelSingular={resourceMeta.labelSingular} />
+                      <DeleteRowButton slug={slug} id={id} pathSegment={pathSegment} labelSingular={resourceMeta.labelSingular} i18n={i18n} />
                     </div>
                   </td>
                 </tr>
@@ -376,19 +376,19 @@ export default function ResourceListPage() {
                     ? (
                       <div className="flex flex-col items-center gap-2">
                         <span className="text-2xl">🔍</span>
-                        <p className="text-sm font-medium">No results</p>
-                        <p className="text-sm text-muted-foreground">Try adjusting your search or filters.</p>
+                        <p className="text-sm font-medium">{i18n.noResultsTitle}</p>
+                        <p className="text-sm text-muted-foreground">{i18n.noResultsHint}</p>
                       </div>
                     )
                     : (
                       <div className="flex flex-col items-center gap-3">
                         <span className="text-3xl">📭</span>
-                        <p className="text-sm font-medium">No {resourceMeta.label} yet</p>
+                        <p className="text-sm font-medium">{t(i18n.noRecordsTitle, { label: resourceMeta.label })}</p>
                         <a
                           href={`/${pathSegment}/${slug}/create`}
                           className="text-sm text-primary hover:underline"
                         >
-                          Create your first {resourceMeta.labelSingular}
+                          {t(i18n.createFirstLink, { singular: resourceMeta.labelSingular })}
                         </a>
                       </div>
                     )
@@ -405,7 +405,9 @@ export default function ResourceListPage() {
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground">
-              {pagination.lastPage > 1 ? `Page ${pagination.currentPage} of ${pagination.lastPage}` : `${pagination.total} records`}
+              {pagination.lastPage > 1
+                ? t(i18n.page, { current: pagination.currentPage, last: pagination.lastPage })
+                : t(i18n.records, { n: pagination.total })}
             </p>
             {/* Per-page selector */}
             <select
@@ -419,7 +421,7 @@ export default function ResourceListPage() {
               className="text-sm border border-input rounded-md px-2 py-1 bg-background"
             >
               {[10, 15, 25, 50, 100].map((n) => (
-                <option key={n} value={n}>{n} / page</option>
+                <option key={n} value={n}>{t(i18n.perPage, { n })}</option>
               ))}
             </select>
           </div>
@@ -451,8 +453,10 @@ export default function ResourceListPage() {
           onClose={() => setConfirm(null)}
           onConfirm={() => executeAction(confirm.action)}
           title={confirm.action.label}
-          message={confirm.action.confirmMessage ?? 'Are you sure?'}
+          message={confirm.action.confirmMessage ?? i18n.areYouSure}
           danger={confirm.action.destructive}
+          confirmLabel={i18n.confirm}
+          cancelLabel={i18n.cancel}
         />
       )}
     </>
@@ -472,7 +476,7 @@ function resolveCellValue(record: Record<string, unknown>, f: { name: string; ty
 
 // ── Sub-components ─────────────────────────────────────────
 
-function CellValue({ value, type, extra, pathSegment }: { value: unknown; type: string; extra?: Record<string, unknown>; pathSegment?: string }) {
+function CellValue({ value, type, extra, pathSegment, i18n }: { value: unknown; type: string; extra?: Record<string, unknown>; pathSegment?: string; i18n: PanelI18n }) {
   if (type === 'belongsTo') {
     const displayField  = (extra?.['displayField'] as string) ?? 'name'
     const targetResource = extra?.['resource'] as string | undefined
@@ -489,7 +493,7 @@ function CellValue({ value, type, extra, pathSegment }: { value: unknown; type: 
   if (type === 'boolean' || type === 'toggle') {
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${value ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
-        {value ? 'Yes' : 'No'}
+        {value ? i18n.yes : i18n.no}
       </span>
     )
   }
@@ -564,19 +568,19 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'ASC' | 'DESC' }) {
   )
 }
 
-function DeleteRowButton({ slug, id, pathSegment, labelSingular }: { slug: string; id: string; pathSegment: string; labelSingular: string }) {
+function DeleteRowButton({ slug, id, pathSegment, labelSingular, i18n }: { slug: string; id: string; pathSegment: string; labelSingular: string; i18n: PanelI18n }) {
   const [open, setOpen] = useState(false)
 
   async function handleDelete() {
     try {
       const res = await fetch(`/${pathSegment}/api/${slug}/${id}`, { method: 'DELETE' })
       if (res.ok) {
-        toast.success(`${labelSingular} deleted.`)
+        toast.success(t(i18n.deletedToast, { label: labelSingular }))
       } else {
-        toast.error('Failed to delete. Please try again.')
+        toast.error(i18n.deleteError)
       }
     } catch {
-      toast.error('Failed to delete. Please try again.')
+      toast.error(i18n.deleteError)
     }
     setOpen(false)
     window.location.reload()
@@ -588,15 +592,17 @@ function DeleteRowButton({ slug, id, pathSegment, labelSingular }: { slug: strin
         onClick={() => setOpen(true)}
         className="text-xs px-2.5 py-1 rounded border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
-        Delete
+        {i18n.deleteRecord}
       </button>
       <ConfirmDialog
         open={open}
         onClose={() => setOpen(false)}
         onConfirm={handleDelete}
-        title="Delete record"
-        message="This action cannot be undone."
+        title={i18n.deleteRecord}
+        message={i18n.deleteConfirm}
         danger
+        confirmLabel={i18n.confirm}
+        cancelLabel={i18n.cancel}
       />
     </>
   )
