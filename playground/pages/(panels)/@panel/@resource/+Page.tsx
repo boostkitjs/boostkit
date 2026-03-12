@@ -677,6 +677,9 @@ function resolveCellValue(record: Record<string, unknown>, f: { name: string; ty
     const rel = (f.extra?.['relationName'] as string) ?? (f.name.endsWith('Id') ? f.name.slice(0, -2) : f.name)
     return record[rel]
   }
+  if (f.type === 'belongsToMany') {
+    return record[f.name]
+  }
   return record[f.name]
 }
 
@@ -698,6 +701,22 @@ function CellValue({ value, type, extra, displayTransformed, pathSegment, i18n }
         : <span>{label}</span>
     }
     return <span className="text-muted-foreground/40">—</span>
+  }
+  if (type === 'belongsToMany') {
+    const items = Array.isArray(value) ? (value as Record<string, unknown>[]) : []
+    if (!items.length) return <span className="text-muted-foreground/40">—</span>
+    const displayField  = (extra?.['displayField'] as string) ?? 'name'
+    const targetResource = extra?.['resource'] as string | undefined
+    return (
+      <span className="flex flex-wrap gap-1">
+        {items.map((item) => {
+          const label = String(item[displayField] ?? item['name'] ?? item['id'] ?? '?')
+          return targetResource && pathSegment && item['id']
+            ? <Badge key={String(item['id'])} variant="outline"><a href={`/${pathSegment}/${targetResource}/${item['id']}`} className="hover:underline">{label}</a></Badge>
+            : <Badge key={String(item['id'] ?? label)} variant="outline">{label}</Badge>
+        })}
+      </span>
+    )
   }
   if (value === null || value === undefined) return <span className="text-muted-foreground/40">—</span>
   if (type === 'boolean' || type === 'toggle') {
