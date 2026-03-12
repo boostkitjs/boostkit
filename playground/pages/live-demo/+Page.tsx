@@ -39,10 +39,15 @@ export default function Page() {
     // Awareness — who is online
     provider.awareness.setLocalStateField('user', { name: myName, color: myColor })
 
-    provider.awareness.on('change', () => {
+    const syncUsers = () => {
       const states = [...provider.awareness.getStates().values()] as { user?: { name: string; color: string } }[]
       setUsers(states.flatMap(s => s.user ? [s.user] : []))
-    })
+    }
+
+    // Show local user immediately (don't wait for server echo)
+    syncUsers()
+
+    provider.awareness.on('change', syncUsers)
 
     return () => {
       provider.destroy()
