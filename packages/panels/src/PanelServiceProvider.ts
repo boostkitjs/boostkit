@@ -661,7 +661,7 @@ export class PanelServiceProvider extends ServiceProvider {
       } else if (type === 'tags') {
         // UI submits an array; store as JSON string
         result[name] = Array.isArray(val) ? JSON.stringify(val) : (val ?? '[]')
-      } else if (type === 'content') {
+      } else if (type === 'content' || type === 'richcontent') {
         // Prisma Json? field: pass object as-is, parse JSON strings, empty → null
         if (val === '' || val === null || val === undefined) {
           result[name] = null

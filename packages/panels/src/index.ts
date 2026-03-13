@@ -66,6 +66,9 @@ export { ContentField }     from './fields/ContentField.js'
 export { contentBlockDefs } from './ContentBlock.js'
 export type { ContentBlockDef } from './ContentBlock.js'
 
+// ─── Rich Content Field (Lexical) ───────────────────────────
+export { RichContentField } from './fields/RichContentField.js'
+
 // ─── Filters ───────────────────────────────────────────────
 
 export { Filter, SelectFilter, SearchFilter } from './Filter.js'
