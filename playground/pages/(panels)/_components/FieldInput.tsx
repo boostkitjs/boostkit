@@ -23,6 +23,8 @@ interface Props {
   yText?:      any | null
   /** Awareness instance for cursor broadcasting (optional) */
   awareness?:  any | null
+  /** Y.Doc instance for per-block Y.Text in content fields (optional) */
+  yDoc?:       any | null
 }
 
 function generateSlug(str: string): string {
@@ -36,7 +38,7 @@ function t(template: string, vars: Record<string, string | number>): string {
   return template.replace(/:([a-z]+)/g, (_, k) => String(vars[k] ?? `:${k}`))
 }
 
-export function FieldInput({ field, value, onChange, uploadBase = '', i18n, disabled = false, yText, awareness }: Props) {
+export function FieldInput({ field, value, onChange, uploadBase = '', i18n, disabled = false, yText, awareness, yDoc }: Props) {
   const inputCls = 'w-full rounded-md border border-input px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:bg-muted disabled:text-muted-foreground'
   const isDisabled = disabled || field.readonly
 
@@ -645,6 +647,8 @@ export function FieldInput({ field, value, onChange, uploadBase = '', i18n, disa
         maxBlocks={maxBlocks}
         uploadBase={uploadBase}
         disabled={isDisabled}
+        yDoc={yDoc}
+        awareness={awareness}
       />
     )
   }

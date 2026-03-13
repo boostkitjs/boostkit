@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useCallback } from 'react'
 import type { ContentBlockDef, NodeData, NodeMap } from '@boostkit/panels'
 import { contentBlockDefs, ensureNodeMap, addNode, updateNodeProps, removeNode, reorderNode } from '@boostkit/panels'
 import { RichTextBlock } from './content-blocks/RichTextBlock.js'
@@ -20,6 +20,9 @@ const defaultBlockProps: Record<string, Record<string, unknown>> = {
   list:      { style: 'bullet', items: [''] },
 }
 
+/** Block types that have a text prop and use RichTextBlock */
+const TEXT_BLOCK_TYPES = new Set(['paragraph', 'heading', 'quote'])
+
 interface Props {
   value:          unknown
   onChange:       (value: NodeMap) => void
@@ -28,15 +31,36 @@ interface Props {
   maxBlocks?:     number
   uploadBase?:    string
   disabled?:      boolean
+  /** Y.Doc for creating per-block Y.Text instances (optional) */
+  yDoc?:          any | null
+  /** Awareness for cursor broadcasting (optional) */
+  awareness?:     any | null
 }
 
-export function ContentEditor({ value: rawValue, onChange, allowedBlocks, placeholder, maxBlocks, uploadBase, disabled }: Props) {
+export function ContentEditor({ value: rawValue, onChange, allowedBlocks, placeholder, maxBlocks, uploadBase, disabled, yDoc, awareness }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const value   = ensureNodeMap(rawValue)
   const root    = value.ROOT!
   const nodeIds = root.nodes
   const defs    = contentBlockDefs.filter(d => !allowedBlocks || allowedBlocks.includes(d.type))
   const atMax   = maxBlocks !== undefined && nodeIds.length >= maxBlocks
+
+  /** Track which block Y.Text instances have been seeded */
+  const seededBlocksRef = useRef<Set<string>>(new Set())
+
+  /** Get or create a Y.Text for a specific block node, seeding initial content if needed */
+  const getBlockYText = useCallback((nodeId: string, initialText?: string) => {
+    if (!yDoc) return null
+    const yText = yDoc.getText(`block:${nodeId}`)
+    // Seed initial text if this is the first time and Y.Text is empty
+    if (!seededBlocksRef.current.has(nodeId) && yText.length === 0 && initialText) {
+      yText.insert(0, initialText)
+      seededBlocksRef.current.add(nodeId)
+    } else {
+      seededBlocksRef.current.add(nodeId)
+    }
+    return yText
+  }, [yDoc])
 
   function handleAddBlock(type: string, atIndex?: number) {
     const props = defaultBlockProps[type]
@@ -74,6 +98,11 @@ export function ContentEditor({ value: rawValue, onChange, allowedBlocks, placeh
         renderNode={(id, index) => {
           const node = value[id]
           if (!node) return null
+
+          // For text blocks, get per-block Y.Text (seed with initial text content)
+          const blockYText   = TEXT_BLOCK_TYPES.has(node.type) ? getBlockYText(id, (node.props.text as string) ?? '') : null
+          const blockAware   = blockYText ? awareness : null
+
           return (
             <div className="group/content-block relative">
               {!disabled && (
@@ -83,7 +112,7 @@ export function ContentEditor({ value: rawValue, onChange, allowedBlocks, placeh
                 </div>
               )}
 
-              {renderBlock(node, (patch) => handleUpdateNode(id, patch), uploadBase, disabled)}
+              {renderBlock(node, id, (patch) => handleUpdateNode(id, patch), uploadBase, disabled, blockYText, blockAware)}
 
               {!disabled && !atMax && (
                 <div className="h-0 relative">
@@ -108,15 +137,18 @@ export function ContentEditor({ value: rawValue, onChange, allowedBlocks, placeh
 
 function renderBlock(
   node: NodeData,
+  nodeId: string,
   updateProps: (patch: Record<string, unknown>) => void,
   uploadBase?: string,
   disabled?: boolean,
+  yText?: any | null,
+  awareness?: any | null,
 ) {
   const p = node.props
 
   switch (node.type) {
     case 'paragraph':
-      return <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag="p" disabled={disabled} />
+      return <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag="p" disabled={disabled} yText={yText} awareness={awareness} fieldName={`block:${nodeId}`} />
     case 'heading':
       return (
         <div className="flex items-center gap-2">
@@ -131,14 +163,14 @@ function renderBlock(
             <option value={3}>H3</option>
           </select>
           <div className="flex-1">
-            <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag={`h${p.level ?? 2}` as 'h1' | 'h2' | 'h3'} disabled={disabled} />
+            <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag={`h${p.level ?? 2}` as 'h1' | 'h2' | 'h3'} disabled={disabled} yText={yText} awareness={awareness} fieldName={`block:${nodeId}`} />
           </div>
         </div>
       )
     case 'quote':
       return (
         <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic">
-          <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag="p" disabled={disabled} />
+          <RichTextBlock text={(p.text as string) ?? ''} onChange={(text) => updateProps({ text })} tag="p" disabled={disabled} yText={yText} awareness={awareness} fieldName={`block:${nodeId}`} />
         </blockquote>
       )
     case 'image':

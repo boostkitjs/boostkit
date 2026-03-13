@@ -1,4 +1,6 @@
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback, useEffect, useState } from 'react'
+import { useYTextSync } from '../../_hooks/useYTextSync.js'
+import { useYTextCursors } from '../../_hooks/useYTextCursors.js'
 
 interface Props {
   text:      string
@@ -6,6 +8,10 @@ interface Props {
   tag?:      'p' | 'h1' | 'h2' | 'h3'
   disabled?: boolean
   placeholder?: string
+  /** Optional collaborative props */
+  yText?:     any | null
+  awareness?: any | null
+  fieldName?: string
 }
 
 const tagStyles: Record<string, string> = {
@@ -15,9 +21,136 @@ const tagStyles: Record<string, string> = {
   h3: 'text-xl font-semibold',
 }
 
-export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder }: Props) {
+// ── DOM ↔ flat text index mapping ──────────────────────────
+
+/** Walk text nodes to convert a flat char index → { node, offset } in the DOM */
+function indexToNodeOffset(root: Node, target: number): { node: Node; offset: number } | null {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let count = 0
+  while (walker.nextNode()) {
+    const len = walker.currentNode.textContent!.length
+    if (count + len >= target) {
+      return { node: walker.currentNode, offset: target - count }
+    }
+    count += len
+  }
+  // Past the end — return last position
+  if (root.childNodes.length === 0) return { node: root, offset: 0 }
+  return null
+}
+
+/** Walk text nodes to convert a DOM { node, offset } → flat char index */
+function nodeOffsetToIndex(root: Node, targetNode: Node, offset: number): number {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let count = 0
+  while (walker.nextNode()) {
+    if (walker.currentNode === targetNode) return count + offset
+    count += walker.currentNode.textContent!.length
+  }
+  return count
+}
+
+/** Get total text length (ignoring HTML tags) */
+function textLength(root: Node): number {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let count = 0
+  while (walker.nextNode()) count += walker.currentNode.textContent!.length
+  return count
+}
+
+export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder, yText, awareness, fieldName }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const lastHtml = useRef(text)
+  const hasFocusRef = useRef(false)
+  const relSelRef = useRef<{ anchor: any; focus: any } | null>(null)
+  const yRef = useRef<any>(null)
+
+  // Load Yjs for RelativePosition
+  useEffect(() => {
+    import('yjs').then(mod => { yRef.current = mod })
+  }, [])
+
+  const toRelPos = useCallback((index: number) => {
+    const Y = yRef.current
+    if (!Y || !yText) return null
+    return Y.createRelativePositionFromTypeIndex(yText, index)
+  }, [yText])
+
+  const fromRelPos = useCallback((relPos: any): number | null => {
+    const Y = yRef.current
+    if (!Y || !yText || !relPos) return null
+    const abs = Y.createAbsolutePositionFromRelativePosition(relPos, yText.doc)
+    return abs ? abs.index : null
+  }, [yText])
+
+  const saveSelection = useCallback(() => {
+    const el = ref.current
+    if (!el || !hasFocusRef.current) return
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+    const range = sel.getRangeAt(0)
+    if (!el.contains(range.startContainer)) return
+
+    const anchorIdx = nodeOffsetToIndex(el, range.startContainer, range.startOffset)
+    const focusIdx  = nodeOffsetToIndex(el, range.endContainer, range.endOffset)
+    const anchor = toRelPos(anchorIdx)
+    const focus  = toRelPos(focusIdx)
+    if (anchor && focus) relSelRef.current = { anchor, focus }
+  }, [toRelPos])
+
+  const restoreSelection = useCallback(() => {
+    const el = ref.current
+    const saved = relSelRef.current
+    if (!el || !saved || !hasFocusRef.current) return
+
+    const startIdx = fromRelPos(saved.anchor)
+    const endIdx   = fromRelPos(saved.focus)
+    if (startIdx === null || endIdx === null) return
+
+    const len = textLength(el)
+    const startPos = indexToNodeOffset(el, Math.min(startIdx, len))
+    const endPos   = indexToNodeOffset(el, Math.min(endIdx, len))
+    if (!startPos || !endPos) return
+
+    const sel = window.getSelection()
+    if (!sel) return
+    const range = document.createRange()
+    range.setStart(startPos.node, startPos.offset)
+    range.setEnd(endPos.node, endPos.offset)
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    // Re-save for next remote edit
+    saveSelection()
+  }, [fromRelPos, saveSelection])
+
+  // Remote change handler — update DOM directly when focused
+  const handleRemoteChange = useCallback((newValue: string) => {
+    const el = ref.current
+    if (el && hasFocusRef.current) {
+      // Don't re-save — use RelativePosition from before the edit
+      el.innerHTML = newValue
+      lastHtml.current = newValue
+      restoreSelection()
+      return
+    }
+    // Not focused — go through React-style update
+    if (el) {
+      el.innerHTML = newValue
+      lastHtml.current = newValue
+    }
+  }, [restoreSelection])
+
+  const { applyLocalChange } = useYTextSync(
+    yText ?? null,
+    handleRemoteChange,
+  )
+
+  const { remoteCursors, broadcastCursor, clearCursor } = useYTextCursors({
+    yText:     yText ?? null,
+    awareness: awareness ?? null,
+    fieldName: fieldName ?? '',
+  })
 
   // Set initial content on mount
   useEffect(() => {
@@ -27,8 +160,10 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync external changes (collaborative updates) — skip if we're the source
+  // Sync external changes (non-collaborative path) — skip if we're the source
   useEffect(() => {
+    // Skip if collaborative — handleRemoteChange handles it
+    if (yText) return
     if (ref.current && text !== lastHtml.current) {
       const sel = window.getSelection()
       const hadFocus = document.activeElement === ref.current
@@ -44,7 +179,7 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
         sel.addRange(range)
       }
     }
-  }, [text])
+  }, [text, yText])
 
   const handleInput = useCallback(() => {
     if (!ref.current) return
@@ -52,8 +187,9 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
     if (html !== lastHtml.current) {
       lastHtml.current = html
       onChange(html)
+      applyLocalChange(html)
     }
-  }, [onChange])
+  }, [onChange, applyLocalChange])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (disabled) return
@@ -78,6 +214,48 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
     }
   }, [disabled])
 
+  // Broadcast cursor on selection changes
+  const handleSelectionBroadcast = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return
+
+    const anchorIdx = nodeOffsetToIndex(el, sel.anchorNode!, sel.anchorOffset)
+    const focusIdx  = nodeOffsetToIndex(el, sel.focusNode!, sel.focusOffset)
+    saveSelection()
+    broadcastCursor(anchorIdx, focusIdx)
+  }, [broadcastCursor, saveSelection])
+
+  // Listen for selectionchange
+  useEffect(() => {
+    if (!yText || !awareness) return
+    function onSelectionChange() {
+      const el = ref.current
+      if (document.activeElement === el || el?.contains(document.activeElement as Node)) {
+        hasFocusRef.current = true
+        handleSelectionBroadcast()
+      } else if (hasFocusRef.current) {
+        hasFocusRef.current = false
+        relSelRef.current = null
+        clearCursor()
+      }
+    }
+    document.addEventListener('selectionchange', onSelectionChange)
+    return () => document.removeEventListener('selectionchange', onSelectionChange)
+  }, [yText, awareness, handleSelectionBroadcast, clearCursor])
+
+  const handleFocus = useCallback(() => {
+    hasFocusRef.current = true
+    handleSelectionBroadcast()
+  }, [handleSelectionBroadcast])
+
+  const handleBlur = useCallback(() => {
+    hasFocusRef.current = false
+    relSelRef.current = null
+    clearCursor()
+  }, [clearCursor])
+
   return (
     <div className="relative">
       <div
@@ -86,6 +264,8 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         data-placeholder={placeholder ?? ''}
         className={[
           tagStyles[tag] ?? tagStyles.p,
@@ -96,7 +276,105 @@ export function RichTextBlock({ text, onChange, tag = 'p', disabled, placeholder
           '[&_a]:text-primary [&_a]:underline',
         ].join(' ')}
       />
+
+      {/* Remote cursor indicators */}
+      {remoteCursors.map((cursor) => (
+        <ContentEditableCursor
+          key={cursor.clientId}
+          cursor={cursor}
+          containerRef={ref}
+        />
+      ))}
     </div>
+  )
+}
+
+/** Renders a remote user's cursor/selection inside a contenteditable element */
+function ContentEditableCursor({
+  cursor,
+  containerRef,
+}: {
+  cursor: { clientId: number; name: string; color: string; anchor: number; focus: number }
+  containerRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [rects, setRects] = useState<Array<{ left: number; top: number; width: number; height: number }>>([])
+  const [labelPos, setLabelPos] = useState<{ left: number; top: number } | null>(null)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const len = textLength(el)
+    const startIdx = Math.min(cursor.anchor, len)
+    const endIdx   = Math.min(cursor.focus, len)
+    const isCaret  = startIdx === endIdx
+
+    const startPos = indexToNodeOffset(el, startIdx)
+    const endPos   = isCaret ? startPos : indexToNodeOffset(el, endIdx)
+
+    if (!startPos || !endPos) {
+      setRects([])
+      setLabelPos(null)
+      return
+    }
+
+    const range = document.createRange()
+    range.setStart(startPos.node, startPos.offset)
+    range.setEnd(endPos.node, endPos.offset)
+
+    const elRect      = el.getBoundingClientRect()
+    const clientRects = isCaret
+      ? [range.getBoundingClientRect()]
+      : Array.from(range.getClientRects())
+
+    const newRects = clientRects
+      .filter(r => r.width > 0 || isCaret)
+      .map(r => ({
+        left:   r.left - elRect.left,
+        top:    r.top  - elRect.top,
+        width:  isCaret ? 2 : r.width,
+        height: r.height,
+      }))
+
+    setRects(newRects)
+    if (newRects.length > 0) {
+      setLabelPos({ left: newRects[0]!.left, top: newRects[0]!.top - 14 })
+    } else {
+      setLabelPos(null)
+    }
+  }, [cursor.anchor, cursor.focus, containerRef])
+
+  const isCaret = cursor.anchor === cursor.focus
+
+  return (
+    <>
+      {rects.map((r, i) => (
+        <div
+          key={i}
+          className="absolute pointer-events-none"
+          style={{
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height,
+            backgroundColor: cursor.color,
+            opacity: isCaret ? 1 : 0.15,
+          }}
+        />
+      ))}
+      {labelPos && (
+        <div
+          className="absolute pointer-events-none z-10 text-[10px] text-white px-1 rounded-t whitespace-nowrap"
+          style={{
+            left: labelPos.left,
+            top: labelPos.top,
+            backgroundColor: cursor.color,
+          }}
+        >
+          {cursor.name}
+        </div>
+      )}
+    </>
   )
 }
 
