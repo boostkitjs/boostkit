@@ -31,6 +31,8 @@ export function useEditForm(opts: UseEditFormOptions) {
   const [values, setValues] = useState<Record<string, unknown>>(initialValues)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
+  // Incremented on version restore — used as React key to force-remount collaborative editors
+  const [formKey, setFormKey] = useState(0)
 
   const setFormValue = useCallback((name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }))
@@ -122,7 +124,7 @@ export function useEditForm(opts: UseEditFormOptions) {
         const restoredFields = body.data.fields
         const merged = { ...values, ...restoredFields }
 
-        // Save restored values to DB first
+        // Save restored values to DB
         const saveRes = await fetch(`/${pathSegment}/api/${slug}/${id}`, {
           method:  'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -142,10 +144,11 @@ export function useEditForm(opts: UseEditFormOptions) {
           })
         }
 
+        // Update form state with restored values and bump formKey
+        // to force-remount collaborative editors (fresh Y.Docs)
+        setValues(merged)
+        setFormKey(k => k + 1)
         toast.success(i18n.restoredToast ?? 'Version restored.')
-
-        // Reload the page so all collaborative editors reconnect and seed from restored DB values
-        window.location.reload()
       } else {
         toast.error(i18n.restoreError ?? 'Failed to restore version.')
       }
@@ -158,6 +161,7 @@ export function useEditForm(opts: UseEditFormOptions) {
     values,
     errors,
     saving,
+    formKey,
     setValue,
     setFormValue,
     handleSave,
