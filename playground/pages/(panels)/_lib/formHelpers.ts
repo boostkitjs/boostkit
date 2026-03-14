@@ -19,7 +19,10 @@ export function flattenFormFields(schema: SchemaItem[], mode: 'create' | 'edit')
       if (!f.hidden.includes(mode)) result.push(f)
     }
   }
+  return result
+}
 
+export function t(template: string, vars: Record<string, string | number>): string {
   return template.replace(/:([a-z]+)/g, (_, k: string) => String(vars[k] ?? `:${k}`))
 }
 

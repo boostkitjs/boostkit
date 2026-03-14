@@ -44,21 +44,20 @@ export default function EditPage() {
   const formFields = flattenFormFields(schema, 'edit')
   const uploadBase = `/${pathSegment}/api`
 
+  // Text-based collaborative fields each get their own Y.Doc (via Lexical).
+  // Only non-text collaborative fields (toggles, selects) use the shared Y.Map.
+  const textTypes = new Set(['text', 'textarea', 'email', 'richcontent', 'content'])
+
   const collabFields = formFields.map((f) => ({
     name: f.name,
-    collaborative: (f.type === 'content' || f.type === 'richcontent') ? false : (f.collaborative ?? false),
-    textField: f.collaborative && (f.type === 'text' || f.type === 'textarea' || f.type === 'email'),
+    collaborative: f.collaborative && !textTypes.has(f.type) ? true : false,
+    textField: false, // no more Y.Text in shared doc — all text fields self-sync via Lexical
   }))
 
-  // Fields that handle their own Y.Doc sync — don't double-write via setCollaborativeValue:
-  // - text/textarea/email with .collaborative() → sync via useYTextSync (Y.Text delta)
-  // - richcontent/content with .collaborative() → sync via CollaborationPlugin (Y.XmlFragment)
+  // All text-based collaborative fields self-sync — don't double-write via setCollaborativeValue
   const selfSyncFields = new Set(
     formFields
-      .filter(f => f.collaborative && (
-        f.type === 'text' || f.type === 'textarea' || f.type === 'email' ||
-        f.type === 'richcontent' || f.type === 'content'
-      ))
+      .filter(f => f.collaborative && textTypes.has(f.type))
       .map(f => f.name)
   )
 
@@ -68,7 +67,7 @@ export default function EditPage() {
   const {
     connected, synced, presences,
     setCollaborativeValue, syncAllFieldsToDoc,
-    getYText, getDoc, awareness, userName, userColor,
+    getDoc, awareness, userName, userColor,
   } = useCollaborativeForm(
     collaborative && docName && wsLivePath
       ? { docName, wsPath: wsLivePath, fields: collabFields, values: initialValues, setValue: () => {}, providers: liveProviders as any }
@@ -126,7 +125,6 @@ export default function EditPage() {
               uploadBase={uploadBase}
               i18n={i18n}
               mode="edit"
-              getYText={getYText}
               awareness={awareness}
               getDoc={getDoc}
               synced={synced}

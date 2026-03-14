@@ -50,7 +50,10 @@ export async function data(pageContext: PageContextServer) {
   // Feature flags (independent)
   const versioned     = (ResourceClass as any).versioned ?? false
   const draftable     = (ResourceClass as any).draftable ?? false
-  const collaborative = (ResourceClass as any).collaborative ?? false
+  // Derive collaborative from fields — true if any field has .collaborative()
+  const collaborative = flattenFields(resource.fields()).some(
+    (f: any) => typeof f.isCollaborative === 'function' && f.isCollaborative()
+  )
 
   // Collaborative: seed ydoc on first load, then merge ydoc values into record
   if (record && collaborative) {

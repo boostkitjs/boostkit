@@ -106,14 +106,6 @@ export class Resource {
   static draftable = false
 
   /**
-   * Enable real-time collaborative editing via Yjs CRDT.
-   * Fields marked `.collaborative()` use Y.Text (character-level merge, cursors).
-   * Other fields sync via Y.Map (last-write-wins, no cursors).
-   * Uses @boostkit/live for WebSocket sync.
-   */
-  static collaborative = false
-
-  /**
    * Enable soft deletes for this resource.
    * When true, deleting a record sets `deletedAt` instead of removing it.
    * Soft-deleted records are hidden from the list by default but can be
@@ -177,12 +169,23 @@ export class Resource {
   /** @internal */
   toMeta(): ResourceMeta {
     const Cls = this.constructor as typeof Resource
+    const fieldItems = this.fields()
+    const fieldsMeta = fieldItems.map((f) => f.toMeta()) as SchemaItemMeta[]
+
+    // Derive collaborative from fields — true if any field has .collaborative()
+    const hasCollabField = fieldItems.some((item) => {
+      if ('getFields' in item) {
+        return (item as { getFields(): Field[] }).getFields().some((f) => f.isCollaborative())
+      }
+      return (item as Field).isCollaborative()
+    })
+
     const meta: ResourceMeta = {
       label:         Cls.getLabel(),
       labelSingular: Cls.getLabelSingular(),
       slug:          Cls.getSlug(),
       icon:          Cls.icon,
-      fields:        this.fields().map((f) => f.toMeta()) as SchemaItemMeta[],
+      fields:        fieldsMeta,
       filters:       this.filters().map((f) => f.toMeta()),
       actions:       this.actions().map((a) => a.toMeta()),
       persistTableState:  Cls.persistTableState,
@@ -192,7 +195,7 @@ export class Resource {
       live:            Cls.live,
       versioned:       Cls.versioned,
       draftable:       Cls.draftable,
-      collaborative:   Cls.collaborative,
+      collaborative:   hasCollabField,
       softDeletes:     Cls.softDeletes,
     }
     if (Cls.defaultSort    !== undefined) meta.defaultSort    = Cls.defaultSort

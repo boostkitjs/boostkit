@@ -601,7 +601,8 @@ export class PanelServiceProvider extends ServiceProvider {
     }
 
     // ── Version routes (versioned or collaborative resources) ───
-    if ((ResourceClass as any).versioned || (ResourceClass as any).collaborative) {
+    const hasCollabFields = flattenFields(new ResourceClass().fields()).some(f => f.isCollaborative())
+    if ((ResourceClass as any).versioned || hasCollabFields) {
       this.mountVersionRoutes(router, panel, ResourceClass, mw)
     }
   }
@@ -713,7 +714,7 @@ export class PanelServiceProvider extends ServiceProvider {
   ): void {
     const slug          = ResourceClass.getSlug()
     const base          = `${panel.getApiBase()}/${slug}`
-    const isCollab      = (ResourceClass as any).collaborative === true
+    const isCollab      = flattenFields(new ResourceClass().fields()).some(f => f.isCollaborative())
 
     // GET /{panel}/api/{resource}/{id}/_versions — list
     router.get(`${base}/:id/_versions`, async (req: AppRequest, res: AppResponse) => {
