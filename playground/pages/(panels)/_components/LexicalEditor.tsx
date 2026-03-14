@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
@@ -6,6 +6,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
 import { CollaborationPlugin } from '@lexical/react/LexicalCollaborationPlugin'
+import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
@@ -72,10 +73,7 @@ export function LexicalEditor({
   blocks,
 }: Props) {
   const isCollab = !!(yDoc && yDocSynced)
-  const [floatingAnchor, setFloatingAnchor] = useState<HTMLDivElement | null>(null)
-  const onAnchorRef = useCallback((el: HTMLDivElement | null) => {
-    if (el) setFloatingAnchor(el)
-  }, [])
+  const anchorRef = useRef<HTMLDivElement>(null)
 
   const blockRegistry = useMemo(() => {
     const map = new Map<string, BlockMeta>()
@@ -124,9 +122,10 @@ export function LexicalEditor({
 
   return (
     <BlockRegistryContext.Provider value={blockRegistry}>
+    <LexicalCollaboration>
     <LexicalComposer initialConfig={initialConfig}>
       <div className="lexical-editor rounded-lg border border-input bg-background relative">
-        <div ref={onAnchorRef} className="relative">
+        <div ref={anchorRef} className="relative">
         <RichTextPlugin
           contentEditable={
             <ContentEditable
@@ -159,14 +158,48 @@ export function LexicalEditor({
 
         {isCollab && <OnChangePlugin onChange={onChange} />}
 
-        {floatingAnchor && (
-          <DraggableBlockPlugin_EXPERIMENTAL anchorElem={floatingAnchor} />
-        )}
+        <DragHandleLoader anchorRef={anchorRef} />
         </div>
       </div>
       <style>{collabCursorStyles + dragHandleStyles}</style>
     </LexicalComposer>
+    </LexicalCollaboration>
     </BlockRegistryContext.Provider>
+  )
+}
+
+// ── DragHandleLoader ────────────────────────────────────────
+// DraggableBlockPlugin_EXPERIMENTAL (v0.41) requires menuRef, targetLineRef,
+// menuComponent, targetLineComponent, and isOnMenu.
+
+function DragHandleLoader({ anchorRef }: { anchorRef: React.RefObject<HTMLDivElement | null> }) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const targetLineRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted || !anchorRef.current) return null
+
+  return (
+    <DraggableBlockPlugin_EXPERIMENTAL
+      anchorElem={anchorRef.current}
+      menuRef={menuRef}
+      targetLineRef={targetLineRef}
+      menuComponent={
+        <div ref={menuRef} className="draggable-block-menu">
+          <div className="w-4 h-4 flex items-center justify-center opacity-30 hover:opacity-100 cursor-grab">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <circle cx="4" cy="3" r="1" /><circle cx="8" cy="3" r="1" />
+              <circle cx="4" cy="6" r="1" /><circle cx="8" cy="6" r="1" />
+              <circle cx="4" cy="9" r="1" /><circle cx="8" cy="9" r="1" />
+            </svg>
+          </div>
+        </div>
+      }
+      targetLineComponent={
+        <div ref={targetLineRef} className="draggable-block-target-line" />
+      }
+      isOnMenu={(el) => !!el.closest('.draggable-block-menu')}
+    />
   )
 }
 
