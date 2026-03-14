@@ -290,6 +290,16 @@ export abstract class Field {
     return this
   }
 
+  /**
+   * Allow editing this field directly in the table cell.
+   * Click the cell to edit, blur or Enter to save.
+   * Supported types: text, number, select, boolean, toggle.
+   */
+  inlineEditable(value = true): this {
+    this._extra['inlineEditable'] = value
+    return this
+  }
+
   // ── Getters ────────────────────────────────────────────
 
   getName():       string  { return this._name }

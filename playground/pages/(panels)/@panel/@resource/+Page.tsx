@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table.js'
 import { CellValue, resolveCellValue } from '../../_components/CellValue.js'
+import { InlineEditCell } from '../../_components/InlineEditCell.js'
 import {
   Tooltip,
   TooltipContent,
@@ -603,7 +604,9 @@ export default function ResourceListPage() {
                             <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} displayTransformed={f.displayTransformed} pathSegment={pathSegment} i18n={i18n} />
                           </a>
                         )
-                        : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} displayTransformed={f.displayTransformed} pathSegment={pathSegment} i18n={i18n} />
+                        : f.extra?.['inlineEditable'] && !isTrashed
+                          ? <InlineEditCell record={record} field={f} slug={slug} pathSegment={pathSegment} i18n={i18n} />
+                          : <CellValue value={resolveCellValue(record, f)} type={f.type} extra={f.extra} displayTransformed={f.displayTransformed} pathSegment={pathSegment} i18n={i18n} />
                       }
                     </TableCell>
                   ))}
