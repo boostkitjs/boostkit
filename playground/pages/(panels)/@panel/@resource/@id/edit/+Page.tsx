@@ -76,7 +76,7 @@ export default function EditPage() {
 
   // ── Edit form state ──────────────────────────────────────
   const {
-    values, errors, saving,
+    values, errors, saving, formKey,
     setValue, handleSave, handleSubmit, restoreVersion,
   } = useEditForm({
     pathSegment, slug, id, initialValues, backHref,
@@ -118,6 +118,7 @@ export default function EditPage() {
         <div className={versioned && showHistory ? 'flex-1 max-w-2xl' : 'max-w-2xl'}>
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <SchemaRenderer
+              key={formKey}
               schema={schema}
               values={values}
               errors={errors}
