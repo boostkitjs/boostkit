@@ -133,12 +133,14 @@ export class ArticleResource extends Resource {
               archived:  { color: 'gray',   label: 'Archived' },
             })
             .default('draft')
-            .required(),
+            .required()
+            .inlineEditable(),
 
           ToggleField.make('featured')
             .label('Featured')
             .onLabel('Featured')
-            .offLabel('Not featured'),
+            .offLabel('Not featured')
+            .inlineEditable(),
 
           DateField.make('publishedAt')
             .label('Publish Date')
