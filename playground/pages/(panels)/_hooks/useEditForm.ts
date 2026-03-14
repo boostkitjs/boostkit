@@ -16,7 +16,7 @@ interface UseEditFormOptions {
   // Collaborative callbacks (optional)
   syncAllFieldsToDoc?:    (values: Record<string, unknown>) => void
   setCollaborativeValue?: (name: string, value: unknown) => void
-  /** Fields that handle their own Y.Doc sync (Y.Text via useYTextSync, or Y.XmlFragment via CollaborationPlugin).
+  /** Fields that handle their own Y.Doc sync (each via its own Lexical + Y.Doc instance).
    *  setValue will NOT call setCollaborativeValue for these — they already sync themselves. */
   selfSyncFields?:        Set<string>
 }
@@ -40,7 +40,7 @@ export function useEditForm(opts: UseEditFormOptions) {
   function setValue(name: string, value: unknown) {
     setFormValue(name, value)
     // Don't double-sync fields that handle their own Y.Doc sync
-    // (Y.Text fields sync via useYTextSync, richcontent/content sync via CollaborationPlugin)
+    // Text-based collaborative fields each have their own Y.Doc + Lexical instance
     if (setCollaborativeValue && !selfSyncFields?.has(name)) {
       setCollaborativeValue(name, value)
     }

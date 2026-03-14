@@ -35,7 +35,6 @@ export class ArticleResource extends Resource {
   static live          = true
   static versioned     = true
   static draftable     = true
-  static collaborative = true
   static softDeletes   = true
 
   fields() {
@@ -74,9 +73,35 @@ export class ArticleResource extends Resource {
           .disk('public')
           .directory('articles'),
 
-        ContentField.make('content')
-          .label('Content')
-          .placeholder('Start writing...')
+        // ContentField.make('content')
+        //   .label('Content')
+        //   .placeholder('Start writing...'),
+          // .collaborative(),
+
+        RichContentField.make('content')
+          .label('Content (Lexical)')
+          .placeholder('Start writing your article…')
+          .blocks([
+            Block.make('callToAction')
+              .label('Call to Action')
+              .icon('📣')
+              .schema([
+                TextField.make('title').label('Title').required(),
+                TextField.make('buttonText').label('Button Text'),
+                TextField.make('url').label('URL'),
+                SelectField.make('style').label('Style').options([
+                  { value: 'primary', label: 'Primary' },
+                  { value: 'outline', label: 'Outline' },
+                ]),
+              ]),
+            Block.make('video')
+              .label('Video Embed')
+              .icon('🎬')
+              .schema([
+                TextField.make('url').label('URL').required(),
+                TextField.make('caption').label('Caption'),
+              ]),
+          ])
           .collaborative(),
 
         RichContentField.make('body')

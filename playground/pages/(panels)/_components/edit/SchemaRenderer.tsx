@@ -14,21 +14,20 @@ interface Props {
   i18n:        PanelI18n & Record<string, string>
   mode:        'create' | 'edit'
   // Collaborative props (optional)
-  getYText?:   (name: string) => any | null
   awareness?:  any | null
   getDoc?:     () => any | null
   synced?:     boolean
   userName?:   string
   userColor?:  string
-  /** WebSocket path for live collaboration — passed to LexicalEditor */
+  /** WebSocket path for live collaboration */
   wsPath?:     string | null
-  /** Base document name — passed to LexicalEditor */
+  /** Base document name for live collaboration */
   docName?:    string | null
 }
 
 export function SchemaRenderer({
   schema, values, errors, setValue, uploadBase, i18n, mode,
-  getYText, awareness, getDoc, synced, userName, userColor,
+  awareness, getDoc, synced, userName, userColor,
   wsPath, docName,
 }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
@@ -51,7 +50,6 @@ export function SchemaRenderer({
           uploadBase={uploadBase}
           i18n={i18n}
           disabled={fieldDisabled}
-          yText={field.collaborative && getYText ? getYText(field.name) : null}
           awareness={field.collaborative && awareness ? awareness : null}
           yDoc={field.collaborative && getDoc ? getDoc() : null}
           yDocSynced={synced}
