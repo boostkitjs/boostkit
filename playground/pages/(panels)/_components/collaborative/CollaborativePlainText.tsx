@@ -158,9 +158,8 @@ export function CollaborativePlainText({
 function OnChangePlugin({ onChange }: { onChange: (value: string) => void }) {
   const [editor] = useLexicalComposerContext()
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves, tags }) => {
+    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves }) => {
       if (dirtyElements.size === 0 && dirtyLeaves.size === 0) return
-      if (tags.has('collaboration')) return
       const text = editorState.read(() => $getRoot().getTextContent())
       onChange(text)
     })
