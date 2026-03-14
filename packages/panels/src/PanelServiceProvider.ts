@@ -899,6 +899,11 @@ export class PanelServiceProvider extends ServiceProvider {
       if (mode === 'update' && field.isHiddenFrom('edit')) continue
 
       const name  = field.getName()
+
+      // On update, skip validation for fields not present in the payload
+      // (supports partial/inline updates where only one field is sent)
+      if (mode === 'update' && !(name in body)) continue
+
       const value = body[name]
 
       if (field.isRequired() && (value === undefined || value === null || value === '')) {
@@ -911,6 +916,10 @@ export class PanelServiceProvider extends ServiceProvider {
       if (!field.hasValidate()) continue
       if (field.isReadonly()) continue
       const name = field.getName()
+
+      // On update, skip validation for fields not in the payload
+      if (mode === 'update' && !(name in body)) continue
+
       const value = body[name]
       const result = await field.runValidate(value, body)
       if (result !== true) {
