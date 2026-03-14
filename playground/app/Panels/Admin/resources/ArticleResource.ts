@@ -5,6 +5,7 @@ import {
   TextareaField,
   SlugField,
   SelectField,
+  SelectFilter,
   ToggleField,
   TagsField,
   DateField,
@@ -16,7 +17,6 @@ import {
   Block,
   RelationField,
   ComputedField,
-  SelectFilter,
   Action,
 } from '@boostkit/panels'
 import { Article } from '../../../Models/Article.js'
@@ -122,22 +122,6 @@ export class ArticleResource extends Resource {
       Section.make('Publishing')
         .columns(2)
         .schema(
-          SelectField.make('status')
-            .label('Status')
-            .options([
-              { label: 'Draft',     value: 'draft'     },
-              { label: 'Published', value: 'published' },
-              { label: 'Archived',  value: 'archived'  },
-            ])
-            .badge({
-              draft:     { color: 'yellow', label: 'Draft' },
-              published: { color: 'green',  label: 'Published' },
-              archived:  { color: 'gray',   label: 'Archived' },
-            })
-            .default('draft')
-            .required()
-            .inlineEditable(),
-
           ToggleField.make('featured')
             .label('Featured')
             .onLabel('Featured')
@@ -145,9 +129,7 @@ export class ArticleResource extends Resource {
             .inlineEditable(),
 
           DateField.make('publishedAt')
-            .label('Publish Date')
-            // Conditional: only show when status = published
-            .showWhen('status', 'published'),
+            .label('Publish Date'),
 
           ColorField.make('accentColor')
             .label('Accent Color')
@@ -197,23 +179,6 @@ export class ArticleResource extends Resource {
 
   filters() {
     return [
-      // SelectFilter.make('status')
-      //   .label('Status')
-      //   .options([
-      //     { label: 'Draft',     value: 'draft'     },
-      //     { label: 'Published', value: 'published' },
-      //     { label: 'Archived',  value: 'archived'  },
-      //   ]),
-
-    SelectFilter.make('status')
-      .label('Status')
-        .options([
-          { label: 'Draft',     value: 'draft'     },
-          { label: 'Published', value: 'published' },
-          { label: 'Archived',  value: 'archived'  },
-        ])
-      .query((q, value) => q.where('status', value)),
-
       SelectFilter.make('featured')
         .label('Featured')
         .options([
@@ -231,7 +196,7 @@ export class ArticleResource extends Resource {
         .handler(async (records) => {
           for (const record of records as Article[]) {
             await Article.query().update(record.id, {
-              status:      'published',
+              draftStatus: 'published',
               publishedAt: new Date(),
             })
           }
@@ -242,18 +207,7 @@ export class ArticleResource extends Resource {
         .bulk()
         .handler(async (records) => {
           for (const record of records as Article[]) {
-            await Article.query().update(record.id, { status: 'draft' })
-          }
-        }),
-
-      Action.make('archive')
-        .label('Archive')
-        .destructive()
-        .confirm('Archive selected articles?')
-        .bulk()
-        .handler(async (records) => {
-          for (const record of records as Article[]) {
-            await Article.query().update(record.id, { status: 'archived' })
+            await Article.query().update(record.id, { draftStatus: 'draft' })
           }
         }),
 

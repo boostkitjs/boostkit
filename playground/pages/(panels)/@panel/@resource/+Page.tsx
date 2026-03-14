@@ -98,8 +98,16 @@ export default function ResourceListPage() {
   // Save params to sessionStorage whenever URL has them
   // In loadMore mode, once extra pages are loaded, handleLoadMore saves the updated URL directly
   // — skip the render-time save to avoid overwriting with stale SSR urlSearch
+  // Exclude trashed param from persistence — trash toggle is a view switch, not a filter to restore
   if (persist && typeof window !== 'undefined' && urlSearch && !(isLoadMore && extraRecords.length > 0)) {
-    sessionStorage.setItem(storageKey, '?' + urlSearch)
+    const persistParams = new URLSearchParams(urlSearch)
+    persistParams.delete('trashed')
+    const cleanSearch = persistParams.toString()
+    if (cleanSearch) {
+      sessionStorage.setItem(storageKey, '?' + cleanSearch)
+    } else {
+      sessionStorage.removeItem(storageKey)
+    }
   }
 
   // Trigger the restore navigation (once per restore)
@@ -371,13 +379,8 @@ export default function ResourceListPage() {
         </div>
         <div className="flex items-center gap-2">
           {hasSoftDeletes && (
-            <button
-              type="button"
-              onClick={() => {
-                const p = new URLSearchParams(urlSearch)
-                if (isTrashed) { p.delete('trashed') } else { p.set('trashed', 'true'); p.delete('page') }
-                void navigate(`/${pathSegment}/${slug}${p.toString() ? '?' + p.toString() : ''}`)
-              }}
+            <a
+              href={isTrashed ? `/${pathSegment}/${slug}` : `/${pathSegment}/${slug}?trashed=true`}
               className={[
                 'inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border transition-colors shrink-0',
                 isTrashed
@@ -386,7 +389,7 @@ export default function ResourceListPage() {
               ].join(' ')}
             >
               {isTrashed ? (i18n as any).exitTrash : (i18n as any).viewTrash}
-            </button>
+            </a>
           )}
           {!isTrashed && (
             <a
@@ -834,7 +837,7 @@ function DeleteRowButton({ slug, id, pathSegment, labelSingular, i18n }: { slug:
       toast.error(i18n.deleteError)
     }
     setOpen(false)
-    window.location.reload()
+    void navigate(window.location.pathname + window.location.search, { overwriteLastHistoryEntry: true })
   }
 
   return (
@@ -875,7 +878,7 @@ function RestoreRowButton({ slug, id, pathSegment, i18n }: { slug: string; id: s
       toast.error((i18n as any).restoreError ?? 'Failed to restore.')
     }
     setPending(false)
-    window.location.reload()
+    void navigate(window.location.pathname + window.location.search, { overwriteLastHistoryEntry: true })
   }
 
   return (
@@ -904,7 +907,7 @@ function ForceDeleteRowButton({ slug, id, pathSegment, i18n }: { slug: string; i
       toast.error(i18n.deleteError)
     }
     setOpen(false)
-    window.location.reload()
+    void navigate(window.location.pathname + window.location.search, { overwriteLastHistoryEntry: true })
   }
 
   return (
