@@ -211,7 +211,7 @@ export function LexicalEditor({
           <HistoryPlugin />
         )}
 
-        <OnChangePlugin onChange={onChange} collaborative={collabActive} />
+        <OnChangePlugin onChange={onChange} />
         {collabActive && <SeedPlugin value={value} />}
 
         <DragHandleLoader anchorRef={anchorRef} />
@@ -271,17 +271,14 @@ function DragHandleLoader({ anchorRef }: { anchorRef: React.RefObject<HTMLDivEle
 // from re-rendering on every cursor move, which would reset caret position in
 // other controlled inputs.
 
-function OnChangePlugin({ onChange, collaborative }: { onChange: (json: unknown) => void; collaborative?: boolean }) {
+function OnChangePlugin({ onChange }: { onChange: (json: unknown) => void }) {
   const [editor] = useLexicalComposerContext()
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves, tags }) => {
+    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves }) => {
       if (dirtyElements.size === 0 && dirtyLeaves.size === 0) return
-      // In collaborative mode, skip remote changes — they arrive via Y.XmlFragment,
-      // no need to push them back into React form state (which would cause re-render cascades).
-      if (collaborative && tags.has('collaboration')) return
       onChange(editorState.toJSON())
     })
-  }, [editor, onChange, collaborative])
+  }, [editor, onChange])
   return null
 }
 
