@@ -111,7 +111,7 @@ export function useEditForm(opts: UseEditFormOptions) {
       // If saving after a version restore, clear the original Y.Doc rooms
       // so they re-seed from the now-correct DB values on next page load.
       if (collaborative && formKey > 0) {
-        await fetch(`/${pathSegment}/api/${slug}/${id}/_clear-live`, {
+        await fetch(`/${pathSegment}/api/${slug}/${id}/_sync-live`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         })
