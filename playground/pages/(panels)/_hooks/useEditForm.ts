@@ -21,13 +21,15 @@ interface UseEditFormOptions {
   selfSyncFields?:        Set<string>
   /** Setter for formKey — lives in parent so useCollaborativeForm can use it as resetKey. */
   setFormKey:              (fn: (k: number) => number) => void
+  /** Current formKey — used to detect if we're on temporary rooms after restore. */
+  formKey:                 number
 }
 
 export function useEditForm(opts: UseEditFormOptions) {
   const {
     pathSegment, slug, id, initialValues, backHref,
     versioned, draftable, collaborative, i18n,
-    syncAllFieldsToDoc, setCollaborativeValue, selfSyncFields, setFormKey,
+    syncAllFieldsToDoc, setCollaborativeValue, selfSyncFields, setFormKey, formKey,
   } = opts
 
   const [values, setValues] = useState<Record<string, unknown>>(initialValues)
@@ -100,6 +102,15 @@ export function useEditForm(opts: UseEditFormOptions) {
         })
       }
 
+      // If saving after a version restore, clear the original Y.Doc rooms
+      // so they re-seed from the now-correct DB values on next page load.
+      if (collaborative && formKey > 0) {
+        await fetch(`/${pathSegment}/api/${slug}/${id}/_clear-live`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
       if (draftable && publishAction === 'publish') {
         toast.success(i18n.publishedToastDraft ?? 'Published successfully.')
       } else if (draftable && publishAction === 'unpublish') {
@@ -135,30 +146,12 @@ export function useEditForm(opts: UseEditFormOptions) {
         const restoredFields = body.data.fields
         const merged = { ...values, ...restoredFields }
 
-        // Save restored values to DB so +data.ts reads them on navigation
-        await fetch(`/${pathSegment}/api/${slug}/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(merged),
-        })
-
-        // Clear server-side Y.Docs so fresh rooms seed from restored DB values
-        if (collaborative) {
-          await fetch(`/${pathSegment}/api/${slug}/${id}/_clear-live`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          })
-        }
-
+        // Update form state + remount collaborative editors (no DB save — user reviews first).
+        // formKey bump causes editors to connect to brand new rooms (docName:v{formKey})
+        // that are guaranteed empty — SeedPlugin seeds from restored values.
+        resetForm(merged)
+        setActiveVersionId(versionId)
         toast.success(i18n.restoredToast ?? 'Version restored.')
-
-        // Client-side navigation — re-runs +data.ts (reads restored DB values),
-        // remounts the entire page with fresh state. No window.location.reload().
-        const params = new URLSearchParams(window.location.search)
-        params.set('restoredVersion', versionId)
-        await navigate(`/${pathSegment}/${slug}/${id}/edit?${params.toString()}`, {
-          overwriteLastHistoryEntry: true,
-        })
       } else {
         toast.error(i18n.restoreError ?? 'Failed to restore version.')
       }
