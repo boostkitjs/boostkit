@@ -1,13 +1,45 @@
 import { cp, mkdir, readdir, stat } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import type { Command } from 'commander'
 import { intro, outro, log, spinner } from '@clack/prompts'
+import { detectORM } from './migrate.js'
+
 interface PublishGroup {
-  from:   string
-  to:     string
-  tag?:   string
+  from:    string
+  to:      string
+  tag?:    string
   /** Always overwrite — set by framework-managed pages like panels */
-  force?: boolean
+  force?:  boolean
+  /** If set, only publish when this ORM is detected in the project. */
+  orm?:    'prisma' | 'drizzle'
+  /** If set, only publish when this database driver is detected. */
+  driver?: 'sqlite' | 'postgresql' | 'mysql'
+}
+
+/** Detect the database driver from Prisma schema or config. */
+export function detectDriver(cwd: string = process.cwd()): 'sqlite' | 'postgresql' | 'mysql' | null {
+  // Try prisma/schema/base.prisma (multi-file)
+  for (const schemaPath of [
+    join(cwd, 'prisma', 'schema', 'base.prisma'),
+    join(cwd, 'prisma', 'schema.prisma'),
+  ]) {
+    try {
+      const content = readFileSync(schemaPath, 'utf8')
+      const match = content.match(/provider\s*=\s*"(sqlite|postgresql|mysql)"/)
+      if (match?.[1]) return match[1] as 'sqlite' | 'postgresql' | 'mysql'
+    } catch { /* file not found */ }
+  }
+
+  // Try config/database.ts — look for default driver
+  try {
+    const content = readFileSync(join(cwd, 'config', 'database.ts'), 'utf8')
+    if (content.includes("'postgresql'") || content.includes('"postgresql"')) return 'postgresql'
+    if (content.includes("'mysql'") || content.includes('"mysql"')) return 'mysql'
+    if (content.includes("'sqlite'") || content.includes('"sqlite"')) return 'sqlite'
+  } catch { /* file not found */ }
+
+  return null
 }
 
 // ─── Command ───────────────────────────────────────────────
@@ -62,14 +94,32 @@ export function vendorPublishCommand(program: Command): void {
         return
       }
 
+      // ── Filter by ORM + driver ─────────────────────────
+      // Only applied to groups that have orm/driver set — generic groups always pass.
+      const detectedOrm    = detectORM(cwd)
+      const detectedDriver = detectDriver(cwd)
+
+      entries = entries
+        .map(([name, groups]): [string, PublishGroup[]] => [
+          name,
+          groups.filter((g) => {
+            if (g.orm && g.orm !== detectedOrm) return false
+            if (g.driver && g.driver !== detectedDriver) return false
+            return true
+          }),
+        ])
+        .filter(([, groups]) => groups.length > 0)
+
       // ── List mode ────────────────────────────────────────
       if (opts.list) {
         for (const [provider, groups] of entries) {
           log.message(`\n  ${provider}`)
           for (const g of groups) {
-            const tag = g.tag ? `  [${g.tag}]` : ''
+            const tag    = g.tag    ? `  [${g.tag}]`       : ''
+            const orm    = g.orm    ? `  (${g.orm})`       : ''
+            const driver = g.driver ? `  (${g.driver})`    : ''
             log.message(`    ${g.from}`)
-            log.message(`    → ${g.to}${tag}`)
+            log.message(`    → ${g.to}${tag}${orm}${driver}`)
           }
         }
         outro('Use vendor:publish to copy the files above into your application.')

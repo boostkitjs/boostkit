@@ -617,3 +617,57 @@ describe('migrate — buildArgs()', () => {
     assert.deepEqual(args, [])
   })
 })
+
+// ─── vendor:publish — detectDriver ────────────────────────
+
+import { detectDriver } from './commands/vendor-publish.js'
+
+describe('vendor:publish — detectDriver()', () => {
+  let tmpDir: string
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(nodePath.join(os.tmpdir(), 'bk-driver-'))
+  })
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  it('detects sqlite from prisma/schema/base.prisma', async () => {
+    await fs.mkdir(nodePath.join(tmpDir, 'prisma', 'schema'), { recursive: true })
+    await fs.writeFile(nodePath.join(tmpDir, 'prisma', 'schema', 'base.prisma'),
+      'datasource db {\n  provider = "sqlite"\n}\n')
+    assert.equal(detectDriver(tmpDir), 'sqlite')
+  })
+
+  it('detects postgresql from prisma/schema/base.prisma', async () => {
+    await fs.mkdir(nodePath.join(tmpDir, 'prisma', 'schema'), { recursive: true })
+    await fs.writeFile(nodePath.join(tmpDir, 'prisma', 'schema', 'base.prisma'),
+      'datasource db {\n  provider = "postgresql"\n}\n')
+    assert.equal(detectDriver(tmpDir), 'postgresql')
+  })
+
+  it('detects mysql from prisma/schema/base.prisma', async () => {
+    await fs.mkdir(nodePath.join(tmpDir, 'prisma', 'schema'), { recursive: true })
+    await fs.writeFile(nodePath.join(tmpDir, 'prisma', 'schema', 'base.prisma'),
+      'datasource db {\n  provider = "mysql"\n}\n')
+    assert.equal(detectDriver(tmpDir), 'mysql')
+  })
+
+  it('falls back to prisma/schema.prisma (single file)', async () => {
+    await fs.mkdir(nodePath.join(tmpDir, 'prisma'), { recursive: true })
+    await fs.writeFile(nodePath.join(tmpDir, 'prisma', 'schema.prisma'),
+      'datasource db {\n  provider = "postgresql"\n}\n')
+    assert.equal(detectDriver(tmpDir), 'postgresql')
+  })
+
+  it('falls back to config/database.ts for driver detection', async () => {
+    await fs.mkdir(nodePath.join(tmpDir, 'config'), { recursive: true })
+    await fs.writeFile(nodePath.join(tmpDir, 'config', 'database.ts'),
+      "export default { default: 'postgresql', connections: {} }\n")
+    assert.equal(detectDriver(tmpDir), 'postgresql')
+  })
+
+  it('returns null when no schema or config exists', () => {
+    assert.equal(detectDriver(tmpDir), null)
+  })
+})
