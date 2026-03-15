@@ -80,7 +80,7 @@ export default function EditPage() {
     getDoc, awareness, userName, userColor,
   } = useCollaborativeForm(
     collaborative && docName && wsLivePath
-      ? { docName: docName!, wsPath: wsLivePath!, fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as any, resetKey: formKey }
+      ? { docName: docName!, wsPath: wsLivePath!, fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as any }
       : null,
   )
 
@@ -115,14 +115,11 @@ export default function EditPage() {
         socket = new mod.BKSocket(`ws://${window.location.host}/ws`)
         socket.channel(`panel:${slug}`).on('version.restored', async (data: any) => {
           if (data?.id !== id) return
-          // Another user restored a version — fetch fresh record and remount editors
-          try {
-            const res = await fetch(`/${pathSegment}/api/${slug}/${id}`)
-            if (res.ok) {
-              const body = await res.json() as { data: Record<string, unknown> }
-              resetForm(buildInitialValues(formFields, body.data))
-            }
-          } catch { /* ignore */ }
+          // Another user saved after restoring — fetch fresh data and stay collaborative.
+          // Use navigate to re-run +data.ts which re-seeds Y.Docs from the correct DB values.
+          void navigate(window.location.pathname + window.location.search, {
+            overwriteLastHistoryEntry: true,
+          })
         })
       } catch { /* BKSocket not available */ }
     }
