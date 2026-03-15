@@ -151,23 +151,41 @@ export function auth(
     }
 
     async boot(): Promise<void> {
-      const { betterAuth: createAuth }  = await import('better-auth')
-      const { prismaAdapter }           = await import('better-auth/adapters/prisma')
+      const { betterAuth: createAuth } = await import('better-auth')
 
-      // Use prismaProvider's client if available (boot order: prismaProvider → betterAuth),
-      // otherwise create a dedicated client from dbConfig.
-      let prisma: unknown
-      try {
-        prisma = this.app.make('prisma')
-      } catch {
-        prisma = await createPrismaClient(dbConfig ?? {})
+      // Detect ORM: Prisma → Drizzle → fallback to creating own PrismaClient
+      let database: unknown
+
+      let hasPrisma = false
+      try { this.app.make('prisma'); hasPrisma = true } catch { /* not bound */ }
+
+      let hasDrizzle = false
+      try { this.app.make('drizzle'); hasDrizzle = true } catch { /* not bound */ }
+
+      if (hasPrisma) {
+        const { prismaAdapter } = await import('better-auth/adapters/prisma')
+        const prisma = this.app.make('prisma')
+        database = prismaAdapter(prisma as any, { provider: mapDriver(dbConfig?.driver) })
+      } else if (hasDrizzle) {
+        const { drizzleAdapter } = await import('better-auth/adapters/drizzle') as any
+        const drizzle = this.app.make('drizzle')
+        database = drizzleAdapter(drizzle as any)
+      } else if (dbConfig) {
+        // Fallback: create a dedicated PrismaClient from explicit dbConfig
+        const { prismaAdapter } = await import('better-auth/adapters/prisma')
+        const prisma = await createPrismaClient(dbConfig)
+        database = prismaAdapter(prisma as any, { provider: mapDriver(dbConfig.driver) })
+      } else {
+        throw new Error(
+          '[@boostkit/auth] No database found. Register @boostkit/orm-prisma or @boostkit/orm-drizzle before auth, ' +
+          'or pass a dbConfig as the second argument to auth().'
+        )
       }
-      const database = prismaAdapter(prisma as any, { provider: mapDriver(dbConfig?.driver) })
 
       const auth = createAuth({
         secret:   config.secret  ?? process.env['AUTH_SECRET'] ?? '',
         baseURL:  config.baseUrl ?? process.env['APP_URL'] ?? 'http://localhost:3000',
-        database,
+        database: database as any,
         emailAndPassword: {
           enabled: config.emailAndPassword?.enabled ?? true,
           ...(config.emailAndPassword?.requireEmailVerification !== undefined
