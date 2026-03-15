@@ -16,7 +16,9 @@ async function handleSubmit() {
     body:    JSON.stringify({ email: email.value, password: password.value }),
   })
   if (res.ok) {
-    window.location.href = '/'
+    const params = new URLSearchParams(window.location.search)
+    const redirect = params.get('redirect')
+    window.location.href = redirect && redirect.startsWith('/') ? redirect : '/'
   } else {
     const body = await res.json().catch(() => ({})) as { message?: string }
     error.value = body.message ?? 'Invalid email or password.'

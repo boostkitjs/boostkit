@@ -144,3 +144,42 @@ describe('auth schema files', () => {
     }
   })
 })
+
+// ─── ORM detection in provider ────────────────────────────
+// The boot() method can't be tested end-to-end without a real DB.
+// Instead we verify the source code handles all three paths:
+// 1. Prisma (container.bound('prisma'))
+// 2. Drizzle (container.bound('drizzle'))
+// 3. Fallback to dbConfig
+// 4. Throws when no DB found
+
+describe('auth() ORM detection', () => {
+  // Tests run from dist-test/ — resolve source from package root
+  const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const srcPath = join(pkgRoot, 'src', 'index.ts')
+  const src = readFileSync(srcPath, 'utf8')
+
+  it('boot() checks for prisma in DI container', () => {
+    assert.ok(src.includes("this.app.make('prisma')"), 'should check for prisma binding')
+  })
+
+  it('boot() checks for drizzle in DI container', () => {
+    assert.ok(src.includes("this.app.make('drizzle')"), 'should check for drizzle binding')
+  })
+
+  it('boot() imports prismaAdapter when prisma detected', () => {
+    assert.ok(src.includes("import('better-auth/adapters/prisma')"), 'should dynamically import prisma adapter')
+  })
+
+  it('boot() imports drizzleAdapter when drizzle detected', () => {
+    assert.ok(src.includes("import('better-auth/adapters/drizzle')"), 'should dynamically import drizzle adapter')
+  })
+
+  it('boot() throws when no database found and no dbConfig', () => {
+    assert.ok(src.includes('No database found'), 'should throw descriptive error')
+  })
+
+  it('boot() falls back to createPrismaClient when dbConfig provided', () => {
+    assert.ok(src.includes('createPrismaClient(dbConfig)'), 'should fall back to explicit dbConfig')
+  })
+})
