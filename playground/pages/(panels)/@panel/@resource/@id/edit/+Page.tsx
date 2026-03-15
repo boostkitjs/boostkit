@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useData }   from 'vike-react/useData'
+import { navigate }  from 'vike/client/router'
 import { useConfig } from 'vike-react/useConfig'
 import { Breadcrumbs }      from '../../../../_components/Breadcrumbs.js'
 import { EditToolbar }      from '../../../../_components/edit/EditToolbar.js'

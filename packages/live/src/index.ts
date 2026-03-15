@@ -518,18 +518,22 @@ export const Live = {
   },
 
   /**
-   * Abandon a Y.Doc room and clear its persistence.
-   * The old room is removed from the map but existing connections stay open
-   * (they're isolated on the orphaned room object). New connections get a
-   * fresh empty room via getOrCreateRoom(). When old clients remount/reconnect,
-   * they join the new room and SeedPlugin re-seeds from DB.
+   * Clear a Y.Doc: close all connections, destroy the room, and clear persistence.
+   * Clients auto-reconnect to a fresh empty room. The broadcast system notifies
+   * other users to navigate/remount so they get correct data from DB.
    */
   async clearDocument(docName: string): Promise<void> {
     const persistence = this.persistence()
     await persistence.clearDocument(docName)
     const rooms = g[KEY] as Map<string, Room> | undefined
-    // Just remove from map — don't modify the Y.Doc or close connections.
-    // Old clients stay on the orphaned room (harmless). New connections get a fresh room.
-    rooms?.delete(docName)
+    const room = rooms?.get(docName)
+    if (room) {
+      for (const client of room.clients) {
+        try { client.close() } catch { /* ignore */ }
+      }
+      room.clients.clear()
+      room.doc.destroy()
+      rooms!.delete(docName)
+    }
   },
 }
