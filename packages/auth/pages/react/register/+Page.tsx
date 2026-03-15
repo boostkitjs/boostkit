@@ -39,7 +39,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium mb-1" htmlFor="name">Name</label>
             <input
               id="name" type="text" placeholder="Alice Smith"
-              value={name} onChange={e => setName(e.target.value)}
+              value={name} onChange={e => setName(e.currentTarget.value)}
               required autoComplete="name"
               className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
             />
@@ -48,7 +48,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium mb-1" htmlFor="email">Email</label>
             <input
               id="email" type="email" placeholder="you@example.com"
-              value={email} onChange={e => setEmail(e.target.value)}
+              value={email} onChange={e => setEmail(e.currentTarget.value)}
               required autoComplete="email"
               className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
             />
@@ -57,7 +57,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium mb-1" htmlFor="password">Password</label>
             <input
               id="password" type="password" placeholder="••••••••"
-              value={password} onChange={e => setPassword(e.target.value)}
+              value={password} onChange={e => setPassword(e.currentTarget.value)}
               required autoComplete="new-password" minLength={8}
               className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
             />

@@ -134,11 +134,11 @@ export function auth(
 ): new (app: Application) => ServiceProvider {
   class BetterAuthProvider extends ServiceProvider {
     register(): void {
-      // Auth pages (framework-specific)
-      this.publishes({ from: new URL('../pages/react', import.meta.url).pathname, to: 'pages', tag: 'auth-pages' })
-      this.publishes({ from: new URL('../pages/react', import.meta.url).pathname, to: 'pages', tag: 'auth-pages-react' })
-      this.publishes({ from: new URL('../pages/vue',   import.meta.url).pathname, to: 'pages', tag: 'auth-pages-vue' })
-      this.publishes({ from: new URL('../pages/solid', import.meta.url).pathname, to: 'pages', tag: 'auth-pages-solid' })
+      // Auth pages (framework-specific) — published to pages/(auth)/ route group
+      this.publishes({ from: new URL('../pages/react', import.meta.url).pathname, to: 'pages/(auth)', tag: 'auth-pages' })
+      this.publishes({ from: new URL('../pages/react', import.meta.url).pathname, to: 'pages/(auth)', tag: 'auth-pages-react' })
+      this.publishes({ from: new URL('../pages/vue',   import.meta.url).pathname, to: 'pages/(auth)', tag: 'auth-pages-vue' })
+      this.publishes({ from: new URL('../pages/solid', import.meta.url).pathname, to: 'pages/(auth)', tag: 'auth-pages-solid' })
 
       // Auth schema (ORM + driver-specific)
       const schemaDir = new URL('../schema', import.meta.url).pathname
