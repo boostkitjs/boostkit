@@ -202,7 +202,7 @@ async function main(): Promise<void> {
       const require      = createRequire(import.meta.url)
       const authPkgPath  = require.resolve('@boostkit/auth/package.json')
       const authPagesDir = path.join(path.dirname(authPkgPath), 'pages', primary)
-      await fs.cp(authPagesDir, path.join(target, 'pages'), { recursive: true })
+      await fs.cp(authPagesDir, path.join(target, 'pages', '(auth)'), { recursive: true })
     } catch {
       // Package not found — user can publish manually after install
     }
