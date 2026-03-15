@@ -80,7 +80,7 @@ export default function EditPage() {
     getDoc, awareness, userName, userColor,
   } = useCollaborativeForm(
     collaborative && docName && wsLivePath
-      ? { docName, wsPath: wsLivePath, fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as any, resetKey: formKey }
+      ? { docName: formKey > 0 ? `${docName}:v${formKey}` : docName!, wsPath: wsLivePath!, fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as any, resetKey: formKey }
       : null,
   )
 
@@ -95,6 +95,7 @@ export default function EditPage() {
     setCollaborativeValue: collaborative ? setCollaborativeValue : undefined,
     selfSyncFields,
     setFormKey,
+    formKey,
   })
 
   // Keep refs in sync with latest state
@@ -179,7 +180,7 @@ export default function EditPage() {
               userName={userName}
               userColor={userColor}
               wsPath={wsLivePath}
-              docName={docName}
+              docName={formKey > 0 ? `${docName}:v${formKey}` : docName}
             />
             <FormActions
               draftable={draftable}
