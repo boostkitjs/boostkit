@@ -806,8 +806,8 @@ export class PanelServiceProvider extends ServiceProvider {
       }
     }, mw)
 
-    // POST /{panel}/api/{resource}/{id}/_clear-live — clear per-field Y.Docs (for version restore)
-    router.post(`${base}/:id/_clear-live`, async (req: AppRequest, res: AppResponse) => {
+    // POST /{panel}/api/{resource}/{id}/_sync-live — clear Y.Docs and re-seed with saved values
+    router.post(`${base}/:id/_sync-live`, async (req: AppRequest, res: AppResponse) => {
       if (!isCollab) return res.json({ message: 'Not collaborative.' })
       const id = (req.params as Record<string, string>)['id']
       const docName = `panel:${slug}:${id}`
@@ -815,24 +815,40 @@ export class PanelServiceProvider extends ServiceProvider {
       try {
         const { Live } = await import('@boostkit/live')
 
-        // Clear the main shared Y.Doc (in-memory room + persistence)
+        // Clear the main shared Y.Doc + all per-field Y.Docs
         await Live.clearDocument(docName)
 
-        // Clear per-field Y.Docs (text:*, richcontent:*)
         const resource = new ResourceClass()
-        for (const f of flattenFields(resource.fields())) {
-          if (f.isCollaborative()) {
-            const type = f.getType()
-            const name = f.getName()
-            const prefix = (type === 'richcontent' || type === 'content') ? type : 'text'
-            await Live.clearDocument(`${docName}:${prefix}:${name}`)
+        const collabFields = flattenFields(resource.fields()).filter(f => f.isCollaborative())
+
+        for (const f of collabFields) {
+          const type = f.getType()
+          const name = f.getName()
+          const prefix = (type === 'richcontent' || type === 'content') ? type : 'text'
+          await Live.clearDocument(`${docName}:${prefix}:${name}`)
+        }
+
+        // Re-seed the main Y.Doc with saved DB values
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const Model = ResourceClass.model as any
+        if (Model) {
+          const record = await Model.find(id)
+          if (record) {
+            const fieldData: Record<string, unknown> = {}
+            for (const f of flattenFields(resource.fields())) {
+              const name = f.getName()
+              if (name in (record as Record<string, unknown>)) {
+                fieldData[name] = (record as Record<string, unknown>)[name]
+              }
+            }
+            await Live.seed(docName, fieldData)
           }
         }
 
         // Broadcast to all clients so they remount editors with fresh Y.Docs
         this.liveBroadcast(slug, 'version.restored', { id })
 
-        return res.json({ message: 'Live documents cleared.' })
+        return res.json({ message: 'Live documents synced.' })
       } catch {
         return res.json({ message: 'No live provider — skipped.' })
       }
