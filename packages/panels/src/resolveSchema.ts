@@ -38,6 +38,46 @@ export async function resolveSchema(
     const type = (el as any).getType?.() as string | undefined
     if (!type) continue
 
+    // Schema-level Tabs — resolve each tab's elements recursively
+    if (type === 'tabs') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tabs = el as any
+      const rawTabs = tabs.getTabs() as any[]
+
+      // Check if any tab has schema elements (not fields)
+      const hasSchemaElements = rawTabs.some((t: any) => !t.hasFields())
+
+      if (hasSchemaElements) {
+        // Resolve schema elements in each tab
+        const resolvedTabs = []
+        for (const tab of rawTabs) {
+          if (tab.hasFields()) {
+            // Field tab — pass through
+            resolvedTabs.push(tab.toMeta())
+          } else {
+            // Schema element tab — resolve items recursively
+            const items = tab.getItems()
+            // Create a proxy that delegates everything to the real panel
+            // but overrides getSchema() to return this tab's items
+            const tabPanel = Object.create(panel, {
+              getSchema: { value: () => items },
+            })
+            const resolved = await resolveSchema(tabPanel, ctx)
+            resolvedTabs.push({
+              label: tab.getLabel(),
+              fields: [],
+              elements: resolved,
+            })
+          }
+        }
+        result.push({ type: 'tabs', tabs: resolvedTabs } as unknown as PanelSchemaElementMeta)
+      } else {
+        // All field tabs — pass through toMeta()
+        result.push(tabs.toMeta() as PanelSchemaElementMeta)
+      }
+      continue
+    }
+
     // Table needs special resolution (query model, build columns)
     if (type === 'table') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

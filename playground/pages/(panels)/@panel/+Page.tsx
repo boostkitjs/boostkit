@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useData }   from 'vike-react/useData'
 import { useConfig } from 'vike-react/useConfig'
 import { WidgetRenderer } from '../_components/WidgetRenderer.js'
@@ -59,6 +59,20 @@ export default function PanelRootPage() {
         }
 
         const el = group.items[0]
+
+        // Schema-level Tabs
+        if (el.type === 'tabs' && el.tabs?.some((t: any) => t.elements?.length > 0)) {
+          return (
+            <SchemaTabs
+              key={`tabs-${gi}`}
+              tabs={el.tabs}
+              panelPath={panelMeta.path}
+              pathSegment={pathSegment}
+              i18n={i18n}
+            />
+          )
+        }
+
         if (el.type === 'dashboard') {
           return (
             <DashboardSection
@@ -170,6 +184,69 @@ function DashboardSection({ dashboard, pathSegment, panelPath, i18n }: Dashboard
           i18n={i18n}
         />
       )}
+    </div>
+  )
+}
+
+// ── Schema-level Tabs ────────────────────────────────────────────
+
+interface SchemaTabsProps {
+  tabs: { label: string; elements?: any[] }[]
+  panelPath: string
+  pathSegment: string
+  i18n: PanelI18n & Record<string, string>
+}
+
+function SchemaTabs({ tabs, panelPath, pathSegment, i18n }: SchemaTabsProps) {
+  const [activeIdx, setActiveIdx] = useState(0)
+
+  return (
+    <div>
+      <div className="flex gap-1 border-b mb-4">
+        {tabs.map((tab, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => setActiveIdx(idx)}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeIdx === idx
+                ? 'border-b-2 border-primary text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-col gap-6">
+        {(tabs[activeIdx]?.elements ?? []).map((el: any, i: number) => {
+          if (el.type === 'widget') {
+            return (
+              <StandaloneWidget
+                key={`tw-${i}`}
+                widget={el}
+                panelPath={panelPath}
+                pathSegment={pathSegment}
+                i18n={i18n}
+              />
+            )
+          }
+          if (el.type === 'dashboard') {
+            return (
+              <DashboardSection
+                key={`td-${el.id ?? i}`}
+                dashboard={el}
+                pathSegment={pathSegment}
+                panelPath={panelPath}
+                i18n={i18n}
+              />
+            )
+          }
+          return (
+            <WidgetRenderer key={i} element={el} panelPath={panelPath} i18n={i18n} />
+          )
+        })}
+      </div>
     </div>
   )
 }
