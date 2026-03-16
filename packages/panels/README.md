@@ -424,7 +424,7 @@ The schema function receives `PanelContext` (`{ user, headers, path }`) and can 
 | `Heading.make(text)` | Section heading. `.level(1\|2\|3)` controls size (default: `1`) |
 | `Text.make(content)` | Paragraph of text |
 | `Stats.make([...stats])` | Row of stat cards |
-| `Stat.make(label)` | Single stat -- `.value(n)`, `.description(text)`, `.trend('up'\|'down'\|'neutral')` |
+| `Stat.make(label)` | Single stat -- `.value(n)`, `.description(text)`, `.trend(n)` (positive=↑, negative=↓) |
 | `Table.make(title)` | Data table -- `.resource(slug)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)` |
 | `Chart.make(title)` | Chart -- `.chartType('line'\|'bar'\|'area'\|'pie'\|'doughnut')`, `.labels([...])`, `.datasets([...])`, `.height(n)` |
 | `List.make(title)` | Item list card -- `.items([{ label, description?, href?, icon? }])`, `.limit(n)` |
