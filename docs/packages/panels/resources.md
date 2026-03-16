@@ -177,7 +177,7 @@ fields() {
 
 ### Collaborative Editing
 
-No resource-level flag needed — just add `.collaborative()` to any field. A resource is automatically collaborative when any field has `.collaborative()`. The edit page shows connection status and presence avatars.
+No resource-level flag needed — just add `.collaborative()` to any field. `.collaborative()` is a shorthand for `.persist('websocket')` — it enables real-time Yjs sync between all connected editors. The edit page shows connection status and presence avatars.
 
 ```ts
 fields() {

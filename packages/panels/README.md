@@ -150,8 +150,8 @@ TextField.make('name')
   .readonly()           // show in form, not editable; excluded from payloads
   .sortable()           // allow sorting by this column in the table
   .searchable()         // include in global search (LIKE query)
-  .collaborative()      // real-time Yjs sync between editors
-  .persist()            // survive page reload (localStorage or y-indexeddb)
+  .collaborative()      // shorthand for .persist('websocket') — real-time Yjs sync
+  .persist()            // survive page reload (localStorage, indexeddb, or websocket)
   .hideFrom('table' | 'create' | 'edit' | 'view')
   .hideFromTable()
   .hideFromCreate()
@@ -1131,7 +1131,7 @@ fields() {
 
 ### Collaborative Editing
 
-No resource-level flag needed — just add `.collaborative()` to any field. The resource is automatically collaborative when any field has `.collaborative()`.
+No resource-level flag needed — just add `.collaborative()` to any field. `.collaborative()` is a shorthand for `.persist('websocket')` — it enables real-time Yjs sync between all connected editors.
 
 ```ts
 fields() {
