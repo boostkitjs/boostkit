@@ -138,4 +138,15 @@ export const ar: PanelI18n = {
   restoreDraftButton:   '\u0627\u0633\u062a\u0639\u0627\u062f\u0629',
   discardDraft:         '\u062a\u062c\u0627\u0647\u0644',
   unsavedWarning:       '\u0644\u062f\u064a\u0643 \u062a\u063a\u064a\u064a\u0631\u0627\u062a \u063a\u064a\u0631 \u0645\u062d\u0641\u0648\u0638\u0629. \u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u0627\u0644\u0645\u063a\u0627\u062f\u0631\u0629\u061f',
+
+  // Dashboard
+  customizeDashboard:   '\u062a\u062e\u0635\u064a\u0635',
+  doneDashboard:        '\u062a\u0645',
+  addWidget:            '+ \u0625\u0636\u0627\u0641\u0629 \u0639\u0646\u0635\u0631',
+  removeWidget:         '\u062d\u0630\u0641',
+  widgetSmall:          'S',
+  widgetMedium:         'M',
+  widgetLarge:          'L',
+  noWidgets:            '\u0644\u0627 \u062a\u0648\u062c\u062f \u0639\u0646\u0627\u0635\u0631 \u0628\u0639\u062f.',
+  availableWidgets:     '\u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062a\u0627\u062d\u0629',
 }

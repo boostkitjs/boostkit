@@ -225,6 +225,44 @@ Each text-based collaborative field gets its own WebSocket room (e.g., `panel:ar
 | `autosave + persistFormState` | Server autosave + localStorage crash safety net. |
 | All flags | Full power: co-edit, draft/publish, version history, trash, autosave, persist. |
 
+---
+
+## Resource Widgets
+
+Define widgets on the show page for a specific resource. The `widgets()` method receives the current record and returns schema elements.
+
+```ts
+import { Resource, Stats, Stat, Chart } from '@boostkit/panels'
+
+export class ArticleResource extends Resource {
+  // ... fields, filters, etc.
+
+  widgets(record?: Record<string, unknown>) {
+    return [
+      Stats.make([
+        Stat.make('Word Count').value(String(record?.content ?? '').split(' ').length),
+        Stat.make('Status').value(String(record?.draftStatus ?? 'draft')),
+      ]),
+      Chart.make('Views Over Time')
+        .chartType('area')
+        .labels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+        .datasets([{ label: 'Views', data: [45, 120, 89, 200, 156] }])
+        .height(200),
+    ]
+  }
+}
+```
+
+Widgets render above the record fields on the show page. All schema element types are supported: `Stats`, `Chart`, `List`, `Table`, `Text`, `Heading`.
+
+The `WidgetRenderer` React component handles rendering of all widget types. It is used internally by the show page and also available for custom pages:
+
+```tsx
+import { WidgetRenderer } from '@boostkit/panels/client'
+
+<WidgetRenderer widgets={widgetData} panel="admin" />
+```
+
 ### Required Prisma Models
 
 ```prisma

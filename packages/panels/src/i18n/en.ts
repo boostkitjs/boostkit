@@ -136,6 +136,17 @@ export const en = {
   restoreDraftButton:   'Restore',
   discardDraft:         'Discard',
   unsavedWarning:       'You have unsaved changes. Are you sure you want to leave?',
+
+  // Dashboard
+  customizeDashboard:   'Customize',
+  doneDashboard:        'Done',
+  addWidget:            '+ Add Widget',
+  removeWidget:         'Remove',
+  widgetSmall:          'S',
+  widgetMedium:         'M',
+  widgetLarge:          'L',
+  noWidgets:            'No widgets added yet.',
+  availableWidgets:     'Available Widgets',
 }
 
 export type PanelI18n = typeof en
