@@ -10,6 +10,7 @@ pnpm add @boostkit/dashboards
 
 ## Quick Start
 
+Dashboards are defined as schema elements inside `Panel.schema()`. The `dashboard()` provider auto-discovers `Dashboard.make()` instances from panel schemas.
 
 ```ts
 // app/Panels/Admin/AdminPanel.ts

@@ -30,16 +30,16 @@ Text.make('Manage your application from the sidebar.')
 
 ### `Stats`
 
-Row of stat cards. Each stat has a label, value, optional description, and trend indicator.
+Row of stat cards. Each stat has a label, value, optional description, and trend percentage. When a single stat is rendered, it fills the container without a grid wrapper.
 
 ```ts
 import { Stats, Stat } from '@boostkit/panels'
 
 Stats.make([
-  Stat.make('Users').value(1250).description('+12 this week').trend('up'),
-  Stat.make('Revenue').value('$48,200').trend('up'),
-  Stat.make('Bounce Rate').value('32%').trend('down'),
-  Stat.make('Active Now').value(42).trend('neutral'),
+  Stat.make('Total Articles').value(await Article.query().count()).trend(12),
+  Stat.make('Total Categories').value(await Category.query().count()),
+  Stat.make('Total Todos').value(await Todo.query().count()).description('Including completed'),
+  Stat.make('Total Users').value(await User.query().count()).trend(-3),
 ])
 ```
 
@@ -48,7 +48,9 @@ Stats.make([
 | `Stat.make(label)` | Create a stat with a label |
 | `.value(v)` | The primary display value (string or number) |
 | `.description(text)` | Secondary text below the value |
-| `.trend('up' \| 'down' \| 'neutral')` | Trend indicator arrow and color |
+| `.trend(n)` | Percentage change — positive shows ↑ green, negative shows ↓ red |
+
+The `Stats` row auto-sizes: 1 stat = full width, 2 = two columns, 3 = three columns, 4 = four columns (max).
 
 ### `Table`
 

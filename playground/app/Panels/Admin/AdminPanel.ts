@@ -33,7 +33,7 @@ export const adminPanel = Panel.make('admin')
     // ── Static SSR content ───────────────────────────────────
     Heading.make(`Welcome back${ctx.user?.name ? `, ${ctx.user.name}` : ''}.`),
     Text.make('Here\'s a quick overview of your content.'),
-
+    
     Stats.make([
       Stat.make('Total Articles').value(await Article.query().count()),
       Stat.make('Total Categories').value(await Category.query().count()),
@@ -47,6 +47,7 @@ export const adminPanel = Panel.make('admin')
       .component('stat')
       .defaultSize({ w: 3, h: 1 })
       .icon('newspaper')
+      .lazy()
       .data(async () => ({
         value: await Article.query().count(),
         trend: 8,
