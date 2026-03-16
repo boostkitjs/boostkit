@@ -41,8 +41,8 @@ TextField.make('name')
   .readonly()               // visible but not editable; excluded from payloads
   .sortable()               // clickable column header -> ?sort=name&dir=ASC
   .searchable()             // included in search -> WHERE name LIKE '%foo%'
-  .collaborative()          // real-time Yjs sync between editors
-  .persist()                // survive page reload (localStorage or y-indexeddb)
+  .collaborative()          // shorthand for .persist('websocket') — real-time Yjs sync
+  .persist()                // survive page reload (localStorage, indexeddb, or websocket)
   .hideFrom('table' | 'create' | 'edit' | 'view')
   .hideFromTable()
   .hideFromCreate()
