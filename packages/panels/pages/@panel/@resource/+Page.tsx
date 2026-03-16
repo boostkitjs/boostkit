@@ -134,6 +134,7 @@ export default function ResourceListPage() {
 
   // Reset selection and loadMore state when navigating to a different resource
   const searchRef = useRef<HTMLInputElement>(null)
+  const [searchValue, setSearchValue] = useState(currentSearch)
   useEffect(() => {
     // Restore persisted selection for this resource
     if (persist) {
@@ -143,6 +144,7 @@ export default function ResourceListPage() {
       setSelected([])
     }
     setExtraRecords([])
+    setSearchValue(currentSearch)  // sync search on resource change
     restoredRef.current = null  // allow restore for the new resource
   }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -163,9 +165,15 @@ export default function ResourceListPage() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [isLoadMore, pathSegment, slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync search input value with URL (covers restore + navigation)
+  // Sync search input from URL on external navigation (back/forward button)
+  // but NOT from our own debounced updates (which would overwrite user typing)
+  const isOwnSearchRef = useRef(false)
   useEffect(() => {
-    if (searchRef.current) searchRef.current.value = currentSearch
+    if (isOwnSearchRef.current) {
+      isOwnSearchRef.current = false
+      return
+    }
+    setSearchValue(currentSearch)
   }, [currentSearch])
 
   // Reset loadMore accumulated records when SSR data changes (filter/sort/search)
@@ -211,9 +219,11 @@ export default function ResourceListPage() {
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function handleSearchInput(value: string) {
+  function handleSearchChange(value: string) {
+    setSearchValue(value)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
+      isOwnSearchRef.current = true
       const url = new URL(window.location.href)
       if (value.trim()) url.searchParams.set('search', value.trim())
       else url.searchParams.delete('search')
@@ -447,24 +457,21 @@ export default function ResourceListPage() {
 
           {/* Search */}
           {hasSearch && (
-            <div className="relative group">
+            <div className="relative">
               <ResourceIcon icon="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <input
                 ref={searchRef}
                 type="text"
                 name="search"
-                defaultValue={currentSearch}
+                value={searchValue}
                 placeholder={t(i18n.search, { label: resourceMeta.label.toLowerCase() })}
-                onChange={(e) => handleSearchInput(e.currentTarget.value)}
+                onChange={(e) => handleSearchChange(e.currentTarget.value)}
                 className="h-9 pl-8 pr-8 text-sm rounded-md border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[220px]"
               />
-              {currentSearch && (
+              {searchValue && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (searchRef.current) searchRef.current.value = ''
-                    handleSearchInput('')
-                  }}
+                  onClick={() => handleSearchChange('')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ResourceIcon icon="x" className="size-4" />
