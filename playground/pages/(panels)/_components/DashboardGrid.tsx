@@ -56,6 +56,7 @@ export interface DashboardGridProps {
   editable?:      boolean
   defaultWidgets: WidgetMeta[]
   ssrWidgets?:    WidgetWithData[]
+  ssrLayout?:     DashboardLayoutItem[]
   pathSegment:    string
   panelPath:      string
   i18n:           PanelI18n & Record<string, string>
@@ -135,14 +136,18 @@ export function DashboardGrid({
   editable = true,
   defaultWidgets,
   ssrWidgets,
+  ssrLayout,
   pathSegment,
   panelPath,
   i18n,
   tabId,
 }: DashboardGridProps) {
   const hasSSR = ssrWidgets && ssrWidgets.length > 0
+  const hasSSRLayout = ssrLayout && ssrLayout.length > 0
   const [widgets, setWidgets] = useState<WidgetWithData[]>(hasSSR ? ssrWidgets : [])
-  const [layout, setLayout] = useState<DashboardLayoutItem[]>(hasSSR ? computeDefaultLayout(defaultWidgets) : [])
+  const [layout, setLayout] = useState<DashboardLayoutItem[]>(
+    hasSSRLayout ? ssrLayout : (hasSSR ? computeDefaultLayout(defaultWidgets) : [])
+  )
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(!hasSSR)
   const [showPalette, setShowPalette] = useState(false)
@@ -192,7 +197,11 @@ export function DashboardGrid({
         } catch { /* fetch failed */ }
       }
 
-      // Load layout
+      // Load layout (skip if SSR layout already provided)
+      if (hasSSRLayout) {
+        setLoading(false)
+        return
+      }
       try {
         const base = `/${pathSegment}/api/_dashboard/${dashboardId}`
         const qs = tabQuery(tabId)

@@ -51,6 +51,8 @@ interface DashboardSectionProps {
     editable: boolean
     widgets: any[]
     tabs?: { id: string; label: string; widgets: any[] }[]
+    savedLayout?: any[]
+    savedTabLayouts?: Record<string, any[]>
   }
   pathSegment: string
   panelPath: string
@@ -72,6 +74,7 @@ function DashboardSection({ dashboard, pathSegment, panelPath, i18n }: Dashboard
           editable={dashboard.editable}
           defaultWidgets={dashboard.widgets}
           ssrWidgets={dashboard.widgets}
+          ssrLayout={dashboard.savedLayout}
           pathSegment={pathSegment}
           panelPath={panelPath}
           i18n={i18n}
@@ -109,6 +112,7 @@ function DashboardSection({ dashboard, pathSegment, panelPath, i18n }: Dashboard
                 editable={dashboard.editable}
                 defaultWidgets={tab.widgets}
                 ssrWidgets={tab.widgets}
+                ssrLayout={dashboard.savedTabLayouts?.[tab.id]}
                 pathSegment={pathSegment}
                 panelPath={panelPath}
                 i18n={i18n}

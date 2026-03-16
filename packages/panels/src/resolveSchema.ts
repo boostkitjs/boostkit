@@ -99,7 +99,7 @@ export async function resolveSchema(
       continue
     }
 
-    // Dashboard elements — resolve widget data for SSR
+    // Dashboard elements — resolve widget data + user layout for SSR
     if (type === 'dashboard') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dashboard = el as any
@@ -118,6 +118,39 @@ export async function resolveSchema(
             meta.tabs[i].widgets = await resolveWidgetData(tab.getWidgets(), ctx)
           }
         }
+      }
+
+      // Resolve user's saved layout from DB for SSR
+      const userId = (ctx.user as any)?.id as string | undefined
+      if (userId) {
+        try {
+          const { app } = await import('@boostkit/core') as any
+          const prisma = app().make('prisma')
+          if (prisma?.panelDashboardLayout) {
+            const panelName = panel.getName()
+
+            // Top-level layout
+            const topRecord = await prisma.panelDashboardLayout.findFirst({
+              where: { userId, panel: panelName, dashboardId: meta.id },
+            })
+            if (topRecord) {
+              meta.savedLayout = JSON.parse(String(topRecord.layout))
+            }
+
+            // Tab layouts
+            if (meta.tabs) {
+              meta.savedTabLayouts = {} as Record<string, unknown[]>
+              for (const tab of meta.tabs) {
+                const tabRecord = await prisma.panelDashboardLayout.findFirst({
+                  where: { userId, panel: panelName, dashboardId: `${meta.id}:${tab.id}` },
+                })
+                if (tabRecord) {
+                  meta.savedTabLayouts[tab.id] = JSON.parse(String(tabRecord.layout))
+                }
+              }
+            }
+          }
+        } catch { /* DB not available */ }
       }
 
       result.push(meta as PanelSchemaElementMeta)
