@@ -184,6 +184,13 @@ export class Resource {
   actions(): Action[] { return [] }
 
   /**
+   * Define widgets shown on the resource show page.
+   * Receives the current record for data-driven widgets.
+   * Returns schema elements (Stats, Chart, List, Table, etc.)
+   */
+  widgets(_record?: Record<string, unknown>): { getType(): string; toMeta(): unknown }[] { return [] }
+
+  /**
    * Authorization policy.
    * Return false to deny the action — the API responds with 403.
    * Defaults to allowing everything.

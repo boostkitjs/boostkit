@@ -35,6 +35,8 @@ import { Text }    from './schema/Text.js'
 import { Heading } from './schema/Heading.js'
 import { Stats, Stat } from './schema/Stats.js'
 import { Table }   from './schema/Table.js'
+import { Chart }   from './schema/Chart.js'
+import { List }    from './schema/List.js'
 import { getPanelI18n, getPanelDir, getActiveLocale } from './i18n/index.js'
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -1963,6 +1965,26 @@ describe('i18n — autosave & persist strings', () => {
     const i18n = getPanelI18n('en')
     assert.ok(i18n.restoreDraft.includes(':time'))
   })
+
+  it('en has all dashboard keys', () => {
+    const i18n = getPanelI18n('en')
+    assert.equal(typeof i18n.customizeDashboard, 'string')
+    assert.equal(typeof i18n.doneDashboard, 'string')
+    assert.equal(typeof i18n.addWidget, 'string')
+    assert.equal(typeof i18n.removeWidget, 'string')
+    assert.equal(typeof i18n.noWidgets, 'string')
+    assert.equal(typeof i18n.availableWidgets, 'string')
+  })
+
+  it('ar has all dashboard keys', () => {
+    const i18n = getPanelI18n('ar')
+    assert.equal(typeof i18n.customizeDashboard, 'string')
+    assert.equal(typeof i18n.doneDashboard, 'string')
+    assert.equal(typeof i18n.addWidget, 'string')
+    assert.equal(typeof i18n.removeWidget, 'string')
+    assert.equal(typeof i18n.noWidgets, 'string')
+    assert.equal(typeof i18n.availableWidgets, 'string')
+  })
 })
 
 describe('Resource — empty state', () => {
@@ -1985,5 +2007,119 @@ describe('Resource — empty state', () => {
     assert.strictEqual(meta.emptyStateIcon, '📝')
     assert.strictEqual(meta.emptyStateHeading, 'No :label yet')
     assert.strictEqual(meta.emptyStateDescription, 'Create your first article to get started.')
+  })
+})
+
+// ─── Chart schema element ──────────────────────────────────
+
+describe('Chart schema element', () => {
+  it('type is chart', () => {
+    assert.equal(Chart.make('Revenue').getType(), 'chart')
+  })
+
+  it('defaults to line chart', () => {
+    const meta = Chart.make('Revenue').toMeta()
+    assert.equal(meta.type, 'chart')
+    assert.equal(meta.title, 'Revenue')
+    assert.equal(meta.chartType, 'line')
+    assert.deepEqual(meta.labels, [])
+    assert.deepEqual(meta.datasets, [])
+  })
+
+  it('fluent API sets chart type, labels, datasets', () => {
+    const meta = Chart.make('Sales')
+      .chartType('bar')
+      .labels(['Jan', 'Feb', 'Mar'])
+      .datasets([{ label: 'Revenue', data: [100, 200, 150] }])
+      .toMeta()
+    assert.equal(meta.chartType, 'bar')
+    assert.deepEqual(meta.labels, ['Jan', 'Feb', 'Mar'])
+    assert.equal(meta.datasets.length, 1)
+    assert.equal(meta.datasets[0]!.label, 'Revenue')
+  })
+
+  it('supports pie and doughnut types', () => {
+    assert.equal(Chart.make('X').chartType('pie').toMeta().chartType, 'pie')
+    assert.equal(Chart.make('X').chartType('doughnut').toMeta().chartType, 'doughnut')
+  })
+
+  it('height defaults to 300', () => {
+    assert.equal(Chart.make('X').toMeta().height, 300)
+  })
+
+  it('height is configurable', () => {
+    assert.equal(Chart.make('X').height(400).toMeta().height, 400)
+  })
+})
+
+// ─── List schema element ──────────────────────────────────
+
+describe('List schema element', () => {
+  it('type is list', () => {
+    assert.equal(List.make('Recent Activity').getType(), 'list')
+  })
+
+  it('static items', () => {
+    const meta = List.make('Links')
+      .items([
+        { label: 'Docs', description: 'Read the docs', href: '/docs' },
+        { label: 'Blog', description: 'Latest posts' },
+      ])
+      .toMeta()
+    assert.equal(meta.items.length, 2)
+    assert.equal(meta.items[0]!.label, 'Docs')
+    assert.equal(meta.items[0]!.href, '/docs')
+    assert.equal(meta.items[1]!.href, undefined)
+  })
+
+  it('limit defaults to 5', () => {
+    assert.equal(List.make('X').toMeta().limit, 5)
+  })
+
+  it('limit is configurable', () => {
+    assert.equal(List.make('X').limit(10).toMeta().limit, 10)
+  })
+
+  it('items are truncated to limit', () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({ label: `Item ${i}` }))
+    const meta = List.make('X').items(items).limit(3).toMeta()
+    assert.equal(meta.items.length, 3)
+    assert.equal(meta.items[0]!.label, 'Item 0')
+    assert.equal(meta.items[2]!.label, 'Item 2')
+  })
+})
+
+// ─── Resource — widgets() ────────────────────────────────────
+
+describe('Resource — widgets()', () => {
+  it('defaults to empty array', () => {
+    class R extends Resource { fields() { return [] } }
+    assert.deepEqual(new R().widgets(), [])
+  })
+
+  it('returns schema elements when overridden', () => {
+    class R extends Resource {
+      fields() { return [] }
+      widgets() {
+        return [Stats.make([Stat.make('Views').value(42)])]
+      }
+    }
+    const w = new R().widgets()
+    assert.equal(w.length, 1)
+    assert.equal((w[0] as any).getType(), 'stats')
+  })
+
+  it('receives record parameter', () => {
+    class R extends Resource {
+      fields() { return [] }
+      widgets(record?: Record<string, unknown>) {
+        return [
+          Stats.make([Stat.make('Title Length').value(String(record?.title ?? '').length)]),
+        ]
+      }
+    }
+    const w = new R().widgets({ title: 'Hello World' })
+    const meta = (w[0] as any).toMeta()
+    assert.equal(meta.stats[0].value, 11)
   })
 })

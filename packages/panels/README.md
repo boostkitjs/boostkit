@@ -393,6 +393,53 @@ The schema function receives `PanelContext` (`{ user, headers, path }`) and can 
 | `Stats.make([...stats])` | Row of stat cards |
 | `Stat.make(label)` | Single stat — `.value(n)`, `.description(text)`, `.trend('up'\|'down'\|'neutral')` |
 | `Table.make(title)` | Data table — `.resource(slug)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)` |
+| `Chart.make(title)` | Chart — `.chartType('line'\|'bar'\|'area'\|'pie'\|'doughnut')`, `.labels([...])`, `.datasets([...])`, `.height(n)` |
+| `List.make(title)` | Item list card — `.items([{ label, description?, href?, icon? }])`, `.limit(n)` |
+
+### `Chart`
+
+Render line, bar, area, pie, or doughnut charts on the dashboard. Uses `recharts` (optional peer dependency).
+
+```ts
+import { Chart } from '@boostkit/panels'
+
+Chart.make('Revenue')
+  .chartType('line')          // 'line' | 'bar' | 'area' | 'pie' | 'doughnut'
+  .labels(['Jan', 'Feb', 'Mar', 'Apr'])
+  .datasets([
+    { label: 'Revenue', data: [100, 200, 150, 300] },
+    { label: 'Expenses', data: [80, 120, 100, 180], color: '#ef4444' },
+  ])
+  .height(350)                // default: 300
+```
+
+Chart types:
+
+| Type | Description |
+|------|-------------|
+| `line` | Line chart (default) |
+| `bar` | Vertical bar chart |
+| `area` | Filled area chart |
+| `pie` | Pie chart |
+| `doughnut` | Doughnut (pie with inner radius) |
+
+**Requirement**: Install `recharts` — `pnpm add recharts`
+
+### `List`
+
+Render a card with a list of items. Each item has a label, optional description, href, and icon.
+
+```ts
+import { List } from '@boostkit/panels'
+
+List.make('Quick Links')
+  .items([
+    { label: 'Documentation', description: 'Read the docs', href: '/docs', icon: '📖' },
+    { label: 'GitHub', description: 'View source code', href: 'https://github.com/...', icon: '🐙' },
+    { label: 'Support', description: 'Get help', icon: '💬' },
+  ])
+  .limit(5)                   // default: 5, truncates items
+```
 
 ---
 
@@ -1026,6 +1073,44 @@ export class SiteSettingsGlobal extends Global {
 Register on the panel: `.globals([SiteSettingsGlobal])`. API: `GET/PUT /{panel}/api/_globals/{slug}`.
 
 Storage: single `PanelGlobal` table — `slug` (PK) + `data` (JSON string). No migration needed per global.
+
+---
+
+## Resource Widgets
+
+Define widgets on the show page for a specific resource. The `widgets()` method receives the current record and returns schema elements.
+
+```ts
+import { Resource, Stats, Stat, Chart } from '@boostkit/panels'
+
+export class ArticleResource extends Resource {
+  // ... fields, filters, etc.
+
+  widgets(record?: Record<string, unknown>) {
+    return [
+      Stats.make([
+        Stat.make('Word Count').value(String(record?.content ?? '').split(' ').length),
+        Stat.make('Status').value(String(record?.draftStatus ?? 'draft')),
+      ]),
+      Chart.make('Views Over Time')
+        .chartType('area')
+        .labels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+        .datasets([{ label: 'Views', data: [45, 120, 89, 200, 156] }])
+        .height(200),
+    ]
+  }
+}
+```
+
+Widgets render above the record fields on the show page. All schema element types are supported: `Stats`, `Chart`, `List`, `Table`, `Text`, `Heading`.
+
+The `WidgetRenderer` React component handles rendering of all widget types. It is used internally by the show page and also available for custom pages:
+
+```tsx
+import { WidgetRenderer } from '@boostkit/panels/client'
+
+<WidgetRenderer widgets={widgetData} panel="admin" />
+```
 
 ---
 

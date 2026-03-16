@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table.js'
 import { Badge } from '@/components/ui/badge.js'
+import { WidgetRenderer } from '../../../_components/WidgetRenderer.js'
 import type { Data }   from './+data.js'
 
 function t(template: string, vars: Record<string, string | number>): string {
@@ -40,7 +41,7 @@ function flattenFields(schema: SchemaItem[]): FieldMeta[] {
 
 export default function ShowPage() {
   const config = useConfig()
-  const { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData } = useData<Data>()
+  const { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData, widgetData } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
   const i18n = panelMeta.i18n
   const rec = record as Record<string, unknown> | null
@@ -76,6 +77,15 @@ export default function ShowPage() {
             {i18n.edit}
           </button>
         </div>
+
+        {/* Resource widgets */}
+        {widgetData && widgetData.length > 0 && (
+          <div className="flex flex-col gap-4 mb-6">
+            {widgetData.map((el: any, i: number) => (
+              <WidgetRenderer key={i} element={el} panelPath={`/${pathSegment}`} i18n={i18n as any} />
+            ))}
+          </div>
+        )}
 
         {/* Main record fields */}
         <div className="rounded-lg border bg-card">

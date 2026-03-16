@@ -37,7 +37,8 @@
   "peerDependencies": {
     "@boostkit/broadcast": "workspace:*",
     "@boostkit/live": "workspace:*",
-    "@boostkit/storage": "workspace:*"
+    "@boostkit/storage": "workspace:*",
+    "recharts": ">=2.0.0"
   },
   "peerDependenciesMeta": {
     "@boostkit/storage": {
@@ -47,6 +48,9 @@
       "optional": true
     },
     "@boostkit/live": {
+      "optional": true
+    },
+    "recharts": {
       "optional": true
     }
   },

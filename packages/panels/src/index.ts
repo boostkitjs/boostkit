@@ -100,6 +100,8 @@ export { Text }    from './schema/Text.js'
 export { Heading } from './schema/Heading.js'
 export { Stats, Stat } from './schema/Stats.js'
 export { Table }   from './schema/Table.js'
+export { Chart }   from './schema/Chart.js'
+export { List }    from './schema/List.js'
 export type {
   TextElementMeta,
   HeadingElementMeta,
@@ -107,6 +109,11 @@ export type {
   PanelStatMeta,
   TableElementMeta,
   PanelColumnMeta,
+  ChartElementMeta,
+  ChartDataset,
+  ChartType,
+  ListElementMeta,
+  ListItem,
 } from './schema/index.js'
 
 // ─── Schema resolver ────────────────────────────────────────

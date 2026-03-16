@@ -19,6 +19,8 @@ import {
   ComputedField,
   Action,
   Tab,
+  Stats,
+  Stat,
 } from '@boostkit/panels'
 import { Article } from '../../../Models/Article.js'
 
@@ -264,6 +266,15 @@ export class ArticleResource extends Resource {
             await Article.query().delete(record.id)
           }
         }),
+    ]
+  }
+
+  widgets(record?: Record<string, unknown>) {
+    return [
+      Stats.make([
+        Stat.make('Slug').value(String(record?.slug ?? '—')),
+        Stat.make('Status').value(String(record?.draftStatus ?? 'draft')),
+      ]),
     ]
   }
 }

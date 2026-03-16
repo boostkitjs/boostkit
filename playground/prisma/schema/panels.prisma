@@ -14,3 +14,13 @@ model PanelGlobal {
   data      String   @default("{}")  // JSON stored as string for SQLite compatibility
   updatedAt DateTime @updatedAt
 }
+
+model PanelDashboardLayout {
+  id        String   @id @default(cuid())
+  userId    String
+  panel     String
+  layout    String   @default("[]")  // JSON: [{ widgetId, size, x, y, w, h }]
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, panel])
+}

@@ -122,6 +122,13 @@ export async function data(pageContext: PageContextServer) {
     }
   }
 
+  // Resolve resource widgets for the show page
+  let widgetData: unknown[] = []
+  try {
+    const widgets = resource.widgets(record as Record<string, unknown> ?? undefined)
+    widgetData = widgets.map((w: any) => w.toMeta())
+  } catch { /* widgets() threw — skip */ }
+
   const sessionUser = await getSessionUser(pageContext)
-  return { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData, sessionUser }
+  return { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData, widgetData, sessionUser }
 }

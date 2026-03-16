@@ -5,6 +5,8 @@ import type {
   HeadingElementMeta,
   StatsElementMeta,
   TableElementMeta,
+  ChartElementMeta,
+  ListElementMeta,
 } from './schema/index.js'
 
 export type PanelSchemaElementMeta =
@@ -12,6 +14,8 @@ export type PanelSchemaElementMeta =
   | HeadingElementMeta
   | StatsElementMeta
   | TableElementMeta
+  | ChartElementMeta
+  | ListElementMeta
 
 // ─── Schema resolver ───────────────────────────────────────
 
@@ -35,6 +39,18 @@ export async function resolveSchema(
     if (!type) continue
 
     if (type === 'text' || type === 'heading' || type === 'stats') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.push((el as any).toMeta() as PanelSchemaElementMeta)
+      continue
+    }
+
+    if (type === 'chart') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.push((el as any).toMeta() as PanelSchemaElementMeta)
+      continue
+    }
+
+    if (type === 'list') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result.push((el as any).toMeta() as PanelSchemaElementMeta)
       continue
