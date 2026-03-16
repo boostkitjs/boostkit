@@ -265,8 +265,8 @@ function StatProgressWidget({ data }: { data: Record<string, unknown> }) {
   const circumference = 2 * Math.PI * radius
 
   return (
-    <div className="rounded-xl border bg-card p-5 h-full flex flex-col items-center justify-center gap-3">
-      <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+    <div className="rounded-xl border bg-card p-5 h-full flex items-center gap-4">
+      <svg viewBox="0 0 36 36" className="w-14 h-14 shrink-0 -rotate-90">
         <circle
           cx="18" cy="18" r={radius}
           fill="none"
@@ -283,7 +283,7 @@ function StatProgressWidget({ data }: { data: Record<string, unknown> }) {
           strokeLinecap="round"
         />
       </svg>
-      <div className="text-center">
+      <div>
         <p className="text-2xl font-bold tabular-nums">{value}<span className="text-sm font-normal text-muted-foreground">/{max}</span></p>
         {label && <p className="text-xs text-muted-foreground mt-0.5">{label}</p>}
       </div>

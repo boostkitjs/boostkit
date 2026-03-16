@@ -38,7 +38,7 @@ export const adminPanel = Panel.make('admin')
     Widget.make('articles-overview')
       .label('Published Articles')
       .component('stat')
-      .defaultSize({ w: 2, h: 4 })
+      .defaultSize({ w: 3, h: 1 })
       .icon('newspaper')
       .data(async () => ({
         value: await Article.query().count(),
