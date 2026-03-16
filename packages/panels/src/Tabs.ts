@@ -1,11 +1,19 @@
 import type { Field } from './Field.js'
 import type { FieldMeta } from './Field.js'
 
+// ─── Generic item — anything with toMeta() ───────────────────
+
+interface MetaItem {
+  toMeta(): unknown
+}
+
 // ─── Tabs meta (for UI / meta endpoint) ────────────────────
 
 export interface TabMeta {
-  label:  string
-  fields: FieldMeta[]
+  label:    string
+  fields:   FieldMeta[]
+  /** Schema elements (used in Panel.schema() tabs). Undefined when used with fields. */
+  elements?: unknown[]
 }
 
 export interface TabsMeta {
@@ -17,17 +25,39 @@ export interface TabsMeta {
 
 class Tab {
   constructor(
-    private _label:  string,
-    private _fields: Field[] = [],
+    private _label: string,
+    private _items: MetaItem[] = [],
   ) {}
 
-  getLabel():  string  { return this._label }
-  getFields(): Field[] { return this._fields }
+  getLabel():  string      { return this._label }
+
+  /** Get items as Field[] (for resource field context). */
+  getFields(): Field[] {
+    return this._items.filter(
+      (item): item is Field => typeof (item as any).getType === 'function' && typeof (item as any).getName === 'function'
+    )
+  }
+
+  /** Get all raw items. */
+  getItems(): MetaItem[] { return this._items }
+
+  /** Check if this tab contains fields (resource context) or schema elements (panel context). */
+  hasFields(): boolean { return this._items.length > 0 && this.getFields().length === this._items.length }
 
   toMeta(): TabMeta {
+    // Field context — all items are fields with toMeta()
+    if (this.hasFields()) {
+      return {
+        label:  this._label,
+        fields: this.getFields().map((f) => f.toMeta()),
+      }
+    }
+
+    // Schema element context — return label only, elements resolved by resolveSchema
     return {
-      label:  this._label,
-      fields: this._fields.map((f) => f.toMeta()),
+      label: this._label,
+      fields: [],
+      elements: [], // placeholder — resolveSchema fills this in
     }
   }
 }
@@ -39,14 +69,33 @@ export class Tabs {
 
   static make(): Tabs { return new Tabs() }
 
-  /** Add a tab with the given label and fields. */
-  tab(label: string, ...fields: Field[]): this {
-    this._tabs.push(new Tab(label, fields))
+  /**
+   * Add a tab with the given label and items.
+   * Items can be Field instances (resource forms) or schema elements (panel landing page).
+   *
+   * @example
+   * // Resource fields
+   * Tabs.make()
+   *   .tab('Content', TextField.make('title'), TextareaField.make('body'))
+   *   .tab('SEO', TextField.make('metaTitle'))
+   *
+   * // Panel schema elements
+   * Tabs.make()
+   *   .tab('Overview', Stats.make([...]), Chart.make('Revenue')...)
+   *   .tab('Activity', Table.make('Recent')..., List.make('Links')...)
+   */
+  tab(label: string, ...items: MetaItem[]): this {
+    this._tabs.push(new Tab(label, items))
     return this
   }
 
-  /** @internal — flat field list for validation / query building */
+  /** @internal — flat field list for validation / query building (resource context). */
   getFields(): Field[] { return this._tabs.flatMap((t) => t.getFields()) }
+
+  /** @internal — get raw tabs. */
+  getTabs(): Tab[] { return this._tabs }
+
+  getType(): 'tabs' { return 'tabs' }
 
   /** @internal — serialized for the meta endpoint */
   toMeta(): TabsMeta {

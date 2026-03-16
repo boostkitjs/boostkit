@@ -1,4 +1,4 @@
-import { Panel, Heading, Text, Stats, Stat, Table, Chart, List } from '@boostkit/panels'
+import { Panel, Heading, Text, Stats, Stat, Table, Chart, List, Tabs } from '@boostkit/panels'
 import { Dashboard, Widget } from '@boostkit/dashboards'
 import { TodoResource }         from './resources/TodoResource.js'
 import { UserResource }         from './resources/UserResource.js'
@@ -74,7 +74,28 @@ export const adminPanel = Panel.make('admin')
         value: await User.query().count(),
       })),
 
-      
+    // ── Schema-level Tabs ──────────────────────────────────────
+    Tabs.make()
+      .tab('Recent Content',
+        Table.make('Recent Articles')
+          .resource('articles')
+          .columns(['title', 'createdAt'])
+          .limit(5),
+      )
+      .tab('Charts',
+        Chart.make('Weekly Traffic')
+          .chartType('area')
+          .labels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+          .datasets([{ label: 'Visitors', data: [120, 230, 180, 350, 290, 150, 90] }]),
+      )
+      .tab('Links',
+        List.make('Resources')
+          .items([
+            { label: 'Documentation', description: 'Read the BoostKit docs', href: '/docs', icon: '📖' },
+            { label: 'GitHub', description: 'View source code', href: 'https://github.com/boostkitjs/boostkit', icon: '🐙' },
+          ]),
+      ),
+
     // ── User-customizable dashboard (drag/resize/settings) ───
     Dashboard.make('overview')
       .label('Overview')
