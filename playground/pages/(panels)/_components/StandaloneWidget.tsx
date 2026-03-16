@@ -90,7 +90,7 @@ export function StandaloneWidget({ widget, panelPath, pathSegment, i18n }: Props
   // Stat widget — custom render with icon
   if (widget.component === 'stat') {
     return (
-      <div className="rounded-xl border bg-card p-5 flex flex-col gap-1">
+      <div className="rounded-xl border bg-card p-5 flex flex-col gap-1 h-full justify-center">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{widget.label}</p>
           {widget.icon && <WidgetIcon icon={widget.icon} className="w-5 h-5 text-muted-foreground" />}
