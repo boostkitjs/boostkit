@@ -1,11 +1,9 @@
 import type { Field } from './Field.js'
 import type { FieldMeta } from './Field.js'
 
-// ─── Generic item — anything with toMeta() ───────────────────
-
-interface MetaItem {
-  toMeta(): unknown
-}
+// ─── Generic item — any object (fields, schema elements, widgets) ──────
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface MetaItem {}
 
 // ─── Tabs meta (for UI / meta endpoint) ────────────────────
 

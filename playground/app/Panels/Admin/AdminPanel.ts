@@ -183,7 +183,7 @@ export const adminPanel = Panel.make('admin')
                 { name: 'title', label: 'Title' },
                 { name: 'createdAt', label: 'Date' },
               ],
-              records: await Article.query().orderBy('createdAt', 'desc').limit(5).get(),
+              records: await Article.query().orderBy('createdAt', 'DESC').limit(5).get(),
               href: '/admin/articles',
             })),
         ]),
