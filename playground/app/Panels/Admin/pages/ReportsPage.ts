@@ -3,13 +3,14 @@ import { Article } from '../../../Models/Article.js'
 import { User }    from '../../../Models/User.js'
 
 export class ReportsPage extends Page {
-  static slug  = 'reports'
+  static slug  = 'reports/:id'
   static label = 'Reports'
   static icon  = 'bar-chart-3'
 
   static {
-    this.schema(async (ctx) => [
+    this.schema(async ({ params }) => [
       Heading.make('Reports'),
+      Heading.make(`number #${params.id}`),
       Text.make('Content and user analytics.'),
 
       Stats.make([

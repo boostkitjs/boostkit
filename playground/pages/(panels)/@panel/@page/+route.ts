@@ -1,34 +1,44 @@
 import type { RouteSync } from 'vike/types'
 import { PanelRegistry } from '@boostkit/panels'
 
-// Match /{panel}/{page} where {page} is a registered schema-based Page.
+// Match /{panel}/{page...} for registered schema-based Pages.
 //
-// Resources live at /{panel}/resources/{slug} and globals at /{panel}/globals/{slug},
-// so any 2-segment URL under a panel belongs to this route. On the client,
-// PanelRegistry is empty (server-side only), so we trust the URL shape and let
-// the data() hook throw 404 for invalid slugs.
+// Pages can have param slugs (e.g. 'orders/:id') matching multi-segment URLs.
+// Resources live at /{panel}/resources/... and globals at /{panel}/globals/...,
+// so those prefixes are excluded here.
+//
+// On the client PanelRegistry is empty, so we return a tentative match for any
+// non-reserved URL under a panel and let the server validate via data().
 export const route: RouteSync = (pageContext) => {
   const url = pageContext.urlPathname
-  const parts = url.split('/').filter(Boolean) // e.g. ['admin', 'reports']
-  if (parts.length !== 2) return false
+  const parts = url.split('/').filter(Boolean)
+  if (parts.length < 2) return false
 
-  const [panelSegment, pageSlug] = parts
+  const [panelSegment, ...rest] = parts
 
-  // Client-side: PanelRegistry is empty — trust the 2-segment URL shape.
+  // Exclude reserved route groups
+  if (rest[0] === 'resources' || rest[0] === 'globals') return false
+
+  const urlPath = rest.join('/')
+
+  // Client-side: trust the URL shape, server validates.
   if (!import.meta.env.SSR) {
-    return { routeParams: { panel: panelSegment!, page: pageSlug! } }
+    return { routeParams: { panel: panelSegment!, page: urlPath } }
   }
 
-  // Server-side: fully validate against registered panels and pages.
+  // Server-side: find the first page whose slug pattern matches the URL path.
   const panel = PanelRegistry.all().find((p) => p.getPath() === `/${panelSegment}`)
   if (!panel) return false
 
-  const PageClass = panel.getPages().find((P) => P.getSlug() === pageSlug)
-  if (!PageClass) return false
-
-  if (!PageClass.hasSchema()) return false
-
-  return {
-    routeParams: { panel: panelSegment!, page: pageSlug! },
+  for (const PageClass of panel.getPages()) {
+    if (!PageClass.hasSchema()) continue
+    const params = PageClass.matchPath(urlPath)
+    if (params !== null) {
+      return {
+        routeParams: { panel: panelSegment!, page: PageClass.getSlug(), ...params },
+      }
+    }
   }
+
+  return false
 }

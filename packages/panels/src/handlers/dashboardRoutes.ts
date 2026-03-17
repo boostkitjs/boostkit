@@ -44,7 +44,7 @@ export function mountDashboardRoutes(
     if (!dashboard) {
       // Resolve async schema to discover dashboards
       const schema = typeof schemaDef === 'function'
-        ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url })
+        ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url, params: {} })
         : schemaDef ?? []
       for (const el of schema) {
         if (typeof (el as any)?.getType === 'function' && (el as any).getType() === 'dashboard') {
@@ -146,7 +146,7 @@ export function mountDashboardRoutes(
     const widgetId = req.params.widgetId as string
 
     const schema = typeof schemaDef === 'function'
-      ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url })
+      ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url, params: {} })
       : schemaDef ?? []
 
     let widget: any = null
