@@ -130,6 +130,48 @@ List.make('Quick Links')
 | `.items([...])` | Array of `{ label, description?, href?, icon? }` |
 | `.limit(n)` | Maximum items to display (default: 5) |
 
+### `Tabs` (schema-level)
+
+Group schema elements into tabbed sections on the panel landing page. Uses the same `Tabs.make().tab()` API as resource field tabs.
+
+```ts
+import { Tabs, Stats, Stat, Chart, Table, List } from '@boostkit/panels'
+
+Tabs.make()
+  .tab('Overview',
+    Stats.make([
+      Stat.make('Articles').value(await Article.query().count()),
+      Stat.make('Users').value(await User.query().count()),
+    ]),
+  )
+  .tab('Charts',
+    Chart.make('Weekly Traffic')
+      .chartType('area')
+      .labels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+      .datasets([{ label: 'Visitors', data: [120, 230, 180, 350, 290, 150, 90] }]),
+  )
+  .tab('Recent',
+    Table.make('Recent Articles')
+      .resource('articles')
+      .columns(['title', 'createdAt'])
+      .limit(5),
+  )
+  .tab('Links',
+    List.make('Resources')
+      .items([
+        { label: 'Docs', href: '/docs', icon: '📖' },
+        { label: 'GitHub', href: 'https://github.com/...', icon: '🐙' },
+      ]),
+  )
+```
+
+Each tab can contain any schema element type — `Stats`, `Chart`, `Table`, `List`, `Heading`, `Text`, `Widget`, or even a `Dashboard`. The same `Tabs` class works in both contexts:
+
+| Context | Content | Example |
+|---------|---------|---------|
+| Resource fields | `Field` instances | `Tabs.make().tab('Content', TextField.make('title'))` |
+| Panel schema | Schema elements | `Tabs.make().tab('Charts', Chart.make('Revenue')...)` |
+
 ---
 
 ## Panel Landing Page (`Panel.schema()`)
