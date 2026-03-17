@@ -58,6 +58,36 @@ export class Page {
     return this.name.replace(/Page$/, '').toLowerCase()
   }
 
+  /**
+   * Match a URL path against this page's slug pattern and extract route params.
+   * Returns an object of extracted params on match, or `null` if no match.
+   *
+   * Supports `:param` placeholders anywhere in the slug:
+   *   - `orders/:id`       → `orders/123`      → `{ id: '123' }`
+   *   - `reports/:y/:m`    → `reports/2025/03`  → `{ y: '2025', m: '03' }`
+   *   - `item-:id`         → `item-42`          → `{ id: '42' }`
+   *   - `reports`          → `reports`           → `{}`
+   */
+  static matchPath(urlPath: string): Record<string, string> | null {
+    const pattern = this.getSlug()
+    const paramNames: string[] = []
+
+    // Escape regex special chars, then replace :param with a capture group
+    const regexSource = pattern
+      .replace(/[.+*?^${}()|[\]\\]/g, '\\$&')
+      .replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, name: string) => {
+        paramNames.push(name)
+        return '([^/]+)'
+      })
+
+    const match = urlPath.match(new RegExp(`^${regexSource}$`))
+    if (!match) return null
+
+    const params: Record<string, string> = {}
+    paramNames.forEach((name, i) => { params[name] = match[i + 1]! })
+    return params
+  }
+
   static getLabel(): string {
     if (this.label) return this.label
     const name = this.name.replace(/Page$/, '')

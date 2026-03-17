@@ -20,6 +20,8 @@ export interface PanelContext {
   user:    PanelUser | undefined
   headers: Record<string, string>
   path:    string
+  /** Route params extracted from the page's slug pattern (e.g. `orders/:id` → `{ id: '123' }`). */
+  params:  Record<string, string>
 }
 
 // ─── Guard ─────────────────────────────────────────────────

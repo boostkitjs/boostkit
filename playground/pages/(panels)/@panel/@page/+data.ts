@@ -26,7 +26,9 @@ export async function data(pageContext: PageContextServer): Promise<Data> {
     }
   }
 
-  const { panel: pathSegment, page: pageSlug } = pageContext.routeParams as { panel: string; page: string }
+  const { panel: pathSegment, page: pageSlug, ...pageParams } = pageContext.routeParams as {
+    panel: string; page: string; [key: string]: string
+  }
 
   const panel = PanelRegistry.all().find((p) => p.getPath() === `/${pathSegment}`)
   if (!panel) throw render(404)
@@ -48,6 +50,7 @@ export async function data(pageContext: PageContextServer): Promise<Data> {
       user: sessionUser as any,
       headers: (pageContext as any).headers ?? {},
       path: pageContext.urlPathname,
+      params: pageParams,
     }
 
     const elements = typeof schemaDef === 'function'

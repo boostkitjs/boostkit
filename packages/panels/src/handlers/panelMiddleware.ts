@@ -30,6 +30,7 @@ export function buildPanelMiddleware(panel: Panel): MiddlewareHandler[] {
       user:    user as any,
       headers: req.headers as Record<string, string>,
       path:    req.path,
+      params:  {},
     }
     const allowed = await guard(ctx)
     if (!allowed) {

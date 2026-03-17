@@ -33,6 +33,7 @@ export function buildContext(req: AppRequest): PanelContext {
     user:    (req as any).user,
     headers: req.headers as Record<string, string>,
     path:    req.path,
+    params:  {},
   }
 }
 
