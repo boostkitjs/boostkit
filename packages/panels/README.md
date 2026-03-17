@@ -646,53 +646,86 @@ If `.locale()` is not called, the panel reads the active locale from `@boostkit/
 
 ## Custom Pages
 
-Register custom pages alongside resources. They appear in the sidebar/topbar nav and link to any URL you define.
-
-```ts
-// app/Panels/Admin/pages/DashboardPage.ts
-import { Page } from '@boostkit/panels'
-
-export class DashboardPage extends Page {
-  static slug  = 'dashboard'
-  static label = 'Dashboard'
-  static icon  = '📊'
-}
-```
+Register custom pages alongside resources. They appear in the sidebar/topbar nav and live at `/{panel}/{slug}`.
 
 ```ts
 // app/Panels/Admin/AdminPanel.ts
 export const adminPanel = Panel.make('admin')
   .resources([UserResource, TodoResource])
-  .pages([DashboardPage, SettingsPage])
+  .pages([DashboardPage, ReportsPage])
 ```
 
-Resources appear first in the nav, then pages — in the order listed.
+Resources and globals appear first in the nav, then pages — in the order listed.
 
-The page class controls only nav metadata (slug, label, icon). The actual UI is a standard Vike page at `pages/(panels)/@panel/dashboard/+Page.tsx` — create it after publishing the panels pages.
+### Schema-Based Pages
 
-The panel layout (`AdminLayout`) is applied automatically by the shared `+Layout.tsx` — your page just returns its content:
+Pages can define their content via a `static async schema()` method — no Vike page file needed:
+
+```ts
+import { Page, Heading, Stats, Stat, Chart } from '@boostkit/panels'
+import type { PanelContext } from '@boostkit/panels'
+import { User } from '../../../Models/User.js'
+
+export class ReportsPage extends Page {
+  static slug  = 'reports'
+  static label = 'Reports'
+  static icon  = 'bar-chart-3'
+
+  static async schema({ user, params }: PanelContext) {
+    return [
+      Heading.make('Reports'),
+      Stats.make([
+        Stat.make('Total Users').value(await User.query().count()),
+      ]),
+      Chart.make('Monthly Signups')
+        .chartType('bar')
+        .labels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'])
+        .datasets([{ label: 'Signups', data: [12, 19, 8, 25, 14, 22] }]),
+    ]
+  }
+}
+```
+
+The method receives `PanelContext` (`{ user, headers, path, params }`) and can be async. All schema element types are supported: `Heading`, `Text`, `Stats`, `Chart`, `Table`, `List`, `Tabs`.
+
+### Route Params
+
+Slugs support route parameters — extracted and available as `ctx.params`:
+
+```ts
+export class OrderPage extends Page {
+  static slug = 'orders/:id'          // required param
+  // or
+  static slug = 'reports/:section?'   // optional param (segment omitted if absent)
+
+  static async schema({ params }: PanelContext) {
+    return [ Heading.make(`Order #${params.id}`) ]
+  }
+}
+```
+
+### Vike-Backed Pages
+
+Pages without `schema()` render via a Vike page file. Create `+Page.tsx` at the static path after publishing:
 
 ```tsx
 // pages/(panels)/admin/dashboard/+Page.tsx
 export default function DashboardPage() {
-  return (
-    <>
-      <h1>Dashboard</h1>
-      {/* your content */}
-    </>
-  )
+  return <h1>Dashboard</h1>
 }
 ```
+
+The panel layout (`AdminLayout`) is applied automatically via the shared `+Layout.tsx`.
 
 ---
 
 ## Custom Resource Views
 
-To replace the default table for a specific resource, create a Vike page at the resource's static path. Vike's route priority makes static segments win over dynamic ones — your page is served instead of the built-in table.
+To replace the default table for a specific resource, create a Vike page under `resources/` at the resource's static path. Vike's route priority makes static segments win over the dynamic `@resource` — your page is served instead of the built-in table.
 
 ```
-pages/(panels)/@panel/users/+Page.tsx    ← custom index for 'users'
-pages/(panels)/@panel/users/+data.ts
+pages/(panels)/@panel/resources/users/+Page.tsx    ← custom index for 'users'
+pages/(panels)/@panel/resources/users/+data.ts
 ```
 
 The panel layout (`AdminLayout`) is applied automatically — your page just returns its content.
@@ -700,17 +733,17 @@ The panel layout (`AdminLayout`) is applied automatically — your page just ret
 Use `resourceData()` in `+data.ts` to fetch the same data the default table uses:
 
 ```ts
-// pages/(panels)/@panel/users/+data.ts
+// pages/(panels)/@panel/resources/users/+data.ts
 import { resourceData } from '@boostkit/panels'
 import type { PageContextServer } from 'vike/types'
 
 export type Data = Awaited<ReturnType<typeof resourceData>>
 
 export async function data(pageContext: PageContextServer) {
-  const { panel, resource } = pageContext.routeParams as { panel: string; resource: string }
+  const { panel } = pageContext.routeParams as { panel: string }
   return resourceData({
     panel,                         // panel path segment, e.g. 'admin'
-    resource,                      // resource slug, e.g. 'users'
+    resource: 'users',             // resource slug — hardcoded since the path is static
     url: pageContext.urlOriginal,  // full URL — used to parse sort/search/filter/page
   })
 }
