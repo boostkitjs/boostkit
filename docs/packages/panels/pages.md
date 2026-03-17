@@ -1,6 +1,6 @@
 # Custom Pages
 
-Register custom pages alongside resources. They appear in the sidebar/topbar nav in the order defined -- resources first, then pages.
+Register custom pages alongside resources. Pages appear in the sidebar/topbar nav and live at `/{panel}/{slug}`.
 
 ---
 
@@ -11,8 +11,8 @@ Register custom pages alongside resources. They appear in the sidebar/topbar nav
 import { Page } from '@boostkit/panels'
 
 export class DashboardPage extends Page {
-  static slug  = 'dashboard'     // URL slug — defaults to class name sans "Page", lowercased
-  static label = 'Dashboard'    // nav label — defaults to class name sans "Page", title-cased
+  static slug  = 'dashboard'          // URL slug — defaults to class name sans "Page", lowercased
+  static label = 'Dashboard'         // nav label — defaults to class name sans "Page", title-cased
   static icon  = 'layout-dashboard'  // optional lucide icon shown in nav
 }
 ```
@@ -21,12 +21,157 @@ export class DashboardPage extends Page {
 // app/Panels/Admin/AdminPanel.ts
 export const adminPanel = Panel.make('admin')
   .resources([UserResource, TodoResource])
-  .pages([DashboardPage, SettingsPage])
+  .pages([DashboardPage, ReportsPage])
 ```
 
-The `Page` class controls nav metadata only. The actual UI is a standard Vike page you create yourself after publishing.
+Resources and globals appear first in the nav, then pages — in the order listed.
 
-The panel layout (`AdminLayout`) is applied automatically -- your page just returns its content:
+---
+
+## Schema-Based Pages
+
+Pages can define their content entirely via a `schema()` method — no Vike page file needed. The method receives `PanelContext` and can be async.
+
+```ts
+import { Page, Heading, Text, Stats, Stat, Chart } from '@boostkit/panels'
+import type { PanelContext } from '@boostkit/panels'
+import { User } from '../../../Models/User.js'
+
+export class ReportsPage extends Page {
+  static slug  = 'reports'
+  static label = 'Reports'
+  static icon  = 'bar-chart-3'
+
+  static async schema({ user, params }: PanelContext) {
+    return [
+      Heading.make('Reports'),
+      Text.make(`Welcome, ${user?.name ?? 'guest'}`),
+
+      Stats.make([
+        Stat.make('Total Users').value(await User.query().count()),
+      ]),
+
+      Chart.make('Monthly Signups')
+        .chartType('bar')
+        .labels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'])
+        .datasets([{ label: 'Signups', data: [12, 19, 8, 25, 14, 22] }]),
+    ]
+  }
+}
+```
+
+The `schema()` method is called server-side on every page visit, so it can run ORM queries and access request context freely.
+
+### Alternative: `define()`
+
+For inline or programmatic definitions, use `static { this.define(def) }` instead of overriding `schema()`:
+
+```ts
+export class ReportsPage extends Page {
+  static slug = 'reports'
+
+  static {
+    this.define(async ({ user }) => [
+      Heading.make('Reports'),
+      Text.make(`Logged in as ${user?.email ?? 'guest'}`),
+    ])
+  }
+}
+```
+
+Both patterns are equivalent — `define()` stores the function internally and `schema()` calls it. Override `schema()` when the class structure reads more naturally; use `define()` for one-liners.
+
+---
+
+## Route Params
+
+Page slugs can include route parameters. Params are extracted and passed to `schema()` via `ctx.params`.
+
+```ts
+export class OrderPage extends Page {
+  static slug = 'orders/:id'   // required param
+
+  static async schema({ params }: PanelContext) {
+    const order = await Order.find(params.id!)
+    return [
+      Heading.make(`Order #${params.id}`),
+      // ...
+    ]
+  }
+}
+```
+
+### Optional Params
+
+Suffix a param with `?` to make it optional. The segment (and its leading `/`) is omitted when not present:
+
+```ts
+export class ReportsPage extends Page {
+  static slug = 'reports/:section?'
+
+  static async schema({ params }: PanelContext) {
+    // params.section is string | undefined
+    return [
+      Heading.make(params.section ? `Reports › ${params.section}` : 'Reports'),
+    ]
+  }
+}
+```
+
+### Multi-Segment Slugs
+
+Slugs can span multiple URL segments — mix static segments, required params, and optional params freely:
+
+```ts
+// /admin/orders/123/items/5
+export class OrderItemPage extends Page {
+  static slug = 'orders/:id/items/:itemId?'
+}
+```
+
+| Slug pattern | URL | `params` |
+|---|---|---|
+| `orders/:id` | `/admin/orders/123` | `{ id: '123' }` |
+| `reports/:section?` | `/admin/reports` | `{}` |
+| `reports/:section?` | `/admin/reports/traffic` | `{ section: 'traffic' }` |
+| `orders/:id/items/:n?` | `/admin/orders/1/items` | `{ id: '1' }` |
+| `orders/:id/items/:n?` | `/admin/orders/1/items/5` | `{ id: '1', n: '5' }` |
+
+---
+
+## PanelContext
+
+`schema()` receives a `PanelContext` object:
+
+```ts
+interface PanelContext {
+  user:    PanelUser | undefined           // authenticated user (from panel guard)
+  headers: Record<string, string>          // request headers
+  path:    string                          // full URL path
+  params:  Record<string, string | undefined>  // extracted route params
+}
+```
+
+---
+
+## Schema Elements
+
+| Class | Description |
+|---|---|
+| `Heading.make(text)` | Section heading. `.level(1\|2\|3)` controls size (default: `1`) |
+| `Text.make(content)` | Paragraph of text |
+| `Stats.make([...stats])` | Row of stat cards |
+| `Stat.make(label)` | Single stat — `.value(n)`, `.description(text)`, `.trend('up'\|'down'\|'neutral')` |
+| `Chart.make(title)` | Chart — `.chartType('bar'\|'line'\|'area'\|'pie')`, `.labels([...])`, `.datasets([...])` |
+| `Table.make(title)` | Data table — `.resource(slug)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)` |
+| `List.make(title)` | Link list — `.items([{ label, href, icon }])` |
+| `Tabs.make()` | Tab-navigated groups — `.tab(label, ...elements)` |
+
+---
+
+## Vike-Backed Pages
+
+Pages without a `schema()` method render via a Vike page file. Create `+Page.tsx` at the static path after publishing:
 
 ```tsx
 // pages/(panels)/admin/dashboard/+Page.tsx
@@ -40,23 +185,23 @@ export default function DashboardPage() {
 }
 ```
 
+The panel layout (`AdminLayout`) is applied automatically via the shared `+Layout.tsx` — your page just returns its content.
+
 ---
 
 ## Custom Resource Views
 
-To replace the default table for a specific resource, create a Vike page at the resource's static path. Vike's route priority makes static segments win over dynamic ones -- your page is served instead of the built-in table.
+To replace the default table for a specific resource, create a Vike page at the resource's static path under `resources/`. Vike's route priority makes static segments win over dynamic `@resource`:
 
 ```
-pages/(panels)/@panel/users/+Page.tsx    <- custom index for 'users'
-pages/(panels)/@panel/users/+data.ts
+pages/(panels)/@panel/resources/users/+Page.tsx    ← custom index for 'users'
+pages/(panels)/@panel/resources/users/+data.ts
 ```
-
-The panel layout (`AdminLayout`) is applied automatically -- your page just returns its content.
 
 Use `resourceData()` to fetch panel data without duplicating the built-in query logic:
 
 ```ts
-// pages/(panels)/@panel/users/+data.ts
+// pages/(panels)/@panel/resources/users/+data.ts
 import { resourceData } from '@boostkit/panels'
 import type { PageContextServer } from 'vike/types'
 
@@ -69,7 +214,7 @@ export async function data(pageContext: PageContextServer) {
 ```
 
 ```tsx
-// pages/(panels)/@panel/users/+Page.tsx
+// pages/(panels)/@panel/resources/users/+Page.tsx
 import { useData } from 'vike-react/useData'
 import type { Data } from './+data.js'
 
@@ -85,50 +230,4 @@ export default function UsersGridPage() {
 }
 ```
 
-`resourceData()` applies the same sort / search / filter / pagination logic as the default table -- search, sort, and filters all work out of the box.
-
----
-
-## Panel Schema (Landing Page)
-
-By default, visiting the panel root (e.g. `/admin`) redirects to the first resource. Use `.schema()` to render a custom landing page instead.
-
-```ts
-import { Panel, Heading, Text, Stats, Stat, Table } from '@boostkit/panels'
-
-Panel.make('admin')
-  .schema(async (ctx) => [
-    Heading.make('Welcome back'),
-    Text.make(`Logged in as ${ctx.user?.email ?? 'guest'}`),
-
-    Stats.make([
-      Stat.make('Users').value(await User.query().count()),
-      Stat.make('Articles').value(await Article.query().count()),
-    ]),
-
-    Table.make('Recent Articles')
-      .resource('articles')
-      .columns(['title', 'status', 'publishedAt'])
-      .sortBy('createdAt', 'DESC')
-      .limit(5),
-  ])
-```
-
-The function receives `PanelContext` (`{ user, headers, path }`) and can be `async`. For a static schema (no context needed), pass an array directly:
-
-```ts
-.schema([
-  Heading.make('Admin Panel'),
-  Text.make('Manage your application from the sidebar.'),
-])
-```
-
-### Schema Elements
-
-| Class | Description |
-|---|---|
-| `Heading.make(text)` | Section heading. `.level(1\|2\|3)` controls size (default: `1`) |
-| `Text.make(content)` | Paragraph of text |
-| `Stats.make([...stats])` | Row of stat cards |
-| `Stat.make(label)` | Single stat -- `.value(n)`, `.description(text)`, `.trend('up'\|'down'\|'neutral')` |
-| `Table.make(title)` | Data table -- `.resource(slug)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)` |
+`resourceData()` applies the same sort / search / filter / pagination logic as the default table — `?page`, `?perPage`, `?sort`, `?dir`, `?search`, `?filter[field]` all work out of the box.

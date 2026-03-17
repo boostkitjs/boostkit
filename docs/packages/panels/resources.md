@@ -2,6 +2,8 @@
 
 Resources are the core building block of `@boostkit/panels`. Each resource maps to an ORM model and defines the fields, filters, and actions for that model's CRUD interface.
 
+Resource routes live under `/{panel}/resources/{slug}` — e.g., `/admin/resources/users`. This keeps them distinct from globals (`/{panel}/globals/{slug}`) and schema-based pages (`/{panel}/{slug}`).
+
 ---
 
 ## Defining Resources
