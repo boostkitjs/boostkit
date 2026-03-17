@@ -1,12 +1,9 @@
 import { ServiceProvider } from '@boostkit/core'
-import { registerLexical } from './register.js'
 
 export class PanelLexicalServiceProvider extends ServiceProvider {
   register(): void {}
 
   boot(): void {
-    registerLexical()
-
     this.publishes({
       from: new URL('../pages', import.meta.url).pathname,
       to:   'pages/(panels)',
