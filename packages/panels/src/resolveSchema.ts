@@ -274,7 +274,7 @@ export async function resolveSchema(
       const userId = ctx.user?.id as string | undefined
       if (userId) {
         try {
-          const coreModule = await import('@boostkit/core') as unknown as { app(): AppLike }
+          const coreModule = await import(/* @vite-ignore */ '@boostkit/core') as unknown as { app(): AppLike }
           const prisma = coreModule.app().make('prisma') as Record<string, unknown> | null
           if (prisma?.['panelDashboardLayout']) {
             const panelDashboardLayout = prisma['panelDashboardLayout'] as {

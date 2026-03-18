@@ -39,7 +39,7 @@ export function mountVersionRoutes(
     const id = param(req, 'id')
     const docName = `panel:${slug}:${id}`
     try {
-      const { app } = await import('@boostkit/core') as { app(): { make(k: string): unknown } }
+      const { app } = await import(/* @vite-ignore */ '@boostkit/core') as { app(): { make(k: string): unknown } }
       const prisma = app().make('prisma') as PrismaVersionClient
       const versions = await prisma.panelVersion.findMany({
         where: { docName },
@@ -68,7 +68,7 @@ export function mountVersionRoutes(
     const body    = req.body as { label?: string; fields?: Record<string, unknown>; draftStatus?: string }
 
     try {
-      const { app } = await import('@boostkit/core') as { app(): { make(k: string): unknown } }
+      const { app } = await import(/* @vite-ignore */ '@boostkit/core') as { app(): { make(k: string): unknown } }
       const prisma = app().make('prisma') as PrismaVersionClient
 
       let fieldValues: Record<string, unknown>
@@ -79,7 +79,7 @@ export function mountVersionRoutes(
       } else if (isCollab) {
         // Collaborative: read from Y.Doc
         try {
-          const { Live } = await import('@boostkit/live')
+          const { Live } = await import(/* @vite-ignore */ '@boostkit/live')
           fieldValues = Live.readMap(docName, 'fields')
         } catch {
           // Y.Doc not available — fall back to DB record
@@ -130,7 +130,7 @@ export function mountVersionRoutes(
     const docName = `panel:${slug}:${id}`
 
     try {
-      const { Live } = await import('@boostkit/live')
+      const { Live } = await import(/* @vite-ignore */ '@boostkit/live')
 
       // Clear the main shared Y.Doc + all per-field Y.Docs
       await Live.clearDocument(docName)
@@ -174,7 +174,7 @@ export function mountVersionRoutes(
   router.get(`${base}/:id/_versions/:versionId`, async (req: AppRequest, res: AppResponse) => {
     const versionId = param(req, 'versionId')
     try {
-      const { app } = await import('@boostkit/core') as { app(): { make(k: string): unknown } }
+      const { app } = await import(/* @vite-ignore */ '@boostkit/core') as { app(): { make(k: string): unknown } }
       const prisma = app().make('prisma') as PrismaVersionClient
       const version = await prisma.panelVersion.findUnique({ where: { id: versionId } })
       if (!version) return res.status(404).json({ message: 'Version not found.' })

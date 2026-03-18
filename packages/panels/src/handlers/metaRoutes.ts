@@ -147,7 +147,7 @@ export function mountMetaRoutes(
   // Upload endpoint — used by FileField / ImageField
   router.post(`${apiBase}/_upload`, async (req, res) => {
     try {
-      const { Storage } = await import('@boostkit/storage')
+      const { Storage } = await import(/* @vite-ignore */ '@boostkit/storage')
       // req.raw is the Hono Context (c); c.req.parseBody() parses multipart/form-data
       const body = await ((req.raw as Record<string, unknown>)['req'] as { parseBody(): Promise<Record<string, unknown>> }).parseBody()
       const file      = body['file'] as File
