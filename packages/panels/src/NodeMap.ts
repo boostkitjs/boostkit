@@ -155,8 +155,8 @@ export function moveNode(map: NodeMap, id: string, direction: -1 | 1): NodeMap {
   const idx   = nodes.indexOf(id)
   const other = idx + direction
   if (other < 0 || other >= nodes.length) return map
-  const a = nodes[idx]!
-  const b = nodes[other]!
+  const a = nodes[idx] as string
+  const b = nodes[other] as string
   nodes[idx] = b
   nodes[other] = a
 
