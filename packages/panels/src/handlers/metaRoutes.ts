@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from '@boostkit/core'
 import type { RouterLike } from './types.js'
 import type { Panel } from '../Panel.js'
+import type { ModelClass, QueryBuilderLike, RecordRow } from '../types.js'
 import { flattenFields, buildContext } from './utils.js'
 import { FormRegistry } from '../FormRegistry.js'
 
@@ -48,8 +49,7 @@ export function mountMetaRoutes(
     }> = []
 
     for (const ResourceClass of panel.getResources()) {
-       
-      const Model = ResourceClass.model as any
+      const Model = ResourceClass.model as ModelClass<RecordRow> | undefined
       if (!Model) continue
 
       const resource       = new ResourceClass()
@@ -59,25 +59,22 @@ export function mountMetaRoutes(
 
       if (searchableCols.length === 0) continue
 
-       
-      let qb: any = Model.query()
+      let qb: QueryBuilderLike<RecordRow> = Model.query()
       qb = qb.where(searchableCols[0] ?? '', 'LIKE', `%${q}%`)
       for (let i = 1; i < searchableCols.length; i++) {
         qb = qb.orWhere(searchableCols[i] ?? '', 'LIKE', `%${q}%`)
       }
 
-       
-      const rows: any[] = await qb.limit(limit).all()
+      const rows: RecordRow[] = await qb.limit(limit).all()
       if (rows.length === 0) continue
 
-       
-      const titleField: string = (ResourceClass as any).titleField ?? 'id'
+      const titleField: string = ResourceClass.titleField ?? 'id'
       results.push({
         resource: ResourceClass.getSlug(),
         label:    ResourceClass.label ?? ResourceClass.getSlug(),
-        records:  rows.map((r: any) => ({
-          id:    String(r.id),
-          title: String(r[titleField] ?? r.id),
+        records:  rows.map((r) => ({
+          id:    String(r['id']),
+          title: String(r[titleField] ?? r['id']),
         })),
       })
     }
@@ -97,11 +94,9 @@ export function mountMetaRoutes(
 
     // Find the model by name across all resources registered on this panel
     const ResourceClass = panel.getResources().find(
-       
-      (R) => (R as any).model?.name === modelName || R.getSlug() === modelName,
+      (R) => (R.model as ModelClass<RecordRow> | undefined)?.name === modelName || R.getSlug() === modelName,
     )
-     
-    const Model = (ResourceClass as any)?.model as any
+    const Model = ResourceClass?.model as ModelClass<RecordRow> | undefined
 
     if (!Model) {
       return res.status(404).json({ message: `Model "${modelName}" not found on this panel.` })
@@ -110,7 +105,7 @@ export function mountMetaRoutes(
     try {
       await Promise.all(
         ids.map((id, index) =>
-          Model.query().where('id', id).update({ [field]: index }),
+          Model.query().update(id, { [field]: index }),
         ),
       )
       return res.json({ success: true })
@@ -152,11 +147,9 @@ export function mountMetaRoutes(
   // Upload endpoint — used by FileField / ImageField
   router.post(`${apiBase}/_upload`, async (req, res) => {
     try {
-       
-      const { Storage } = await import('@boostkit/storage') as any
+      const { Storage } = await import('@boostkit/storage')
       // req.raw is the Hono Context (c); c.req.parseBody() parses multipart/form-data
-       
-      const body      = await (req.raw as any).req.parseBody() as Record<string, unknown>
+      const body = await ((req.raw as Record<string, unknown>)['req'] as { parseBody(): Promise<Record<string, unknown>> }).parseBody()
       const file      = body['file'] as File
       const disk      = String(body['disk']      ?? 'local')
       const directory = String(body['directory'] ?? 'uploads')

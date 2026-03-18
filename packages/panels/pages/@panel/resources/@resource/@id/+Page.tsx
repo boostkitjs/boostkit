@@ -6,7 +6,7 @@ import { useConfig }   from 'vike-react/useConfig'
 import { navigate }    from 'vike/client/router'
 import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { CellValue, resolveCellValue } from '../../../../_components/CellValue.js'
-import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n } from '@boostkit/panels'
+import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n, RecordRow } from '@boostkit/panels'
 import {
   Table,
   TableBody,
@@ -133,7 +133,7 @@ export default function ShowPage() {
 
 interface RelatedRecord { id: string; [key: string]: unknown }
 interface PaginationMeta { total: number; currentPage: number; lastPage: number; perPage: number }
-interface HasManyInitialData { records: RelatedRecord[]; schema: FieldMeta[]; pagination: PaginationMeta }
+interface HasManyInitialData { records: RecordRow[]; schema: FieldMeta[]; pagination: PaginationMeta }
 
 interface HasManyTableProps {
   field:        FieldMeta
@@ -148,7 +148,7 @@ function HasManyTable({ field, parentId, parentSlug, pathSegment, initialData, i
   const resourceSlug = field.extra?.['resource'] as string | undefined
   const foreignKey   = field.extra?.['foreignKey'] as string | undefined
 
-  const [records, setRecords] = useState<RelatedRecord[]>(initialData?.records ?? [])
+  const [records, setRecords] = useState<RelatedRecord[]>((initialData?.records ?? []) as RelatedRecord[])
   const [schema,  setSchema]  = useState<FieldMeta[]>(initialData?.schema ?? [])
   const [pagination, setPagination] = useState<PaginationMeta | null>(initialData?.pagination ?? null)
   const [page, setPage]    = useState(1)

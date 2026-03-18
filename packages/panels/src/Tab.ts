@@ -1,3 +1,5 @@
+import type { QueryBuilderLike, RecordRow } from './types.js'
+
 // ─── Tab Meta (serialized to client) ────────────────────────
 
 export interface ListTabMeta {
@@ -12,7 +14,7 @@ export class Tab {
   private _name:     string
   private _label:    string
   private _icon?:    string
-  private _queryFn?: (query: any) => any
+  private _queryFn?: (query: QueryBuilderLike<RecordRow>) => QueryBuilderLike<RecordRow>
 
   private constructor(name: string) {
     this._name  = name
@@ -42,7 +44,7 @@ export class Tab {
    * @example
    * Tab.make('published').query((q) => q.where('status', 'published'))
    */
-  query(fn: (query: any) => any): this {
+  query(fn: (query: QueryBuilderLike<RecordRow>) => QueryBuilderLike<RecordRow>): this {
     this._queryFn = fn
     return this
   }
@@ -51,7 +53,7 @@ export class Tab {
 
   getName(): string { return this._name }
   getLabel(): string { return this._label }
-  getQueryFn(): ((query: any) => any) | undefined { return this._queryFn }
+  getQueryFn(): ((query: QueryBuilderLike<RecordRow>) => QueryBuilderLike<RecordRow>) | undefined { return this._queryFn }
 
   toMeta(): ListTabMeta {
     const meta: ListTabMeta = {

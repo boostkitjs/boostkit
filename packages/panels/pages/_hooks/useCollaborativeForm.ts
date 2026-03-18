@@ -1,5 +1,46 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
+// ─── Minimal Yjs type interfaces ──────────────────────────────────────────────
+
+interface YText {
+  toString(): string
+  insert(index: number, text: string): void
+  delete(index: number, length: number): void
+  observe(cb: (event: unknown) => void): void
+  length: number
+}
+
+interface YMap {
+  get(key: string): unknown
+  set(key: string, value: unknown): void
+  has(key: string): boolean
+  observe(cb: (event: unknown) => void): void
+}
+
+interface YDoc {
+  getText(name: string): YText
+  getMap(name: string): YMap
+  transact(fn: () => void): void
+  destroy(): void
+}
+
+interface YjsProvider {
+  awareness: {
+    setLocalStateField(field: string, value: Record<string, unknown>): void
+    getStates(): Map<number, Record<string, unknown>>
+    on(event: string, cb: () => void): void
+  }
+  once(event: string, cb: () => void): void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string, cb: (data: any) => void): void
+  destroy(): void
+}
+
+interface IdbProvider {
+  once(event: string, cb: () => void): void
+  destroy(): void
+}
+
 interface CollaborativeField {
   name:          string
   yjs?: boolean
@@ -31,11 +72,11 @@ interface CollaborativeFormReturn {
   setCollaborativeValue: (name: string, value: unknown) => void
   syncAllFieldsToDoc:    (allValues: Record<string, unknown>) => void
   /** Get Y.Text instance for a text field. Returns null if not connected or field is not a text field. */
-  getYText:              (fieldName: string) => any | null
+  getYText:              (fieldName: string) => YText | null
   /** Get the Y.Doc instance. */
-  getDoc:                () => any | null
+  getDoc:                () => YDoc | null
   /** Get the awareness instance. Returns null if not connected. */
-  awareness:             any | null
+  awareness:             YjsProvider['awareness'] | null
   /** Stable user identity — same name/color for input/textarea cursors and Lexical cursors. */
   userName:              string
   userColor:             string
@@ -58,18 +99,18 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
   const [connected, setConnected] = useState(false)
   const [synced, setSynced] = useState(false)
   const [presences, setPresences] = useState<Presence[]>([])
-  const [awareness, setAwareness] = useState<any>(null)
-   
-  const providerRef  = useRef<any>(null)
-   
-  const idbRef       = useRef<any>(null)
-   
-  const docRef       = useRef<any>(null)
-   
-  const awarenessRef = useRef<any>(null)
+  const [awareness, setAwareness] = useState<YjsProvider['awareness'] | null>(null)
+
+  const providerRef  = useRef<YjsProvider | null>(null)
+
+  const idbRef       = useRef<IdbProvider | null>(null)
+
+  const docRef       = useRef<YDoc | null>(null)
+
+  const awarenessRef = useRef<YjsProvider['awareness'] | null>(null)
   const suppressRef  = useRef<Set<string>>(new Set())
   /** Map of fieldName → Y.Text for text fields */
-  const yTextMapRef  = useRef<Map<string, any>>(new Map())
+  const yTextMapRef  = useRef<Map<string, YText>>(new Map())
 
   // Stable user identity — generated once per hook instance, shared by
   // input/textarea cursors (useYTextCursors) and Lexical (CollaborationPlugin).
@@ -88,7 +129,8 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
 
     async function connect() {
        
-      const Y = await import('yjs' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Y = await import('yjs' as any) as { Doc: new () => YDoc }
       if (destroyed) return
 
       const doc = new Y.Doc()
@@ -99,7 +141,7 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
       const mapFields  = opts.fields.filter(f => f.yjs && !f.textField)
 
       // Create Y.Text instances for text fields
-      const yTexts = new Map<string, any>()
+      const yTexts = new Map<string, YText>()
       for (const f of textFields) {
         const yText = doc.getText(`field:${f.name}`)
         yTexts.set(f.name, yText)
@@ -120,10 +162,9 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
       }
 
       // Observe Y.Map changes for non-text fields → update React state
-       
-      fieldsMap.observe((event: any) => {
-         
-        event.keysChanged.forEach((key: string) => {
+      fieldsMap.observe((event: unknown) => {
+        const mapEvent = event as { keysChanged: Set<string> }
+        mapEvent.keysChanged.forEach((key: string) => {
           if (suppressRef.current.has(key)) { suppressRef.current.delete(key); return }
           const field = mapFields.find(f => f.name === key)
           if (field) opts.setValue(key, fieldsMap.get(key))
@@ -154,7 +195,8 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
       // ── IndexedDB provider (offline persistence) ──────────
       if (useIndexeddb) {
          
-        import('y-indexeddb' as any).then(({ IndexeddbPersistence }: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        import('y-indexeddb' as any).then(({ IndexeddbPersistence }: { IndexeddbPersistence: new (name: string, doc: YDoc) => IdbProvider }) => {
           if (destroyed) return
           const idb = new IndexeddbPersistence(opts.docName, doc)
           idbRef.current = idb
@@ -179,7 +221,8 @@ export function useCollaborativeForm(options: CollaborativeFormOptions | null): 
       // ── WebSocket provider (real-time collaboration) ────────
       if (useWebsocket) {
          
-        const { WebsocketProvider } = await import('y-websocket' as any) as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { WebsocketProvider } = await import('y-websocket' as any) as { WebsocketProvider: new (url: string, room: string, doc: YDoc) => YjsProvider }
         if (destroyed) return
 
         const wsProto  = window.location.protocol === 'https:' ? 'wss' : 'ws'

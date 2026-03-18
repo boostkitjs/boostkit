@@ -1,10 +1,38 @@
-import type { MiddlewareHandler } from '@boostkit/core'
+import type { MiddlewareHandler, AppRequest, AppResponse } from '@boostkit/core'
 import type { Panel } from '../Panel.js'
 import type { Widget, WidgetSize } from '../Widget.js'
+import type { Dashboard, DashboardTab } from '../Dashboard.js'
+import type { PanelUser } from '../types.js'
+import type { RouterLike } from './types.js'
 import { DashboardRegistry } from '../DashboardRegistry.js'
 
+// ── Minimal structural type for dynamically-resolved app/auth ──
+
+interface AppContainer {
+  make(key: string): unknown
+}
+
+interface AuthLike {
+  api: {
+    getSession(opts: { headers: Headers }): Promise<{ user?: { id?: string } } | null>
+  }
+}
+
+interface PrismaLayoutClient {
+  panelDashboardLayout: {
+    findFirst(args: {
+      where: Record<string, unknown>
+    }): Promise<{ layout: string } | null>
+    upsert(args: {
+      where: Record<string, unknown>
+      create: Record<string, unknown>
+      update: Record<string, unknown>
+    }): Promise<void>
+  }
+}
+
 export function mountDashboardRoutes(
-  router: { get: (...args: unknown[]) => void; put: (...args: unknown[]) => void },
+  router: RouterLike,
   panel:  Panel,
   mw:     MiddlewareHandler[],
 ): void {
@@ -15,41 +43,47 @@ export function mountDashboardRoutes(
   // Register statically-declared Dashboard elements
   if (schemaDef && Array.isArray(schemaDef)) {
     for (const el of schemaDef) {
-      if (typeof (el as any)?.getType === 'function' && (el as any).getType() === 'dashboard') {
-        DashboardRegistry.register(panelName, el as any)
+      if (typeof el?.getType === 'function' && el.getType() === 'dashboard') {
+        DashboardRegistry.register(panelName, el as Dashboard)
       }
     }
   }
 
   // Resolve user from auth session
-  async function resolveUserId(req: any): Promise<string | undefined> {
-    if (req.user?.id) return req.user.id as string
+  async function resolveUserId(req: AppRequest): Promise<string | undefined> {
+    const reqUser = req as AppRequest & { user?: PanelUser }
+    if (reqUser.user?.id) return String(reqUser.user.id)
     try {
-      const { app } = await import('@boostkit/core') as any
-      const auth = app().make('auth')
+      const { app } = await import('@boostkit/core') as { app(): AppContainer }
+      const auth = app().make('auth') as AuthLike | null
       if (auth?.api?.getSession) {
         const session = await auth.api.getSession({
           headers: new Headers(req.headers as Record<string, string>),
         })
-        return session?.user?.id as string | undefined
+        return session?.user?.id
       }
     } catch { /* auth not configured */ }
     return undefined
   }
 
   // GET /_dashboard/:dashId/widgets — list widgets with resolved data
-  router.get(`${base}/:dashId/widgets`, async (req: any, res: any) => {
-    let dashboard = DashboardRegistry.get(panelName, req.params.dashId)
+  router.get(`${base}/:dashId/widgets`, async (req: AppRequest, res: AppResponse) => {
+    const params  = req.params as Record<string, string>
+    const query   = req.query as Record<string, string | undefined>
+    const reqUser = (req as AppRequest & { user?: PanelUser }).user
+
+    let dashboard: Dashboard | undefined = DashboardRegistry.get(panelName, params['dashId'] ?? '')
 
     if (!dashboard) {
       // Resolve async schema to discover dashboards
       const schema = typeof schemaDef === 'function'
-        ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url, params: {} })
+        ? await schemaDef({ user: reqUser, headers: req.headers as Record<string, string>, path: req.url, params: {} })
         : schemaDef ?? []
       for (const el of schema) {
-        if (typeof (el as any)?.getType === 'function' && (el as any).getType() === 'dashboard') {
-          DashboardRegistry.register(panelName, el as any)
-          if ((el as any).getId() === req.params.dashId) dashboard = el as any
+        if (typeof el?.getType === 'function' && el.getType() === 'dashboard') {
+          const dash = el as Dashboard
+          DashboardRegistry.register(panelName, dash)
+          if (dash.getId() === params['dashId']) dashboard = dash
         }
       }
     }
@@ -57,10 +91,10 @@ export function mountDashboardRoutes(
     if (!dashboard) return res.status(404).json({ error: 'Dashboard not found' })
 
     // Determine which widgets to return (top-level or tab)
-    const tabId = req.query?.tab as string | undefined
-    let widgets = dashboard.getWidgets()
+    const tabId = query['tab']
+    let widgets: Widget[] = dashboard.getWidgets()
     if (tabId) {
-      const tab = dashboard.getTabs()?.find((t: any) => t.getId() === tabId)
+      const tab = dashboard.getTabs()?.find((t: DashboardTab) => t.getId() === tabId)
       if (tab) widgets = tab.getWidgets()
     }
 
@@ -71,10 +105,11 @@ export function mountDashboardRoutes(
       const dataFn = widget.getDataFn()
       if (dataFn) {
         try {
-          const settingsStr = req.query?.settings as string | undefined
-          const settings = settingsStr ? JSON.parse(settingsStr) : undefined
+          const settingsStr = query['settings']
+          const settings = settingsStr ? JSON.parse(settingsStr) as Record<string, unknown> : undefined
           const uid = await resolveUserId(req)
-          data = await dataFn({ user: uid ? { id: uid, ...req.user } : req.user }, settings)
+          const ctx: PanelUser | undefined = uid ? { id: uid, ...reqUser } : reqUser
+          data = await dataFn(ctx, settings)
         } catch { /* data resolution failed */ }
       }
       results.push({ ...meta, data })
@@ -83,10 +118,12 @@ export function mountDashboardRoutes(
   }, mw)
 
   // GET /_dashboard/:dashId/layout — user's saved layout (or default)
-  router.get(`${base}/:dashId/layout`, async (req: any, res: any) => {
+  router.get(`${base}/:dashId/layout`, async (req: AppRequest, res: AppResponse) => {
     const userId = await resolveUserId(req)
-    const dashId = req.params.dashId as string
-    const tabId = req.query?.tab as string | undefined
+    const params = req.params as Record<string, string>
+    const query  = req.query as Record<string, string | undefined>
+    const dashId = params['dashId'] ?? ''
+    const tabId  = query['tab']
     const layoutKey = tabId ? `${dashId}:${tabId}` : dashId
 
     if (!userId) {
@@ -94,14 +131,14 @@ export function mountDashboardRoutes(
     }
 
     try {
-      const { app } = await import('@boostkit/core') as any
-      const prisma = app().make('prisma')
+      const { app } = await import('@boostkit/core') as { app(): AppContainer }
+      const prisma = app().make('prisma') as PrismaLayoutClient | null
       if (prisma?.panelDashboardLayout) {
         const record = await prisma.panelDashboardLayout.findFirst({
           where: { userId, panel: panelName, dashboardId: layoutKey },
         })
         if (record) {
-          return res.json({ layout: JSON.parse(String(record.layout)) })
+          return res.json({ layout: JSON.parse(record.layout) })
         }
       }
     } catch { /* DB not available — fall through to default */ }
@@ -110,14 +147,16 @@ export function mountDashboardRoutes(
   }, mw)
 
   // PUT /_dashboard/:dashId/layout — save user's layout
-  router.put(`${base}/:dashId/layout`, async (req: any, res: any) => {
+  router.put(`${base}/:dashId/layout`, async (req: AppRequest, res: AppResponse) => {
     const userId = await resolveUserId(req)
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    const dashId = req.params.dashId as string
-    const tabId = req.query?.tab as string | undefined
+    const params = req.params as Record<string, string>
+    const query  = req.query as Record<string, string | undefined>
+    const dashId = params['dashId'] ?? ''
+    const tabId  = query['tab']
     const layoutKey = tabId ? `${dashId}:${tabId}` : dashId
     const body = req.body as { layout?: unknown }
     if (!body?.layout || !Array.isArray(body.layout)) {
@@ -125,8 +164,8 @@ export function mountDashboardRoutes(
     }
 
     try {
-      const { app } = await import('@boostkit/core') as any
-      const prisma = app().make('prisma')
+      const { app } = await import('@boostkit/core') as { app(): AppContainer }
+      const prisma = app().make('prisma') as PrismaLayoutClient | null
       if (prisma?.panelDashboardLayout) {
         await prisma.panelDashboardLayout.upsert({
           where: { userId_panel_dashboardId: { userId, panel: panelName, dashboardId: layoutKey } },
@@ -142,28 +181,30 @@ export function mountDashboardRoutes(
   }, mw)
 
   // GET /_widgets/:widgetId — resolve a standalone widget's data
-  router.get(`${panel.getApiBase()}/_widgets/:widgetId`, async (req: any, res: any) => {
-    const widgetId = req.params.widgetId as string
+  router.get(`${panel.getApiBase()}/_widgets/:widgetId`, async (req: AppRequest, res: AppResponse) => {
+    const params  = req.params as Record<string, string>
+    const widgetId = params['widgetId'] ?? ''
+    const reqUser  = (req as AppRequest & { user?: PanelUser }).user
 
     const schema = typeof schemaDef === 'function'
-      ? await schemaDef({ user: req.user, headers: req.headers ?? {}, path: req.url, params: {} })
+      ? await schemaDef({ user: reqUser, headers: req.headers as Record<string, string>, path: req.url, params: {} })
       : schemaDef ?? []
 
-    let widget: any = null
+    let widget: Widget | null = null
     for (const el of schema) {
-      if (typeof (el as any)?.getType === 'function' && (el as any).getType() === 'widget' && (el as any).getId() === widgetId) {
-        widget = el
+      if (typeof el?.getType === 'function' && el.getType() === 'widget' && (el as Widget).getId() === widgetId) {
+        widget = el as Widget
         break
       }
     }
 
     if (!widget) return res.status(404).json({ error: 'Widget not found' })
 
-    const meta = widget.toMeta()
+    const meta = widget.toMeta() as ReturnType<Widget['toMeta']> & { data?: unknown }
     const dataFn = widget.getDataFn?.()
     if (dataFn) {
       try {
-        meta.data = await dataFn({ user: req.user })
+        meta.data = await dataFn(reqUser)
       } catch {
         meta.data = null
       }
@@ -190,7 +231,7 @@ function getDefaultLayout(panelName: string, dashId: string, tabId?: string): un
 
   let widgets: Widget[]
   if (tabId) {
-    const tab = dashboard.getTabs()?.find((t: any) => t.getId() === tabId)
+    const tab = dashboard.getTabs()?.find((t: DashboardTab) => t.getId() === tabId)
     widgets = tab ? tab.getWidgets() : []
   } else {
     widgets = dashboard.getWidgets()
