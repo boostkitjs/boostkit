@@ -23,6 +23,8 @@ const SSR_EXTERNALS = [
   'ioredis',
   // Storage — server-only (uses node:fs, node:path)
   '@boostkit/storage',
+  // Image — uses sharp (native binary)
+  '@boostkit/image',
 ]
 
 // ─── SSR no-externals ──────────────────────────────────────
