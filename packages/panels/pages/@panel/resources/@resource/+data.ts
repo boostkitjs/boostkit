@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PanelRegistry } from '@boostkit/panels'
 import { getSessionUser } from '../../../_lib/getSessionUser.js'
 

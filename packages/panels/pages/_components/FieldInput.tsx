@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Checkbox } from '@base-ui-components/react/checkbox'
 import { Dialog } from '@base-ui-components/react/dialog'

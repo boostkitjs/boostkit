@@ -42,7 +42,6 @@ export async function data(pageContext: PageContextServer): Promise<Data> {
   const panelMeta = panel.toMeta()
   const sessionUser = await getSessionUser(pageContext)
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const ctx = {
     user: sessionUser as any,
     headers: (pageContext as any).headers ?? {},
