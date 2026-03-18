@@ -7,4 +7,4 @@
 import { Panel, Widget, Dashboard, Stats, Chart, Table, List, Tabs } from '@boostkit/panels'
 ```
 
-See the [Panels Widgets documentation](/packages/panels/widgets) for the full API reference.
+See the [Panels Widgets documentation](/packages/panels/schema) for the full API reference.

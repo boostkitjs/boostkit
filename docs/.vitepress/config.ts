@@ -168,6 +168,7 @@ export default defineConfig({
             { text: 'Resources', link: '/packages/panels/resources' },
             { text: 'Fields', link: '/packages/panels/fields' },
             { text: 'Listing Records', link: '/packages/panels/listing' },
+            { text: 'Schema Elements', link: '/packages/panels/schema' },
             { text: 'Navigation', link: '/packages/panels/navigation' },
             { text: 'Globals', link: '/packages/panels/globals' },
             { text: 'Custom Pages', link: '/packages/panels/pages' },

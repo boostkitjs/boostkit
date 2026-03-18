@@ -54,24 +54,87 @@ The `Stats` row auto-sizes: 1 stat = full width, 2 = two columns, 3 = three colu
 
 ### `Table`
 
-Data table sourced from a panel resource. Displays records with sorting and a configurable row limit.
+Data table sourced from a Resource class or a raw ORM model. Supports client-side sort, search, and drag-to-reorder.
+
+Two modes:
+
+**Resource-linked** — inherits the Resource's model, default sort, and field labels. "View all" links to the resource index.
 
 ```ts
 import { Table } from '@boostkit/panels'
+import { ArticleResource } from './resources/ArticleResource.js'
 
+// Column names resolved from Resource fields
 Table.make('Recent Articles')
-  .resource('articles')                    // resource slug
+  .fromResource(ArticleResource)
   .columns(['title', 'status', 'createdAt'])
   .sortBy('createdAt', 'DESC')
   .limit(5)
+
+// Or with typed Column instances
+Table.make('Recent Articles')
+  .fromResource(ArticleResource)
+  .columns([
+    Column.make('title').label('Title').sortable().searchable(),
+    Column.make('createdAt').label('Published').date(),
+  ])
+  .limit(5)
+```
+
+**Model-backed** — query any ORM model directly, no resource needed.
+
+```ts
+import { Table, Column } from '@boostkit/panels'
+import { User } from 'App/Models/User.js'
+
+Table.make('All Users')
+  .fromModel(User)
+  .columns([
+    Column.make('name').label('Name').sortable().searchable(),
+    Column.make('email').label('Email').sortable().searchable(),
+    Column.make('createdAt').label('Joined').date(),
+  ])
+  .sortBy('createdAt', 'DESC')
+  .limit(10)
+  .reorderable('position')   // enable drag-to-reorder rows
 ```
 
 | Method | Description |
 |--------|-------------|
-| `.resource(slug)` | Resource slug to query |
-| `.columns([...])` | Column names to display |
-| `.sortBy(column, direction)` | Sort order (`'ASC'` or `'DESC'`) |
-| `.limit(n)` | Maximum rows to show |
+| `.fromResource(Class)` | Use a Resource class as data source — inherits model, sort defaults, and field labels |
+| `.fromModel(Class)` | Use an ORM Model class directly as data source |
+| `.columns([...])` | Column names (`string[]`) or `Column` instances |
+| `.sortBy(col, dir)` | Server-side sort order (`'ASC'` or `'DESC'`) |
+| `.limit(n)` | Maximum rows to show (default: 5) |
+| `.reorderable(field?)` | Enable drag-to-reorder rows, saves to `field` (default: `'position'`) |
+
+### `Column`
+
+Typed display column for `Table.make()`. Distinct from `Field` — Column is for display/sort/search only, not for input or validation.
+
+```ts
+import { Column } from '@boostkit/panels'
+
+Column.make('title').label('Article Title').sortable().searchable()
+Column.make('status').label('Status').badge()
+Column.make('createdAt').label('Date').date()
+Column.make('price').label('Price').numeric()
+Column.make('active').label('Active').boolean()
+Column.make('avatar').label('Photo').image()
+Column.make('name').label('Name').href('/admin/resources/users/:id')
+```
+
+| Method | Description |
+|--------|-------------|
+| `.label(text)` | Column header label |
+| `.sortable()` | Enables client-side sort on click |
+| `.searchable()` | Includes in client-side search |
+| `.date(format?)` | Format value as a date (`'medium'` or `'datetime'`) |
+| `.numeric()` | Right-align and treat as number |
+| `.boolean()` | Render as Yes/No |
+| `.badge()` | Render as a badge |
+| `.image()` | Render as a small thumbnail |
+| `.href(pattern)` | Wrap cell in a link; use `:id` as placeholder |
 
 ### `Chart`
 
@@ -152,7 +215,7 @@ Tabs.make()
   )
   .tab('Recent',
     Table.make('Recent Articles')
-      .resource('articles')
+      .fromResource(ArticleResource)
       .columns(['title', 'createdAt'])
       .limit(5),
   )
@@ -231,7 +294,7 @@ export const adminPanel = Panel.make('admin')
       .height(350),
 
     Table.make('Recent Articles')
-      .resource('articles')
+      .fromResource(ArticleResource)
       .columns(['title', 'status', 'publishedAt'])
       .sortBy('createdAt', 'DESC')
       .limit(5),
@@ -311,7 +374,7 @@ export default function CustomPage({ data }) {
 
 ## Dashboard Widgets
 
-For user-customizable dashboards with drag-and-drop, layout persistence, lazy loading, and polling, see the [Widgets documentation](/packages/panels/widgets).
+For user-customizable dashboards with drag-and-drop, layout persistence, lazy loading, and polling, see the [Widgets documentation](/packages/panels/schema).
 
 Key concepts:
 
@@ -320,3 +383,68 @@ Key concepts:
 - **Dashboard tabs**: `Dashboard.tab('id').label('Name').widgets([...])` for tabbed widget sections
 - **Lazy + polling**: `.lazy()` defers to client-side, `.poll(ms)` re-fetches periodically
 - **Widget settings**: Configurable per-widget fields editable by users
+
+---
+
+## `Form` (Standalone)
+
+A standalone form in the panel schema — not tied to a resource. Useful for contact forms, settings forms, feedback, etc. The submit handler runs server-side via a POST to `/{panel}/api/_forms/{id}/submit`.
+
+```ts
+import { Form, TextField, EmailField, TextareaField } from '@boostkit/panels'
+
+Form.make('contact')
+  .fields([
+    TextField.make('name').label('Your Name').required(),
+    EmailField.make('email').label('Email Address').required(),
+    TextareaField.make('message').label('Message').required(),
+  ])
+  .submitLabel('Send Message')
+  .successMessage('Message sent! We\'ll get back to you shortly.')
+  .onSubmit(async (data) => {
+    // data = { name, email, message }
+    await Mail.to('admin@example.com').send(new ContactMail(data))
+  })
+```
+
+| Method | Description |
+|--------|-------------|
+| `.fields([...])` | Array of `Field` instances |
+| `.onSubmit(fn)` | Async handler called with form data on submit |
+| `.submitLabel(text)` | Submit button label (default: `'Submit'`) |
+| `.successMessage(text)` | Message shown after successful submit |
+
+---
+
+## `Dialog` (Modal Wrapper)
+
+A presentational modal dialog. The trigger button opens the dialog; the content is defined via `.schema()`. Any schema element can be placed inside — most commonly a `Form`.
+
+```ts
+import { Dialog, Form, TextField, EmailField, TextareaField } from '@boostkit/panels'
+
+Dialog.make('contact-modal')
+  .trigger('Contact Support')
+  .title('Send a Message')
+  .description('We\'ll get back to you within 24 hours.')
+  .schema([
+    Form.make('contact-modal-form')
+      .fields([
+        TextField.make('name').label('Your Name').required(),
+        EmailField.make('email').label('Email Address').required(),
+        TextareaField.make('message').label('Message').required(),
+      ])
+      .submitLabel('Send Message')
+      .successMessage('Message sent!')
+      .onSubmit(async (data) => {
+        console.log('[contact modal]', data)
+      }),
+  ])
+```
+
+| Method | Description |
+|--------|-------------|
+| `.trigger(label)` | Button label that opens the dialog |
+| `.title(text)` | Dialog header title |
+| `.description(text)` | Subtitle / description below the title |
+| `.schema([...elements])` | Schema elements rendered inside the dialog |
