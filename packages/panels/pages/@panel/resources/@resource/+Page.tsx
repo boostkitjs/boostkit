@@ -85,10 +85,10 @@ export default function ResourceListPage() {
   // ── Live table auto-refresh (opt-in via Resource.live) ──
   useLiveTable({ enabled: resourceMeta.live, slug, pathSegment })
 
-  // ── Persist table state (opt-in via Resource.persistTableState) ──
+  // ── Remember table state (opt-in via Resource.rememberTable) ──
   const storageKey          = `panels:${pathSegment}:${slug}:tableState`
   const selectionStorageKey = `panels:${pathSegment}:${slug}:selected`
-  const persist = resourceMeta.persistTableState
+  const persist = resourceMeta.rememberTable
 
   // Compute on every render: does the URL lack params but sessionStorage has saved ones?
   const needsRestore = persist
@@ -198,7 +198,7 @@ export default function ResourceListPage() {
       if (res.ok) {
         const body = await res.json() as { data: unknown[] }
         setExtraRecords((prev) => [...prev, ...body.data])
-        // Update URL without navigation so persistTableState can save the position
+        // Update URL without navigation so rememberTable can save the position
         window.history.pushState(null, '', url.pathname + url.search)
         if (persist) sessionStorage.setItem(storageKey, url.search)
       }

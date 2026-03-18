@@ -1,4 +1,4 @@
-import { Panel, Heading, Text, Stats, Stat, Table, Chart, List, Tabs, Section, Dashboard, Widget } from '@boostkit/panels'
+import { Panel, Heading, Text, Stats, Stat, Table, Chart, List, Tabs, Section, Dashboard, Widget, Form, Dialog, TextField, TextareaField, EmailField } from '@boostkit/panels'
 import { TodoResource }         from './resources/TodoResource.js'
 import { UserResource }         from './resources/UserResource.js'
 import { ArticleResource }      from './resources/ArticleResource.js'
@@ -111,6 +111,39 @@ export const adminPanel = Panel.make('admin')
             { label: 'GitHub', description: 'View source code', href: 'https://github.com/boostkitjs/boostkit', icon: '🐙' },
           ]),
       ),
+
+    // ── Dialog wrapping a Form ───────────────────────────────
+    Dialog.make('contact-modal')
+      .trigger('Contact Support')
+      .title('Send a Message')
+      .description('We\'ll get back to you within 24 hours.')
+      .schema([
+        Form.make('contact-modal-form')
+          .fields([
+            TextField.make('name').label('Your Name').required(),
+            EmailField.make('email').label('Email Address').required(),
+            TextareaField.make('message').label('Message').required(),
+          ])
+          .submitLabel('Send Message')
+          .successMessage('Message sent!')
+          .onSubmit(async (data) => {
+            console.log('[contact modal form]', data)
+          }),
+      ]),
+
+    // ── Standalone Form ─────────────────────────────────────
+    Form.make('contact')
+      .fields([
+        TextField.make('name').label('Your Name').required(),
+        EmailField.make('email').label('Email Address').required(),
+        TextareaField.make('message').label('Message').required(),
+      ])
+      .submitLabel('Send Message')
+      .successMessage('Message sent! We\'ll get back to you shortly.')
+      .onSubmit(async (data) => {
+        // Example: await Mail.to('admin@example.com').send(new ContactMail(data))
+        console.log('[contact form]', data)
+      }),
 
     // ── User-customizable dashboard (drag/resize/settings) ───
     Dashboard.make('overview')

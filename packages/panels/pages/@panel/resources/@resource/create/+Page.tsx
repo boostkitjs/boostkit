@@ -78,8 +78,8 @@ export default function CreatePage() {
     setValue,
   })
 
-  // ── Form persist (localStorage backup) ─────────────────────
-  const persistEnabled = resourceMeta.persistFormState ?? false
+  // ── Draft recovery (localStorage backup) ─────────────────────
+  const persistEnabled = resourceMeta.draftRecovery ?? false
   const storageKey = `bk:${pathSegment}:${slug}:create`
 
   const persistOps = useFormPersist({

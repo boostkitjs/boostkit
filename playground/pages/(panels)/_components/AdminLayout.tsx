@@ -88,7 +88,7 @@ function useNavItemsWithPersistedState(panelMeta: PanelMeta): NavItem[] {
   const segment = panelMeta.path.replace(/^\//, '')
   return base.map((item) => {
     const resource = panelMeta.resources.find((r) => r.slug === item.slug)
-    if (!resource?.persistTableState) return item
+    if (!resource?.rememberTable) return item
     const saved = sessionStorage.getItem(`panels:${segment}:${item.slug}:tableState`)
     return saved ? { ...item, href: item.href + saved } : item
   })

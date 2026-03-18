@@ -1,7 +1,8 @@
 import type { MiddlewareHandler } from '@boostkit/core'
 import type { RouterLike } from './types.js'
 import type { Panel } from '../Panel.js'
-import { flattenFields } from './utils.js'
+import { flattenFields, buildContext } from './utils.js'
+import { FormRegistry } from '../FormRegistry.js'
 
 export function mountMetaRoutes(
   router: RouterLike,
@@ -82,6 +83,36 @@ export function mountMetaRoutes(
     }
 
     return res.json({ results })
+  }, mw)
+
+  // Form submit endpoint — used by Form.make().onSubmit()
+  router.post(`${apiBase}/_forms/:formId/submit`, async (req, res) => {
+    const formId = (req.params as Record<string, string> | undefined)?.['formId']
+    if (!formId) return res.status(400).json({ message: 'Missing formId.' })
+
+    // Look up registered handler (populated when the page containing the form is SSR'd)
+    const handler = FormRegistry.get(panel.getName(), formId)
+    if (!handler) {
+      // Handler not yet registered — try to warm up by evaluating the schema
+      try {
+        const { resolveSchema } = await import('../resolveSchema.js') as { resolveSchema: typeof import('../resolveSchema.js').resolveSchema }
+        const ctx = buildContext(req)
+        await resolveSchema(panel, ctx)
+      } catch { /* best-effort */ }
+    }
+
+    const handler2 = FormRegistry.get(panel.getName(), formId)
+    if (!handler2) return res.status(404).json({ message: `Form "${formId}" not found.` })
+
+    const data = (req.body as Record<string, unknown> | undefined) ?? {}
+
+    const ctx = buildContext(req)
+    try {
+      const result = await handler2(data, ctx)
+      return res.json({ success: true, ...(typeof result === 'object' && result !== null ? result : {}) })
+    } catch (err: unknown) {
+      return res.status(422).json({ message: String(err) })
+    }
   }, mw)
 
   // Upload endpoint — used by FileField / ImageField
