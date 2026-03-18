@@ -30,7 +30,7 @@ export default defineConfig({
 |---|---|
 | **Vike** | Registers `vike/plugin` from the app's own `node_modules` — guaranteed single instance, no double-registration |
 | **`@/` alias** | Resolves `@/` to `<root>/src` in both client and SSR builds |
-| **SSR externals** | Keeps optional BoostKit peers and Node-only drivers (`@boostkit/queue-bullmq`, `pg`, `mysql2`, etc.) out of the SSR bundle |
+| **SSR externals** | Keeps optional BoostKit peers and Node-only drivers out of the SSR bundle — see list below |
 
 ## UI frameworks
 
@@ -57,6 +57,22 @@ plugins: [
   vue(),
 ]
 ```
+
+## SSR externals list
+
+The following packages are automatically excluded from the SSR bundle (Node.js-only, must not be shipped to the browser):
+
+| Category | Packages |
+|---|---|
+| BoostKit queue adapters | `@boostkit/queue-inngest`, `@boostkit/queue-bullmq` |
+| BoostKit ORM | `@boostkit/orm-drizzle` |
+| BoostKit storage | `@boostkit/storage` |
+| BoostKit CLI | `@clack/core`, `@clack/prompts` |
+| Database drivers | `pg`, `mysql2`, `better-sqlite3` |
+| Prisma adapters | `@prisma/adapter-pg`, `@prisma/adapter-mysql2`, `@prisma/adapter-better-sqlite3`, `@prisma/adapter-libsql`, `@libsql/client` |
+| Redis | `ioredis` |
+
+`@boostkit/server-hono` is kept **non-external** (`ssr.noExternal`) so Vite processes its virtual module imports correctly.
 
 ## Notes
 

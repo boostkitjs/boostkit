@@ -349,6 +349,8 @@ There is **no `boostkit.config.ts`** — `bootstrap/app.ts` is the framework wir
 - **`artisan` commands not appearing**: Run from `playground/` (needs `bootstrap/app.ts`)
 - **RateLimit not working**: Requires a cache provider registered before middleware runs
 - **S3 disk errors**: Install `@aws-sdk/client-s3` — it's an optional dep of `@boostkit/storage`
+- **Panels pages not updated after source edit**: `packages/panels/pages/` are published copies. After editing source, re-run `pnpm artisan vendor:publish --tag=panels-pages --force` from `playground/`
+- **`panels-lexical` cycle**: `@boostkit/panels` must NOT depend on `@boostkit/panels-lexical`. The `+Layout.tsx` loads it via `import('@boostkit/panels-lexical').then(...)` (dynamic, no devDependency)
 
 ## create-boostkit-app
 
