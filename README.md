@@ -41,7 +41,7 @@ BoostKit is the middle ground: a **batteries-included architecture that stays en
 ## Key Features
 
 - **Laravel-inspired DX** — service providers, fluent bootstrap, Artisan CLI, FormRequest validation
-- **Pay-as-you-go** — 29 optional `@boostkit/*` packages; use only what you need
+- **Pay-as-you-go** — 30+ optional `@boostkit/*` packages; use only what you need
 - **Pluggable adapters** — swap Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3, SMTP ↔ any mailer
 - **UI-agnostic** — pair with React, Vue, Solid, or run as a pure API server
 - **TypeScript-first** — strict types, generics, and decorator support throughout
@@ -214,6 +214,17 @@ const users = await resolve(UserService).findAll()
 
 Swap the entire implementation by changing one line in `register()` — your routes and controllers never change.
 
+Providers can also register other providers at runtime — enabling self-contained modules:
+
+```ts
+export class AppServiceProvider extends ServiceProvider {
+  async boot() {
+    await this.app.register(panels([adminPanel], [panelsLexical(), media()]))
+    await this.app.register(TodoServiceProvider)
+  }
+}
+```
+
 ### 7. Mail
 
 ```ts
@@ -346,7 +357,99 @@ provider.awareness.on('change', () => {
 
 HTTP, WebSocket channels, and CRDT sync all share the same port — no separate process or proxy needed.
 
-### 11. Debug helpers (the ones every Laravel dev misses)
+### 11. Admin Panels — Filament-style resource CRUD
+
+```ts
+// app/Panels/Admin/AdminPanel.ts
+import { Panel, Dashboard, Widget } from '@boostkit/panels'
+
+export const adminPanel = Panel.make('admin')
+  .path('/admin')
+  .branding({ title: 'My App' })
+  .resources([ArticleResource, UserResource])
+  .globals([SiteSettingsGlobal])
+  .schema(async () => [
+    Dashboard.make('overview')
+      .widgets([
+        Widget.make('total-users').component('stat').data(async () => ({
+          value: await User.query().count(),
+        })),
+      ]),
+  ])
+```
+
+```ts
+// app/Panels/Admin/resources/ArticleResource.ts
+import { Resource, TextField, RichContentField, SelectField, FileField } from '@boostkit/panels'
+
+export class ArticleResource extends Resource {
+  static model = Article
+  static label = 'Articles'
+  static icon  = 'file-text'
+
+  fields() {
+    return [
+      TextField.make('title').required().searchable().sortable(),
+      RichContentField.make('content').collaborative(),
+      SelectField.make('status').options(['draft', 'published']),
+      FileField.make('image').image().optimize().conversions([
+        { name: 'thumb', width: 200, height: 200, crop: true, format: 'webp' },
+      ]),
+    ]
+  }
+}
+```
+
+Register panels with extensions — each extension gets dynamically registered via `app.register()`:
+
+```ts
+// bootstrap/providers.ts (or inside AppServiceProvider)
+import { panels } from '@boostkit/panels'
+import { panelsLexical } from '@boostkit/panels-lexical/server'
+import { media } from '@boostkit/media/server'
+
+panels([adminPanel], [
+  panelsLexical(),
+  media({ conversions: [{ name: 'thumb', width: 200, height: 200, format: 'webp' }] }),
+])
+```
+
+### 12. Media Library
+
+Full-featured file browser built as a panels extension:
+
+- **Grid + list views** with file type icons and image thumbnails
+- **Upload** — multi-file, drag-and-drop files/directories, drag images from other browser tabs
+- **Folders** — DB-only hierarchy, breadcrumb navigation via Vike `navigate()`
+- **Preview** — images, video, audio, PDF, text, JSON, CSV rendered natively in the browser
+- **Scoped access** — shared files (all users) or private files (per user)
+- **Image conversions** — auto-generates thumbnails via `@boostkit/image` on upload
+
+### 13. Image Processing
+
+Fluent image processing API, independent of the media library:
+
+```ts
+import { image } from '@boostkit/image'
+
+// Resize, convert, optimize
+const buffer = await image(uploadedFile)
+  .resize(800, 600)
+  .format('webp')
+  .quality(85)
+  .stripMetadata()
+  .toBuffer()
+
+// Batch conversions to storage
+await image(file)
+  .conversions([
+    { name: 'thumb', width: 200, height: 200, crop: true, format: 'webp' },
+    { name: 'og',    width: 1200, height: 630, crop: true, format: 'webp' },
+  ])
+  .generateToStorage('public', 'posts/42/')
+```
+
+### 14. Debug helpers (the ones every Laravel dev misses)
 
 ```ts
 import { config, dump, dd, app, resolve } from '@boostkit/core'
@@ -408,6 +511,14 @@ const svc = resolve<UserService>(UserService)
 | `@boostkit/broadcast` | WebSocket channels — pub/sub, private, presence |
 | `@boostkit/live` | Yjs CRDT real-time document sync |
 
+### Admin & Media
+| Package | Description |
+|---|---|
+| `@boostkit/panels` | Admin panel builder — resources, fields, dashboards, widgets, versioning, collaboration |
+| `@boostkit/panels-lexical` | Lexical rich-text editor for panels (optional extension) |
+| `@boostkit/media` | Media library — file browser, uploads, folders, preview, image conversions |
+| `@boostkit/image` | Fluent image processing — resize, crop, convert, optimize (sharp wrapper) |
+
 ---
 
 ## Default Stack
@@ -428,8 +539,8 @@ const svc = resolve<UserService>(UserService)
 
 BoostKit is in **early development**. All packages are functional and the playground is a working full-stack application. Breaking changes may occur before v1.0.
 
-- 29 packages published to npm under `@boostkit/*`
-- Playground demonstrates routing, ORM, auth, queues, cache, storage, mail, notifications, scheduling, WebSocket broadcasting, and real-time Yjs CRDT collaboration end-to-end
+- 30+ packages published to npm under `@boostkit/*`
+- Playground demonstrates routing, ORM, auth, queues, cache, storage, mail, notifications, scheduling, WebSocket broadcasting, real-time Yjs CRDT collaboration, admin panels with resource CRUD, and a full media library — all end-to-end
 
 ---
 

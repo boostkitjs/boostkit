@@ -12,7 +12,7 @@ This file provides guidance to Claude Code when working in this repository.
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@boostkit/*`
 - **GitHub**: https://github.com/boostkitjs/boostkit
-- **Status**: Early development — 26 packages published to npm
+- **Status**: Early development — 28 packages published to npm
 
 ---
 
@@ -78,7 +78,7 @@ npm requires browser passkey auth — press Enter when prompted to open the brow
 
 ```
 boostkit/
-├── packages/           # 25 published packages (@boostkit/*)
+├── packages/           # 27 published packages (@boostkit/*)
 │   ├── contracts/      # Pure TypeScript types: ForgeRequest, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/        # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer, helpers
 │   ├── di/             # DI container: Container, @Injectable, @Inject
@@ -113,6 +113,8 @@ boostkit/
 │   │                   #   Section, Form, Dialog, Column), WidgetRenderer, Resource.widgets(), draftRecovery,
 │   │                   #   rememberTable, autosave, Yjs field persist
 │   │                   #   + Dashboard builder: Widget, Dashboard, drag-and-drop, per-user layout, settings, lazy/polling
+│   ├── image/          # Fluent image processing — resize, crop, convert, optimize. Thin wrapper over sharp.
+│   ├── media/          # Media library panels extension — file browser, uploads, folders, preview, image conversions
 │   └── cli/            # make:*, module:*, module:publish, artisan user commands
 ├── create-boostkit-app/   # Interactive scaffolder CLI (pnpm/npm/yarn/bun create boostkit-app)
 │                          #   Prompts: name · DB · Todo · frameworks · primary · Tailwind · shadcn
@@ -150,6 +152,8 @@ boostkit/
 | `@boostkit/broadcast` | 0.0.1 | WebSocket channels — broadcasting(), broadcast(), broadcasting.auth(), BKSocket client |
 | `@boostkit/live` | 0.0.1 | Yjs CRDT real-time sync — live(), MemoryPersistence, livePrisma(), liveRedis() |
 | `@boostkit/panels` | 0.0.3 | Admin panel: Resource CRUD, 25+ field types, schema elements (Table/fromResource/fromModel, Column, Form, Dialog, Section, Tabs), draftRecovery, rememberTable, widgets, versioning, collaboration, dashboard builder |
+| `@boostkit/image` | 0.0.1 | Fluent image processing — resize, crop, convert, optimize. Wraps sharp. |
+| `@boostkit/media` | 0.0.1 | Media library panels extension — file browser, uploads, folders, preview, image conversions |
 
 **Merged/removed packages** (code absorbed, originals deleted):
 - `@boostkit/auth-better-auth` → merged into `@boostkit/auth`
@@ -189,6 +193,24 @@ boostkit/
 ```
 
 > **Cycle resolution**: `@boostkit/core` loads `@boostkit/router` at runtime via `resolveOptionalPeer('@boostkit/router')`. Never add `@boostkit/core` to router's `dependencies` or `devDependencies`.
+
+### Dynamic Provider Registration
+
+Providers can be registered at runtime via `app().register(ProviderClass)`:
+
+- Called from within another provider's `boot()` method
+- Calls `register()` immediately; calls `boot()` if app is already booted or booting
+- Duplicate guard by class reference and class name — safe to call multiple times
+- Use cases: module self-registration, conditional features, panels extensions
+
+```ts
+// Inside a provider's boot()
+app().register(PanelServiceProvider)
+app().register(TodoServiceProvider)
+
+// Panels extensions use this under the hood
+panels([AdminPanel], [media({ conversions: [...] })])
+```
 
 ### Package Merge Policy (Tight-Coupling Only)
 
