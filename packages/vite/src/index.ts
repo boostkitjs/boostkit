@@ -21,6 +21,8 @@ const SSR_EXTERNALS = [
   '@libsql/client',
   // Redis — server-only
   'ioredis',
+  // Storage — server-only (uses node:fs, node:path)
+  '@boostkit/storage',
 ]
 
 // ─── SSR no-externals ──────────────────────────────────────
@@ -141,6 +143,7 @@ export function boostkit(): Promise<Plugin[]> {
                     warning.message.includes('has been externalized for browser compatibility') &&
                     (warning.message.includes('/packages/middleware/') ||
                       warning.message.includes('/packages/support/') ||
+                      warning.message.includes('/packages/storage/') ||
                       warning.message.includes('ioredis'))
                   ) return
                   warn(warning)
