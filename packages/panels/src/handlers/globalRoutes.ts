@@ -5,6 +5,23 @@ import type { Global } from '../Global.js'
 import type { Resource } from '../Resource.js'
 import { buildContext, coerceGlobalPayload, validatePayload } from './utils.js'
 
+// ── Minimal structural types for dynamically-resolved dependencies ──
+
+interface AppContainer {
+  make(key: string): unknown
+}
+
+interface PrismaGlobalClient {
+  panelGlobal: {
+    findUnique(args: { where: Record<string, unknown> }): Promise<{ data: unknown } | null>
+    upsert(args: {
+      where:  Record<string, unknown>
+      update: Record<string, unknown>
+      create: Record<string, unknown>
+    }): Promise<void>
+  }
+}
+
 export function mountGlobalRoutes(
   router: RouterLike,
   panel: Panel,
@@ -21,11 +38,10 @@ export function mountGlobalRoutes(
     if (!await global.policy('view', ctx)) return res.status(403).json({ message: 'Forbidden.' })
 
     try {
-      const { app } = await import('@boostkit/core') as any
-       
-      const prisma = app().make('prisma') as any
+      const { app } = await import('@boostkit/core') as { app(): AppContainer }
+      const prisma = app().make('prisma') as PrismaGlobalClient
       const row    = await prisma.panelGlobal.findUnique({ where: { slug } })
-      const data   = row?.data ? (typeof row.data === 'string' ? JSON.parse(row.data) : row.data) : {}
+      const data   = row?.data ? (typeof row.data === 'string' ? JSON.parse(row.data as string) : row.data) : {}
       return res.json({ data })
     } catch {
       return res.json({ data: {} })
@@ -44,9 +60,8 @@ export function mountGlobalRoutes(
     if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
     try {
-      const { app } = await import('@boostkit/core') as any
-       
-      const prisma = app().make('prisma') as any
+      const { app } = await import('@boostkit/core') as { app(): AppContainer }
+      const prisma = app().make('prisma') as PrismaGlobalClient
       const serialized = JSON.stringify(body)
       await prisma.panelGlobal.upsert({
         where:  { slug },

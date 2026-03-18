@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { WidgetRenderer } from './WidgetRenderer.js'
+import type { WidgetRendererProps } from './WidgetRenderer.js'
 import { icons as lucideIcons } from 'lucide-react'
-import type { PanelSchemaElementMeta, PanelI18n } from '@boostkit/panels'
+import type { PanelSchemaElementMeta, PanelI18n, ChartDataset, PanelColumnMeta, ListItem } from '@boostkit/panels'
 import type { WidgetMeta } from '@boostkit/panels'
+
+type WidgetRendererElement = WidgetRendererProps['element']
 
 export interface WidgetWithData extends WidgetMeta {
   data: unknown
@@ -61,37 +64,37 @@ export function WidgetCard({ widget, panelPath, i18n }: {
   }
 
   // Map other types to WidgetRenderer
-  let element: PanelSchemaElementMeta | null = null
+  let element: WidgetRendererElement | null = null
 
   if (widget.component === 'chart') {
     element = {
       type: 'chart',
       title: widget.label,
-      chartType: (data?.type as string) ?? 'line',
-      labels: (data?.labels as string[]) ?? [],
-      datasets: (data?.datasets as any[]) ?? [],
-      height: (data?.height as number) ?? Math.max((widget.defaultSize.h * 80) - 60, 180),
+      chartType: (data?.['type'] as string) ?? 'line',
+      labels: (data?.['labels'] as string[]) ?? [],
+      datasets: (data?.['datasets'] as ChartDataset[]) ?? [],
+      height: (data?.['height'] as number) ?? Math.max((widget.defaultSize.h * 80) - 60, 180),
     } as PanelSchemaElementMeta
   } else if (widget.component === 'table') {
     element = {
       type: 'table',
       title: widget.label,
       resource: '',
-      columns: (data?.columns as any[]) ?? [],
-      records: (data?.records as any[]) ?? [],
-      href: (data?.href as string) ?? '#',
-    }
+      columns: (data?.['columns'] as PanelColumnMeta[]) ?? [],
+      records: (data?.['records'] as unknown[]) ?? [],
+      href: (data?.['href'] as string) ?? '#',
+    } as PanelSchemaElementMeta
   } else if (widget.component === 'list') {
     element = {
       type: 'list',
       title: widget.label,
-      items: (data?.items as any[]) ?? [],
-      limit: (data?.limit as number) ?? 5,
+      items: (data?.['items'] as ListItem[]) ?? [],
+      limit: (data?.['limit'] as number) ?? 5,
     } as PanelSchemaElementMeta
   } else if (widget.component === 'stat-progress') {
-    element = { type: 'stat-progress', data: data ?? {} } as any
+    element = { type: 'stat-progress', data: data ?? {} }
   } else if (widget.component === 'user-card') {
-    element = { type: 'user-card', data: data ?? {} } as any
+    element = { type: 'user-card', data: data ?? {} }
   }
 
   if (!element) {

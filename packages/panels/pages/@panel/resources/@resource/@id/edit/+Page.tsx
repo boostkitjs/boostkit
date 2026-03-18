@@ -84,7 +84,7 @@ export default function EditPage() {
     getDoc: _getDoc, awareness: _awareness, userName, userColor,
   } = useCollaborativeForm(
     yjs && docName
-      ? { docName: docName, wsPath: wsLivePath ?? '', fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as any }
+      ? { docName: docName, wsPath: wsLivePath ?? '', fields: collabFields, values: initialValues, getValues: () => currentValuesRef.current, setValue: (name, value) => remoteSetValueRef.current(name, value), providers: liveProviders as ('websocket' | 'indexeddb')[] }
       : null,
   )
 
@@ -167,16 +167,19 @@ export default function EditPage() {
   // ── Listen for remote version restore (another user restored) ──
   useEffect(() => {
     if (!yjs || typeof window === 'undefined') return
+    type BKSocketChannel = { on(event: string, cb: (data: Record<string, unknown>) => void): void }
+    type BKSocketInstance = { channel(name: string): BKSocketChannel; disconnect(): void }
+
     let destroyed = false
-    let socket: any = null
+    let socket: BKSocketInstance | null = null
 
     async function connect() {
       try {
         // @ts-expect-error — Vite resolves this at runtime; no static module declaration
-        const mod = await import(/* @vite-ignore */ '/src/BKSocket.ts') as any
+        const mod = await import(/* @vite-ignore */ '/src/BKSocket.ts') as { BKSocket: new (url: string) => BKSocketInstance }
         if (destroyed) return
         socket = new mod.BKSocket(`ws://${window.location.host}/ws`)
-        socket.channel(`panel:${slug}`).on('version.restored', async (data: any) => {
+        socket.channel(`panel:${slug}`).on('version.restored', async (data: Record<string, unknown>) => {
           if (data?.id !== id) return
           if (isSyncingRef.current) return
           // Another user saved after restoring a version.

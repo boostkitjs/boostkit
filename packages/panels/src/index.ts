@@ -141,6 +141,11 @@ export type {
   PanelLayout,
   PaginatedResult,
   ModelClass,
+  QueryBuilderLike,
+  RecordRow,
+  FormValues,
+  RequestBody,
+  SchemaElementLike,
 } from './types.js'
 
 // ─── Data helpers ───────────────────────────────────────────

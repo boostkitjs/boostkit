@@ -465,7 +465,7 @@ export function FieldInput({ field, value, onChange, uploadBase = '', i18n, disa
           wsPath={field.yjs ? (wsPath ?? null) : null}
           docName={field.yjs ? (docName ?? null) : null}
           fragmentName={`richcontent:${field.name}`}
-          {...((field.extra?.blocks as any[] | undefined) !== undefined ? { blocks: field.extra?.blocks as any[] } : {})}
+          {...(Array.isArray(field.extra?.['blocks']) ? { blocks: field.extra['blocks'] as unknown[] } : {})}
           {...(userName !== undefined ? { userName } : {})}
           {...(userColor !== undefined ? { userColor } : {})}
         />

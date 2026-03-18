@@ -40,6 +40,29 @@ export interface BrandingOptions {
   }
 }
 
+// ─── Common data shapes ────────────────────────────────────────
+
+/** A single database record row. Values are JSON-serialisable unknowns. */
+export type RecordRow = Record<string, unknown>
+
+/** Validated or raw form submission payload. */
+export type FormValues = Record<string, unknown>
+
+/** Raw HTTP request body before validation/coercion. */
+export type RequestBody = Record<string, unknown>
+
+// ─── Schema builder duck-type ──────────────────────────────────
+
+/**
+ * Minimal structural interface for all panels schema builder objects
+ * (Table, Form, Dialog, Widget, Chart, List, Stats, etc.).
+ * Builders expose `getType()` for dispatch and `toMeta()` for serialisation.
+ */
+export interface SchemaElementLike {
+  getType(): string
+  toMeta(): unknown
+}
+
 // ─── ORM Model interface (structural — no @boostkit/orm dep) ──
 
 export interface PaginatedResult<T = Record<string, unknown>> {

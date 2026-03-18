@@ -3,11 +3,17 @@ import type { RouterLike } from './types.js'
 import type { Panel } from '../Panel.js'
 import type { Resource } from '../Resource.js'
 import type { Action } from '../Action.js'
+import type { ModelClass, QueryBuilderLike, RecordRow } from '../types.js'
 import {
   flattenFields, relationName, buildContext,
   coercePayload, validatePayload, applyTransforms, liveBroadcast,
 } from './utils.js'
 import { mountVersionRoutes } from './versionRoutes.js'
+
+/** Extract a named route parameter — always returns a string (empty if somehow absent). */
+function param(req: AppRequest, name: string): string {
+  return (req.params as Record<string, string | undefined>)[name] ?? ''
+}
 
 export function mountResourceRoutes(
   router: RouterLike,
@@ -18,7 +24,7 @@ export function mountResourceRoutes(
   const slug    = ResourceClass.getSlug()
   const base    = `${panel.getApiBase()}/${slug}`
    
-  const Model   = ResourceClass.model as any
+  const Model   = ResourceClass.model as ModelClass<RecordRow> | undefined
 
   // ── GET /panel/api/resource — list (paginated) ────────
   router.get(base, async (req, res) => {
@@ -35,11 +41,10 @@ export function mountResourceRoutes(
     const dir    = (url.searchParams.get('dir') ?? 'ASC').toUpperCase() as 'ASC' | 'DESC'
     const search = url.searchParams.get('search') ?? undefined
 
-     
-    let q: any = Model.query()
+    let q: QueryBuilderLike<RecordRow> = Model.query()
 
     // Soft deletes — filter by trashed status
-    const hasSoftDeletes = (ResourceClass as any).softDeletes === true
+    const hasSoftDeletes = ResourceClass.softDeletes === true
     const trashed        = url.searchParams.get('trashed') === 'true'
     if (hasSoftDeletes) {
       if (trashed) {
@@ -50,7 +55,7 @@ export function mountResourceRoutes(
     }
 
     // Draftable — filter by draft status
-    const hasDraftable = (ResourceClass as any).draftable === true
+    const hasDraftable = ResourceClass.draftable === true
     const draftFilter  = url.searchParams.get('draft')
     if (hasDraftable) {
       if (draftFilter === 'true') {
@@ -131,8 +136,7 @@ export function mountResourceRoutes(
 
     if (!fk || !id) return res.status(422).json({ message: 'fk and id query params are required.' })
 
-     
-    let q: any = through
+    let q: QueryBuilderLike<RecordRow> = through
       // M2M: WHERE relation.some.id = parentId (Prisma nested filter)
       ? Model.query().where(fk, { some: { id } })
       // FK:  WHERE foreignKey = parentId
@@ -170,11 +174,10 @@ export function mountResourceRoutes(
     const url   = new URL(req.url, 'http://localhost')
     const label = url.searchParams.get('label') ?? 'name'
 
-     
-    const records: any[] = await Model.query().all()
-    const options = records.map((r: any) => ({
-      value: String(r.id),
-      label: String(r[label] ?? r.id),
+    const records: RecordRow[] = await Model.query().all()
+    const options = records.map((r) => ({
+      value: String(r['id']),
+      label: String(r[label] ?? r['id']),
     }))
     return res.json(options)
   }, mw)
@@ -186,15 +189,14 @@ export function mountResourceRoutes(
     if (!await resource.policy('view', ctx)) return res.status(403).json({ message: 'Forbidden.' })
     if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-    const id = (req.params as Record<string, string>)['id']
+    const id     = param(req, 'id')
 
     // Include belongsToMany relations so the edit form can populate multi-selects
     const manyRelations = flattenFields(new ResourceClass().fields())
       .filter(f => f.getType() === 'belongsToMany')
       .map(f => f.getName())
 
-     
-    let q: any = Model.query()
+    let q: QueryBuilderLike<RecordRow> = Model.query()
     for (const rel of manyRelations) q = q.with(rel)
     const record = await q.find(id)
 
@@ -226,12 +228,12 @@ export function mountResourceRoutes(
     if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
     // Draftable: default draftStatus to 'draft' unless explicitly set
-    if ((ResourceClass as any).draftable && !body['draftStatus']) {
+    if (ResourceClass.draftable && !body['draftStatus']) {
       body['draftStatus'] = 'draft'
     }
 
     const record = await Model.create(body)
-    if ((ResourceClass as any).live) liveBroadcast(slug, 'record.created', { id: (record as any).id })
+    if (ResourceClass.live) liveBroadcast(slug, 'record.created', { id: (record as RecordRow)['id'] })
     return res.status(201).json({ data: record })
   }, mw)
 
@@ -242,7 +244,7 @@ export function mountResourceRoutes(
     if (!await resource.policy('update', ctx)) return res.status(403).json({ message: 'Forbidden.' })
     if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-    const id     = (req.params as Record<string, string>)['id']
+    const id     = param(req, 'id')
     const exists = await Model.find(id)
     if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
@@ -253,7 +255,7 @@ export function mountResourceRoutes(
     if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
     const record = await Model.query().update(id, body)
-    if ((ResourceClass as any).live) liveBroadcast(slug, 'record.updated', { id })
+    if (ResourceClass.live) liveBroadcast(slug, 'record.updated', { id })
     return res.json({ data: record })
   }, mw)
 
@@ -264,16 +266,16 @@ export function mountResourceRoutes(
     if (!await resource.policy('delete', ctx)) return res.status(403).json({ message: 'Forbidden.' })
     if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-    const id     = (req.params as Record<string, string>)['id']
+    const id     = param(req, 'id')
     const exists = await Model.find(id)
     if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
-    if ((ResourceClass as any).softDeletes) {
+    if (ResourceClass.softDeletes) {
       await Model.query().update(id, { deletedAt: new Date() })
     } else {
       await Model.query().delete(id)
     }
-    if ((ResourceClass as any).live) liveBroadcast(slug, 'record.deleted', { id })
+    if (ResourceClass.live) liveBroadcast(slug, 'record.deleted', { id })
     return res.json({ message: 'Deleted successfully.' })
   }, mw)
 
@@ -291,7 +293,7 @@ export function mountResourceRoutes(
     for (const id of ids) {
       const exists = await Model.find(id)
       if (exists) {
-        if ((ResourceClass as any).softDeletes) {
+        if (ResourceClass.softDeletes) {
           await Model.query().update(id, { deletedAt: new Date() })
         } else {
           await Model.query().delete(id)
@@ -300,7 +302,7 @@ export function mountResourceRoutes(
       }
     }
 
-    if ((ResourceClass as any).live) liveBroadcast(slug, 'records.deleted', { ids, deleted })
+    if (ResourceClass.live) liveBroadcast(slug, 'records.deleted', { ids, deleted })
     return res.json({ message: `${deleted} records deleted.`, deleted })
   }, mw)
 
@@ -310,7 +312,7 @@ export function mountResourceRoutes(
     const ctx      = buildContext(req)
     if (!await resource.policy('update', ctx)) return res.status(403).json({ message: 'Forbidden.' })
 
-    const actionName = (req.params as Record<string, string>)['action']
+    const actionName = param(req, 'action')
     const action     = resource.actions().find((a: Action) => a.getName() === actionName)
     if (!action) return res.status(404).json({ message: `Action "${actionName}" not found.` })
 
@@ -327,12 +329,12 @@ export function mountResourceRoutes(
     }
 
     await action.execute(records)
-    if ((ResourceClass as any).live) liveBroadcast(slug, 'action.executed', { action: actionName, ids })
+    if (ResourceClass.live) liveBroadcast(slug, 'action.executed', { action: actionName, ids })
     return res.json({ message: 'Action executed successfully.' })
   }, mw)
 
   // ── Soft-delete routes (restore + force delete) ───
-  if ((ResourceClass as any).softDeletes) {
+  if (ResourceClass.softDeletes) {
     // POST /panel/api/resource/:id/_restore — restore a soft-deleted record
     router.post(`${base}/:id/_restore`, async (req: AppRequest, res: AppResponse) => {
       const resource = new ResourceClass()
@@ -340,12 +342,12 @@ export function mountResourceRoutes(
       if (!await resource.policy('restore', ctx)) return res.status(403).json({ message: 'Forbidden.' })
       if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-      const id     = (req.params as Record<string, string>)['id']
+      const id     = param(req, 'id')
       const exists = await Model.find(id)
       if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
       await Model.query().update(id, { deletedAt: null })
-      if ((ResourceClass as any).live) liveBroadcast(slug, 'record.restored', { id })
+      if (ResourceClass.live) liveBroadcast(slug, 'record.restored', { id })
       return res.json({ message: 'Record restored.' })
     }, mw)
 
@@ -356,12 +358,12 @@ export function mountResourceRoutes(
       if (!await resource.policy('forceDelete', ctx)) return res.status(403).json({ message: 'Forbidden.' })
       if (!Model) return res.status(500).json({ message: `Resource "${slug}" has no model defined.` })
 
-      const id     = (req.params as Record<string, string>)['id']
+      const id     = param(req, 'id')
       const exists = await Model.find(id)
       if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
       await Model.query().delete(id)
-      if ((ResourceClass as any).live) liveBroadcast(slug, 'record.forceDeleted', { id })
+      if (ResourceClass.live) liveBroadcast(slug, 'record.forceDeleted', { id })
       return res.json({ message: 'Permanently deleted.' })
     }, mw)
 
@@ -384,7 +386,7 @@ export function mountResourceRoutes(
         }
       }
 
-      if ((ResourceClass as any).live) liveBroadcast(slug, 'records.restored', { ids, restored })
+      if (ResourceClass.live) liveBroadcast(slug, 'records.restored', { ids, restored })
       return res.json({ message: `${restored} records restored.`, restored })
     }, mw)
 
@@ -407,14 +409,14 @@ export function mountResourceRoutes(
         }
       }
 
-      if ((ResourceClass as any).live) liveBroadcast(slug, 'records.forceDeleted', { ids, deleted })
+      if (ResourceClass.live) liveBroadcast(slug, 'records.forceDeleted', { ids, deleted })
       return res.json({ message: `${deleted} records permanently deleted.`, deleted })
     }, mw)
   }
 
   // ── Version routes (versioned or collaborative resources) ───
   const hasCollabFields = flattenFields(new ResourceClass().fields()).some(f => f.isYjs())
-  if ((ResourceClass as any).versioned || hasCollabFields) {
+  if (ResourceClass.versioned || hasCollabFields) {
     mountVersionRoutes(router, panel, ResourceClass, mw)
   }
 }
