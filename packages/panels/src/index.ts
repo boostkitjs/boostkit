@@ -97,6 +97,12 @@ export { Stats, Stat } from './schema/Stats.js'
 export { Table }   from './schema/Table.js'
 export { Chart }   from './schema/Chart.js'
 export { List }    from './schema/List.js'
+export { Form }    from './schema/Form.js'
+export type { FormElementMeta, FormSubmitFn } from './schema/Form.js'
+export { Column }  from './schema/Column.js'
+export type { ColumnMeta } from './schema/Column.js'
+export { Dialog }  from './schema/Dialog.js'
+export type { DialogElementMeta } from './schema/Dialog.js'
 export type {
   TextElementMeta,
   HeadingElementMeta,

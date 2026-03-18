@@ -25,8 +25,8 @@ export interface ResourceMeta {
   defaultSort?:      string
   defaultSortDir?:   'ASC' | 'DESC'
   titleField?:       string
-  persistTableState:    boolean
-  persistFormState:     boolean
+  rememberTable:    boolean
+  draftRecovery:    boolean
   autosave:             boolean
   autosaveInterval:     number
   perPage:           number
@@ -77,10 +77,10 @@ export class Resource {
   static titleField?: string
 
   /**
-   * Persist table state (filters, sort, search, page, selected rows) in sessionStorage.
+   * Remember table state (filters, sort, search, page, selected rows) in sessionStorage.
    * When true, navigating away and back restores the previous table state.
    */
-  static persistTableState = false
+  static rememberTable = false
 
   /** Number of records per page. */
   static perPage = 15
@@ -116,12 +116,12 @@ export class Resource {
   static draftable = false
 
   /**
-   * Persist form state to localStorage while editing.
+   * Enable form draft recovery via localStorage.
    * When true, form values are backed up to localStorage as the user types.
    * On page reload or crash, a restore banner offers to recover the draft.
    * Applies to both create and edit pages.
    */
-  static persistFormState = false
+  static draftRecovery = false
 
   /**
    * Enable automatic saving of form changes to the server.
@@ -252,8 +252,8 @@ export class Resource {
       filters:       this.filters().map((f) => f.toMeta()),
       tabs:          this.tabs().map((t) => t.toMeta()),
       actions:       this.actions().map((a) => a.toMeta()),
-      persistTableState:  Cls.persistTableState,
-      persistFormState:   Cls.persistFormState,
+      rememberTable:  Cls.rememberTable,
+      draftRecovery:  Cls.draftRecovery,
       autosave:           typeof Cls.autosave === 'object' ? true : !!Cls.autosave,
       autosaveInterval:   typeof Cls.autosave === 'object' && Cls.autosave.interval
                             ? Cls.autosave.interval

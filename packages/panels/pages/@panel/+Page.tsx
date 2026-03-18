@@ -6,6 +6,8 @@ import { useConfig } from 'vike-react/useConfig'
 import { WidgetRenderer } from '../_components/WidgetRenderer.js'
 import { DashboardGrid }  from '../_components/DashboardGrid.js'
 import { StandaloneWidget } from '../_components/StandaloneWidget.js'
+import { FormElement }   from '../_components/FormElement.js'
+import { DialogElement } from '../_components/DialogElement.js'
 import type { PanelI18n } from '@boostkit/panels'
 import type { Data } from './+data.js'
 
@@ -81,6 +83,29 @@ export default function PanelRootPage() {
               id={(el as any).id}
               tabs={el.tabs}
               urlSearch={urlSearch}
+              panelPath={panelMeta.path}
+              pathSegment={pathSegment}
+              i18n={i18n}
+            />
+          )
+        }
+
+        if (el.type === 'form') {
+          return (
+            <FormElement
+              key={`form-${el.id ?? gi}`}
+              form={el}
+              panelPath={panelMeta.path}
+              i18n={i18n}
+            />
+          )
+        }
+
+        if (el.type === 'dialog') {
+          return (
+            <DialogElement
+              key={`dialog-${el.id ?? gi}`}
+              dialog={el}
               panelPath={panelMeta.path}
               pathSegment={pathSegment}
               i18n={i18n}
@@ -282,6 +307,11 @@ function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n }: Schem
               />
             )
           }
+          if (el.type === 'form') {
+            return (
+              <FormElement key={`tf-${el.id ?? i}`} form={el} panelPath={panelPath} i18n={i18n} />
+            )
+          }
           if (el.type === 'dashboard') {
             return (
               <DashboardSection
@@ -351,6 +381,11 @@ function SchemaSection({ section, panelPath, pathSegment, i18n }: SchemaSectionP
                     pathSegment={pathSegment}
                     i18n={i18n}
                   />
+                )
+              }
+              if (el.type === 'form') {
+                return (
+                  <FormElement key={`sf-${el.id ?? i}`} form={el} panelPath={panelPath} i18n={i18n} />
                 )
               }
               return (

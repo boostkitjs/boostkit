@@ -31,8 +31,8 @@ export class ArticleResource extends Resource {
   static titleField     = 'title'
   static defaultSort    = 'createdAt'
   static defaultSortDir = 'DESC' as const
-  static persistTableState = true
-  static persistFormState  = false
+  static rememberTable = true
+  static draftRecovery = false
   // static autosave          = { interval: 10000 }
   static perPage = 5
   static perPageOptions = [5,10, 15, 25, 50, 100]

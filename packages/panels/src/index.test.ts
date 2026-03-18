@@ -1821,7 +1821,7 @@ describe('Field — persist()', () => {
   })
 })
 
-// ─── Resource — autosave & persistFormState ──────────────────
+// ─── Resource — autosave & draftRecovery ──────────────────
 
 describe('Resource — autosave', () => {
   it('defaults to autosave=false', () => {
@@ -1862,20 +1862,20 @@ describe('Resource — autosave', () => {
   })
 })
 
-describe('Resource — persistFormState', () => {
+describe('Resource — draftRecovery', () => {
   it('defaults to false', () => {
     class R extends Resource { fields() { return [] } }
     const meta = new R().toMeta()
-    assert.equal(meta.persistFormState, false)
+    assert.equal(meta.draftRecovery, false)
   })
 
-  it('static persistFormState = true', () => {
+  it('static draftRecovery = true', () => {
     class R extends Resource {
-      static persistFormState = true
+      static draftRecovery = true
       fields() { return [] }
     }
     const meta = new R().toMeta()
-    assert.equal(meta.persistFormState, true)
+    assert.equal(meta.draftRecovery, true)
   })
 })
 

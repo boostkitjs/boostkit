@@ -8,6 +8,9 @@ import type {
   ChartElementMeta,
   ListElementMeta,
 } from './schema/index.js'
+import type { FormElementMeta } from './schema/Form.js'
+import type { DialogElementMeta } from './schema/Dialog.js'
+import { FormRegistry } from './FormRegistry.js'
 
 export type PanelSchemaElementMeta =
   | TextElementMeta
@@ -16,6 +19,8 @@ export type PanelSchemaElementMeta =
   | TableElementMeta
   | ChartElementMeta
   | ListElementMeta
+  | FormElementMeta
+  | DialogElementMeta
 
 // ─── Schema resolver ───────────────────────────────────────
 
@@ -216,6 +221,33 @@ export async function resolveSchema(
       }
 
       result.push(meta as PanelSchemaElementMeta)
+      continue
+    }
+
+    // Dialog — resolve inner elements recursively
+    if (type === 'dialog') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dialog = el as any
+      const items  = dialog.getItems() as unknown[]
+      const dialogPanel = Object.create(panel, {
+        getSchema: { value: () => items },
+      })
+      const resolved = await resolveSchema(dialogPanel, ctx)
+      const meta = dialog.toMeta() as DialogElementMeta
+      meta.elements = resolved
+      result.push(meta as PanelSchemaElementMeta)
+      continue
+    }
+
+    // Standalone Form — register submit handler and pass through meta
+    if (type === 'form') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const form = el as any
+      const handler = form.getSubmitHandler?.()
+      if (handler) {
+        FormRegistry.register(panel.getName(), form.getId(), handler)
+      }
+      result.push(form.toMeta() as PanelSchemaElementMeta)
       continue
     }
 

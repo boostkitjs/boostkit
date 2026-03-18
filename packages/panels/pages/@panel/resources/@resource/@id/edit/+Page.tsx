@@ -126,8 +126,8 @@ export default function EditPage() {
     setValue: setFormValue,
   })
 
-  // ── Form persist (localStorage backup) ─────────────────────
-  const persistEnabled = resourceMeta.persistFormState ?? false
+  // ── Draft recovery (localStorage backup) ─────────────────────
+  const persistEnabled = resourceMeta.draftRecovery ?? false
   const storageKey = `bk:${pathSegment}:${slug}:${id}:edit`
 
   const persistOps = useFormPersist({
