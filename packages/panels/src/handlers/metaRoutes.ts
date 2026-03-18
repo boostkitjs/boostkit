@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { MiddlewareHandler } from '@boostkit/core'
 import type { RouterLike } from './types.js'
 import type { Panel } from '../Panel.js'

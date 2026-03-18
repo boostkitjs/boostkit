@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Panel }         from './Panel.js'
 import type { PanelContext }  from './types.js'
 import type {
