@@ -176,7 +176,7 @@ Opt-in per resource -- saves filters, sort, search, page position, and selected 
 
 ```ts
 export class ArticleResource extends Resource {
-  static persistTableState = true   // default: false
+  static rememberTable = true   // default: false
 }
 ```
 

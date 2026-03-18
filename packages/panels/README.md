@@ -80,7 +80,7 @@ export class UserResource extends Resource {
   static perPage = 25               // records per page (default: 15)
   static perPageOptions = [25, 50, 100]    // per-page dropdown choices (default: [10, 15, 25, 50, 100])
   static paginationType = 'pagination'     // 'pagination' | 'loadMore'
-  static persistTableState = true          // persist filters, sort, search, page & selection
+  static rememberTable = true              // persist filters, sort, search, page & selection
 
   fields() {
     return [
@@ -393,7 +393,7 @@ export const adminPanel = Panel.make('admin')
       .height(350),
 
     Table.make('Recent Articles')
-      .resource('articles')
+      .fromResource(ArticleResource)
       .columns(['title', 'status', 'publishedAt'])
       .sortBy('createdAt', 'DESC')
       .limit(5),
@@ -425,7 +425,10 @@ The schema function receives `PanelContext` (`{ user, headers, path }`) and can 
 | `Text.make(content)` | Paragraph of text |
 | `Stats.make([...stats])` | Row of stat cards |
 | `Stat.make(label)` | Single stat -- `.value(n)`, `.description(text)`, `.trend(n)` (positive=↑, negative=↓) |
-| `Table.make(title)` | Data table -- `.resource(slug)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)` |
+| `Table.make(title)` | Data table -- `.fromResource(Class)` or `.fromModel(Class)`, `.columns([...])`, `.limit(n)`, `.sortBy(col, dir)`, `.reorderable()` |
+| `Column.make(name)` | Typed display column for `Table.make()` — `.label()`, `.sortable()`, `.searchable()`, `.date()`, `.badge()`, `.href()` |
+| `Form.make(id)` | Standalone form with submit handler — `.fields([...])`, `.onSubmit(fn)`, `.submitLabel()`, `.successMessage()` |
+| `Dialog.make(id)` | Modal dialog wrapper — `.trigger(label)`, `.title()`, `.description()`, `.schema([...elements])` |
 | `Chart.make(title)` | Chart -- `.chartType('line'\|'bar'\|'area'\|'pie'\|'doughnut')`, `.labels([...])`, `.datasets([...])`, `.height(n)` |
 | `List.make(title)` | Item list card -- `.items([{ label, description?, href?, icon? }])`, `.limit(n)` |
 | `Tabs.make()` | Tabbed sections -- `.tab(label, ...elements)` groups schema elements into tabs |
@@ -1023,7 +1026,7 @@ All data is SSR — `?page=3` loads pages 1–3 server-side in a single query.
 Persist filters, sort, search, page position, and selected rows in `sessionStorage`. Sidebar links auto-restore the saved URL.
 
 ```ts
-static persistTableState = true   // default: false
+static rememberTable = true   // default: false
 ```
 
 Cleared on tab close. "Clear filters" and bulk actions clear saved state.
@@ -1204,7 +1207,7 @@ export class ArticleResource extends Resource {
   static draftable         = true               // draft/publish workflow
   static softDeletes       = true               // trash & restore
   static autosave          = true               // periodic server save (default 30s)
-  static persistFormState  = true               // localStorage backup + restore banner
+  static draftRecovery     = true               // localStorage backup + restore banner
 }
 ```
 
@@ -1239,13 +1242,13 @@ The edit toolbar shows a status indicator:
 
 Autosave skips when: a manual save is in progress, the form is in version restore preview, or no changes have been made since the last save. Does not create version snapshots (only manual save does).
 
-### `persistFormState`
+### `draftRecovery`
 
 Backs up form values to `localStorage` as the user types. On page reload or browser crash, a restore banner offers to recover the draft. Applies to both create and edit pages.
 
 ```ts
 export class ArticleResource extends Resource {
-  static persistFormState = true
+  static draftRecovery = true
 }
 ```
 
@@ -1259,7 +1262,7 @@ The two flags are independent — use either or both:
 | Config | Behavior |
 |--------|----------|
 | `autosave` only | Server saves every N seconds. No localStorage, no restore banner. |
-| `persistFormState` only | localStorage backup + restore banner + beforeunload. Manual save only. |
+| `draftRecovery` only | localStorage backup + restore banner + beforeunload. Manual save only. |
 | Both | localStorage catches crashes between autosave intervals. |
 
 ### Per-Field Persist (`.persist()`)
@@ -1291,7 +1294,7 @@ fields() {
 | `.persist('websocket')` | y-websocket — real-time sync between editors |
 | `.persist(['websocket', 'indexeddb'])` | Both — real-time + offline persistence |
 
-`.persist()` is independent from `persistFormState`. Use `persistFormState` for full-form backup with a restore banner. Use `.persist()` for individual fields that should quietly survive page reloads.
+`.persist()` is independent from `draftRecovery`. Use `draftRecovery` for full-form backup with a restore banner. Use `.persist()` for individual fields that should quietly survive page reloads.
 
 ### Collaborative Editing
 
@@ -1341,8 +1344,8 @@ The edit page shows connection status and presence avatars when collaborative fi
 | `.collaborative()` fields | Real-time co-editing. Save goes to DB. |
 | `.collaborative()` + `versioned` | Co-edit + version snapshots with restore. |
 | `autosave` only | Periodic server save, status indicator in toolbar. |
-| `persistFormState` only | localStorage backup, restore banner, beforeunload. |
-| `autosave + persistFormState` | Server autosave + localStorage crash safety net. |
+| `draftRecovery` only | localStorage backup, restore banner, beforeunload. |
+| `autosave + draftRecovery` | Server autosave + localStorage crash safety net. |
 | All flags | Full power: co-edit, draft/publish, version history, trash, autosave, persist. |
 
 ---

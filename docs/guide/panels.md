@@ -93,7 +93,7 @@ Panel.make('admin')
     ]),
 
     Table.make('Recent Articles')
-      .resource('articles')
+      .fromResource(ArticleResource)
       .columns(['title', 'status', 'publishedAt'])
       .sortBy('createdAt', 'DESC')
       .limit(5),
