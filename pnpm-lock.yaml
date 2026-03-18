@@ -318,6 +318,9 @@ importers:
       '@boostkit/panels':
         specifier: workspace:*
         version: link:../panels
+      '@boostkit/router':
+        specifier: workspace:*
+        version: link:../router
       '@boostkit/storage':
         specifier: workspace:*
         version: link:../storage

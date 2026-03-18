@@ -31,10 +31,7 @@ export class MediaServiceProvider extends ServiceProvider {
       put(path: string, handler: RouteHandler, mw?: MiddlewareHandler[]): void
       delete(path: string, handler: RouteHandler, mw?: MiddlewareHandler[]): void
     }
-    const routerPkg = '@boostkit/router'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const routerMod = await (import(/* @vite-ignore */ routerPkg) as Promise<any>)
-    const router = routerMod.router as RouterShape
+    const { router } = await import(/* @vite-ignore */ '@boostkit/router') as { router: RouterShape }
 
     // Mount for each registered panel
     const { PanelRegistry } = await import(/* @vite-ignore */ '@boostkit/panels')

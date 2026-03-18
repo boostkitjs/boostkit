@@ -25,6 +25,8 @@ export class Application {
   readonly container: Container
   private providers: ServiceProvider[] = []
   private booted = false
+  private _booting = false
+  private _bootedProviders = new WeakSet<ServiceProvider>()
 
   /** Tracks registered provider classes to prevent duplicates. */
   private _registeredClasses = new Set<ProviderClass>()
@@ -140,9 +142,10 @@ export class Application {
     this.providers.push(instance)
     instance.register()
 
-    if (this.booted) {
+    if (this.booted || this._booting) {
       try {
         await instance.boot?.()
+        this._bootedProviders.add(instance)
       } catch (err) {
         const name  = instance.constructor.name || Provider.name || 'AnonymousProvider'
         const cause = err instanceof Error ? err.message : String(err)
@@ -163,9 +166,12 @@ export class Application {
   }
 
   private async _bootAll(): Promise<void> {
+    this._booting = true
     for (const provider of this.providers) {
+      if (this._bootedProviders.has(provider)) continue
       try {
         await provider.boot?.()
+        this._bootedProviders.add(provider)
       } catch (err) {
         const name  = provider.constructor.name
         const cause = err instanceof Error ? err.message : String(err)
@@ -175,6 +181,7 @@ export class Application {
         )
       }
     }
+    this._booting = false
     this.booted = true
   }
 

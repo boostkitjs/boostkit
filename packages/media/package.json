@@ -36,6 +36,7 @@
   "peerDependencies": {
     "@boostkit/core": "*",
     "@boostkit/panels": "*",
+    "@boostkit/router": "*",
     "@boostkit/storage": "*",
     "@boostkit/image": "*",
     "react": ">=18"
@@ -50,6 +51,7 @@
     "@boostkit/panels": "workspace:*",
     "@boostkit/storage": "workspace:*",
     "@boostkit/image": "workspace:*",
+    "@boostkit/router": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
