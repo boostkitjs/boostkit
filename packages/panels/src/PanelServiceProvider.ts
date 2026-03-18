@@ -86,7 +86,7 @@ export function panels(
   panelList:   PanelType[],
   extensions?: ProviderClass[],
 ): new (app: Application) => PanelServiceProvider {
-  return class extends PanelServiceProvider {
+  return class PanelServiceProvider_ extends PanelServiceProvider {
     register(): void {
       PanelRegistry.reset()
       DashboardRegistry.reset()
