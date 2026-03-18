@@ -4,6 +4,7 @@ import { GreetingService } from '../Services/GreetingService.js'
 import { TodoServiceProvider } from '../Modules/Todo/TodoServiceProvider.js'
 import { panels } from '@boostkit/panels'
 import { panelsLexical } from '@boostkit/panels-lexical/server'
+import { media } from '@boostkit/media/server'
 import { adminPanel } from 'App/Panels/Admin/AdminPanel.js'
 
 export class AppServiceProvider extends ServiceProvider {
@@ -15,8 +16,18 @@ export class AppServiceProvider extends ServiceProvider {
   async boot(): Promise<void> {
     // Dynamically register module providers — each module is self-contained
     await this.app.register(panels(
-      [adminPanel], 
-      [panelsLexical()]
+      [adminPanel],
+      [
+        panelsLexical(),
+        media({
+          disk: 'public',
+          directory: 'media',
+          conversions: [
+            { name: 'thumb', width: 200, height: 200, crop: true, format: 'webp' },
+            { name: 'preview', width: 800, format: 'webp' },
+          ],
+        }),
+      ],
     ))
 
     await this.app.register(TodoServiceProvider)

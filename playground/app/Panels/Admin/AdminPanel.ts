@@ -6,6 +6,7 @@ import { CategoryResource }     from './resources/CategoryResource.js'
 import { SiteSettingsGlobal }   from './globals/SiteSettingsGlobal.js'
 import { CustomPage } from './pages/CustomPage.js'
 import { ReportsPage } from './pages/ReportsPage.js'
+import { MediaPage } from './pages/MediaPage.js'
 
 import { Article }    from 'App/Models/Article.js'
 import { Category }   from 'App/Models/Category.js'
@@ -265,6 +266,7 @@ export const adminPanel = Panel.make('admin')
       ]),
   ])
   .pages([
+    MediaPage,
     CustomPage,
     ReportsPage,
   ])
