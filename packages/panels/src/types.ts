@@ -24,6 +24,8 @@ export interface PanelContext {
   params:  Record<string, string | undefined>
   /** URL search/query params (for persist='url' tabs). */
   urlSearch?: Record<string, string>
+  /** Session getter (for persist='session' tabs). Provided by +data.ts during Vike SSR. */
+  sessionGet?: (key: string) => unknown
 }
 
 // ─── Guard ─────────────────────────────────────────────────
