@@ -704,17 +704,18 @@ async function resolveActiveTabIndex(
       }
     }
   } else if (persistMode === 'session' && tabsId) {
-    try {
-      const sessionPkg = '@boostkit/session'
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sessionModule = await import(/* @vite-ignore */ sessionPkg) as any as { Session: { get(key: string): unknown } }
-      const stored = sessionModule.Session.get(`tabs:${tabsId}`)
-      if (typeof stored === 'number') return stored
-      if (typeof stored === 'string') {
-        const idx = tabLabels.findIndex(label => slugifyLabel(label) === stored)
-        if (idx >= 0) return idx
-      }
-    } catch { /* session not available */ }
+    // Use sessionGet from PanelContext (provided by +data.ts during Vike SSR)
+    const sessionGet = ctx.sessionGet
+    if (sessionGet) {
+      try {
+        const stored = sessionGet(`tabs:${tabsId}`)
+        if (typeof stored === 'number') return stored
+        if (typeof stored === 'string') {
+          const idx = tabLabels.findIndex(label => slugifyLabel(label) === stored)
+          if (idx >= 0) return idx
+        }
+      } catch { /* session not available */ }
+    }
   }
   return 0
 }
