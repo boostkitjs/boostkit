@@ -163,10 +163,7 @@ export class Tabs {
 
   static make(id?: string, tabs?: Tab[]): Tabs {
     const instance = new Tabs()
-    if (id !== undefined) {
-      instance._id = id
-      instance._persist = 'localStorage'  // default when ID is set
-    }
+    if (id !== undefined) instance._id = id
     if (tabs) instance._tabs = tabs
     return instance
   }
