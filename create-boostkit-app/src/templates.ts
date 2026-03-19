@@ -318,7 +318,7 @@ function tsconfigJson(ctx: TemplateContext): string {
     skipLibCheck:               true,
     noEmit:                     true,
     baseUrl:                    '.',
-    paths:                      { '@/*': ['./src/*'] },
+    paths:                      { '@/*': ['./src/*'], 'App/*': ['./app/*'] },
     allowImportingTsExtensions: true,
   }
 
