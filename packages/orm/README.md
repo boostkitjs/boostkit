@@ -84,6 +84,8 @@ const recent = await User.query()
 | `limit(n)` | `QueryBuilder` | Limit result count |
 | `offset(n)` | `QueryBuilder` | Skip n rows |
 | `with(...rels)` | `QueryBuilder` | Eager-load relations |
+| `scope(name, ...args)` | `QueryBuilder` | Apply a local scope defined in `static scopes` |
+| `withoutGlobalScope(name)` | `QueryBuilder` | Rebuild the query excluding a named global scope |
 | `first()` | `Promise<T \| null>` | First matching row |
 | `find(id)` | `Promise<T \| null>` | Find by primary key |
 | `get()` | `Promise<T[]>` | All matching rows |
@@ -115,6 +117,142 @@ class User extends Model {
 
 const user = new User()
 JSON.stringify(user)  // { "name": "Alice" }
+```
+
+---
+
+## Scopes
+
+### Global Scopes
+
+Applied automatically to every query on the model. Define them in `static globalScopes`:
+
+```ts
+export class Article extends Model {
+  static table = 'article'
+
+  static globalScopes = {
+    ordered: (q) => q.orderBy('createdAt', 'DESC'),
+    active: (q) => q.where('active', true),
+  }
+}
+
+// All queries automatically ordered and filtered
+await Article.query().get()  // ordered + active
+
+// Bypass a specific global scope
+await Article.query().withoutGlobalScope('active').get()
+```
+
+### Local Scopes
+
+Reusable query fragments, opt-in via `.scope('name')`:
+
+```ts
+export class Article extends Model {
+  static table = 'article'
+
+  static scopes = {
+    published: (q) => q.where('draftStatus', 'published'),
+    recent: (q) => q.where('createdAt', '>', new Date(Date.now() - 30 * 86400000).toISOString()),
+    byAuthor: (q, authorId: string) => q.where('authorId', authorId),
+  }
+}
+
+await Article.query().scope('published').scope('recent').get()
+await Article.query().scope('byAuthor', userId).get()
+```
+
+---
+
+## Observers
+
+Register lifecycle hooks on a model to transform data, log events, or cancel operations.
+
+### Observer Class
+
+```ts
+class ArticleObserver {
+  creating(data) {
+    data.slug = slugify(data.title)
+    return data  // return transformed data
+  }
+
+  created(record) {
+    console.log('Article created:', record.id)
+  }
+
+  updating(id, data) {
+    return { ...data, updatedAt: new Date() }
+  }
+
+  deleting(id) {
+    // return false to cancel deletion
+  }
+
+  deleted(id) {
+    console.log('Deleted:', id)
+  }
+
+  restoring(id) {
+    // return false to cancel restore
+  }
+
+  restored(record) {
+    console.log('Restored:', record.id)
+  }
+}
+
+Article.observe(ArticleObserver)
+```
+
+### Inline Listeners
+
+Quick event handlers without a full class:
+
+```ts
+Article.on('creating', (data) => {
+  data.slug = slugify(data.title)
+  return data
+})
+
+Article.on('deleting', (id) => {
+  if (id === protectedId) return false  // cancel
+})
+```
+
+### Events
+
+| Event | Arguments | Can cancel? | Can transform? |
+|---|---|---|---|
+| `creating` | `data` | Yes (return false) | Yes (return new data) |
+| `created` | `record` | No | No |
+| `updating` | `id, data` | Yes | Yes |
+| `updated` | `record` | No | No |
+| `deleting` | `id` | Yes | No |
+| `deleted` | `id` | No | No |
+| `restoring` | `id` | Yes | No |
+| `restored` | `record` | No | No |
+
+### Static Methods with Events
+
+Use these instead of `Model.query().create()` to trigger events:
+
+```ts
+Article.create(data)       // fires creating → created
+Article.update(id, data)   // fires updating → updated
+Article.delete(id)         // fires deleting → deleted
+Article.restore(id)        // fires restoring → restored
+Article.forceDelete(id)    // fires deleting → deleted
+```
+
+> **Note:** `Model.query().create()` does NOT fire events — use `Model.create()` instead.
+
+### Testing
+
+```ts
+// Clear all observers between tests
+Article.clearObservers()
 ```
 
 ---
@@ -151,6 +289,9 @@ ModelRegistry.reset()
 | `OrmAdapter` | Interface | Adapter contract — `query(table)`, `connect()`, `disconnect()`. |
 | `OrmAdapterProvider` | Interface | Service provider contract for adapter packages. |
 | `PaginatedResult<T>` | Interface | Shape returned by `paginate()`. |
+| `ModelEvent` | Type | Union of observer event names (`'creating' \| 'created' \| ...`). |
+| `ModelObserver` | Interface | Observer class contract with optional lifecycle methods. |
+| `ScopeFn` | Type | Scope function signature `(query, ...args) => QueryBuilder`. |
 | `WhereOperator` | Type | Allowed comparison operators for where clauses. |
 | `WhereClause` | Interface | Internal where clause shape. |
 | `OrderClause` | Interface | Internal order clause shape. |
