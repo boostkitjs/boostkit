@@ -100,6 +100,158 @@ const recent = await User.query()
 | `delete(id)` | `Promise<void>` | Delete a row by primary key |
 | `paginate(page, perPage?)` | `Promise<PaginatedResult<T>>` | Paginated results (default `perPage` is 15) |
 
+## Scopes
+
+### Global Scopes
+
+Global scopes are applied automatically to every query on a model. Define them in `static globalScopes` as a record of named scope functions:
+
+```ts
+import { Model } from '@boostkit/orm'
+
+export class Article extends Model {
+  static table = 'article'
+
+  static globalScopes = {
+    ordered: (q) => q.orderBy('createdAt', 'DESC'),
+    active: (q) => q.where('active', true),
+  }
+}
+
+// Every query includes both scopes automatically
+const articles = await Article.query().get()
+
+// Bypass a specific global scope when needed
+const allArticles = await Article.query().withoutGlobalScope('active').get()
+```
+
+`withoutGlobalScope(name)` rebuilds the query from scratch, applying all global scopes except the named one. You can chain it with other query methods normally.
+
+### Local Scopes
+
+Local scopes are reusable query fragments that you opt into via `.scope('name')`. Define them in `static scopes`:
+
+```ts
+export class Article extends Model {
+  static table = 'article'
+
+  static scopes = {
+    published: (q) => q.where('draftStatus', 'published'),
+    recent: (q) => q.where('createdAt', '>', new Date(Date.now() - 30 * 86400000).toISOString()),
+    byAuthor: (q, authorId: string) => q.where('authorId', authorId),
+  }
+}
+
+// Chain multiple local scopes
+await Article.query().scope('published').scope('recent').get()
+
+// Pass arguments to parameterised scopes
+await Article.query().scope('byAuthor', userId).get()
+```
+
+Calling `.scope('name')` with an undefined scope name throws an error immediately, so typos are caught at runtime.
+
+## Observers
+
+Observers let you hook into model lifecycle events to transform data, enforce invariants, log activity, or cancel operations.
+
+### Observer Class
+
+Create a plain class with optional lifecycle methods and register it with `Model.observe()`:
+
+```ts
+class ArticleObserver {
+  creating(data) {
+    data.slug = slugify(data.title)
+    return data  // returned data replaces the original
+  }
+
+  created(record) {
+    console.log('Article created:', record.id)
+  }
+
+  updating(id, data) {
+    return { ...data, updatedAt: new Date() }
+  }
+
+  deleting(id) {
+    // return false to cancel the deletion
+  }
+
+  deleted(id) {
+    console.log('Deleted:', id)
+  }
+
+  restoring(id) {
+    // return false to cancel the restore
+  }
+
+  restored(record) {
+    console.log('Restored:', record.id)
+  }
+}
+
+Article.observe(ArticleObserver)
+```
+
+### Inline Listeners
+
+For quick one-off hooks, use `Model.on()` instead of a full class:
+
+```ts
+Article.on('creating', (data) => {
+  data.slug = slugify(data.title)
+  return data
+})
+
+Article.on('deleting', (id) => {
+  if (id === protectedId) return false  // cancel
+})
+```
+
+### Event Reference
+
+| Event | Arguments | Can cancel? | Can transform? |
+|---|---|---|---|
+| `creating` | `data` | Yes (return `false`) | Yes (return new data) |
+| `created` | `record` | No | No |
+| `updating` | `id, data` | Yes (return `false`) | Yes (return new data) |
+| `updated` | `record` | No | No |
+| `deleting` | `id` | Yes (return `false`) | No |
+| `deleted` | `id` | No | No |
+| `restoring` | `id` | Yes (return `false`) | No |
+| `restored` | `record` | No | No |
+
+- **Cancel**: returning `false` from a `*ing` event throws an error and aborts the operation.
+- **Transform**: returning a new data object from `creating` or `updating` replaces the payload passed to the adapter.
+- **Post-events** (`created`, `updated`, `deleted`, `restored`): fire after the operation succeeds. Return values are ignored.
+
+### Static Methods with Events
+
+Events only fire when you use the static convenience methods on the Model class:
+
+```ts
+Article.create(data)       // fires creating → created
+Article.update(id, data)   // fires updating → updated
+Article.delete(id)         // fires deleting → deleted
+Article.restore(id)        // fires restoring → restored
+Article.forceDelete(id)    // fires deleting → deleted
+```
+
+> **Important:** `Model.query().create()` does NOT fire events — it goes directly to the adapter. Always use `Model.create()` (and the other static methods) when you need observer hooks.
+
+### Clearing Observers
+
+In tests, call `clearObservers()` to remove all registered observers and inline listeners:
+
+```ts
+afterEach(() => {
+  Article.clearObservers()
+})
+```
+
+Observers are stored per model subclass, so clearing one model's observers does not affect another.
+
 ## PaginatedResult
 
 `paginate()` returns a `PaginatedResult<T>` object:
