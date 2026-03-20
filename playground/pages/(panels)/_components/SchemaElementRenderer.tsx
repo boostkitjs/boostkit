@@ -440,48 +440,47 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
   // ── Lazy skeleton or restoring state ──
   if (!lazyLoaded || restoring) {
     return (
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="px-5 py-3 border-b bg-muted/40">
-          <p className="text-sm font-semibold">{element.title}</p>
-        </div>
-        <div className="p-4 space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-8 bg-muted/20 rounded animate-pulse" />)}
+      <div>
+        <p className="text-sm font-semibold mb-3">{element.title}</p>
+        <div className="rounded-xl border overflow-hidden">
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-8 bg-muted/20 rounded animate-pulse" />)}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/40">
-        <div>
-          <p className="text-sm font-semibold">{element.title}</p>
-          {element.description && (
-            <p className="text-xs text-muted-foreground mt-0.5">{element.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {hasSearch && (
-            <input
-              type="search"
-              placeholder={i18n.search ?? 'Search…'}
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="h-7 rounded-md border bg-background px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          )}
-          {hasHref && (
-            <a href={element.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              {i18n.viewAll}
-            </a>
-          )}
-        </div>
+    <div>
+      {/* Title + description — outside the table card */}
+      <div className="mb-1">
+        <p className="text-sm font-semibold">{element.title}</p>
+        {element.description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{element.description}</p>
+        )}
       </div>
 
-      {/* Filters */}
-      {filters.length > 0 && (
-        <div className="flex items-center gap-2 px-5 py-2 border-b bg-muted/10 flex-wrap">
+      {/* Toolbar: search + filters + view all — outside the table card */}
+      {(hasSearch || filters.length > 0 || hasHref) && (
+        <div className="py-2.5 flex items-center gap-3 flex-wrap">
+          {hasSearch && (
+            <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input
+                type="text"
+                placeholder={i18n.search?.replace(':label', element.title) ?? `Search ${element.title}...`}
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-8 rounded-md border bg-background pl-8 pr-8 text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
+              />
+              {search && (
+                <button onClick={() => handleSearchChange('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+          )}
           {filters.map(filter => {
             if (filter.type === 'select') {
               const options = (filter.extra?.options ?? []) as Array<{ label: string; value: string | number | boolean }>
@@ -490,7 +489,8 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                   key={filter.name}
                   value={activeFilters[filter.name] ?? ''}
                   onChange={(e) => handleFilterChange(filter.name, e.target.value)}
-                  className="h-7 rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="h-8 rounded-md border bg-background px-3 pr-8 text-sm appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
                 >
                   <option value="">{filter.label}</option>
                   {options.map(opt => (
@@ -509,33 +509,40 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
               {i18n.clearFilters ?? 'Clear filters'}
             </button>
           )}
+          {hasHref && (
+            <a href={element.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto">
+              {i18n.viewAll}
+            </a>
+          )}
         </div>
       )}
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar — outside the table card */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-5 py-2 border-b bg-primary/5">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 px-4 py-2.5 mb-2 bg-primary/5 border border-primary/20 rounded-lg">
+          <span className="text-xs font-medium">
             {i18n.selected?.replace(':n', String(selectedIds.size)) ?? `${selectedIds.size} selected`}
           </span>
-          {actions.filter(a => a.bulk).map(action => (
-            <button
-              key={action.name}
-              onClick={() => {
-                if (action.requiresConfirm) {
-                  if (confirm(action.confirmMessage ?? 'Are you sure?')) {
+          <div className="flex items-center gap-1">
+            {actions.filter(a => a.bulk).map(action => (
+              <button
+                key={action.name}
+                onClick={() => {
+                  if (action.requiresConfirm) {
+                    if (confirm(action.confirmMessage ?? 'Are you sure?')) {
+                      void executeAction(action.name, [...selectedIds])
+                    }
+                  } else {
                     void executeAction(action.name, [...selectedIds])
                   }
-                } else {
-                  void executeAction(action.name, [...selectedIds])
-                }
-              }}
-              disabled={actionLoading}
-              className={`text-xs px-2 py-1 rounded ${action.destructive ? 'text-red-500 hover:bg-red-500/10' : 'text-muted-foreground hover:bg-accent'}`}
-            >
-              {action.label}
-            </button>
-          ))}
+                }}
+                disabled={actionLoading}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${action.destructive ? 'text-red-600 hover:bg-red-500/10' : 'text-primary hover:bg-primary/10'}`}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setSelectedIds(new Set())}
             className="text-xs text-muted-foreground hover:text-foreground ml-auto"
@@ -545,16 +552,23 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
         </div>
       )}
 
-      {/* Table */}
+      {/* Table card */}
+      <div className="rounded-xl border overflow-hidden">
       {displayRecords.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">{element.emptyMessage ?? i18n.noRecordsFound}</p>
+        <div className="px-5 py-12 text-center">
+          <svg className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-2.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p className="text-sm font-medium text-muted-foreground">{element.emptyMessage ?? i18n.noRecordsFound}</p>
+          {search && <p className="text-xs text-muted-foreground/60 mt-1">{i18n.noResultsHint ?? 'Try adjusting your search or filters.'}</p>}
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/20">
+              <tr className="border-b bg-muted/40">
                 {hasBulkActions && (
-                  <th className="w-8 px-2">
+                  <th className="w-10 px-4">
                     <input
                       type="checkbox"
                       checked={selectedIds.size === displayRecords.length && displayRecords.length > 0}
@@ -562,7 +576,7 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                         if (e.target.checked) setSelectedIds(new Set(displayRecords.map(r => String(r['id'] ?? ''))))
                         else setSelectedIds(new Set())
                       }}
-                      className="rounded border-muted-foreground/50"
+                      className="h-4 w-4 rounded border-muted-foreground/30 accent-primary cursor-pointer"
                     />
                   </th>
                 )}
@@ -578,7 +592,17 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                     >
                       {col.label}
                       {sortable && isActive && (
-                        <span className="ml-1">{sort?.dir === 'asc' ? '↑' : '↓'}</span>
+                        <svg className="inline ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          {sort?.dir === 'asc'
+                            ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                            : <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          }
+                        </svg>
+                      )}
+                      {sortable && !isActive && (
+                        <svg className="inline ml-1 h-3 w-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
                       )}
                     </th>
                   )
@@ -593,14 +617,14 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                 return (
                   <tr
                     key={id}
-                    className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${dragging === id ? 'opacity-50' : ''}`}
+                    className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${selectedIds.has(id) ? 'bg-primary/5' : ''} ${dragging === id ? 'opacity-50' : ''}`}
                     draggable={el.reorderable}
                     onDragStart={el.reorderable ? () => handleDragStart(id) : undefined}
                     onDragOver={el.reorderable ? handleDragOver : undefined}
                     onDrop={el.reorderable && el.reorderEndpoint ? () => handleDrop(id, el.reorderEndpoint ?? '') : undefined}
                   >
                     {hasBulkActions && (
-                      <td className="px-2 py-2.5">
+                      <td className="px-4 py-2.5">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(id)}
@@ -610,7 +634,7 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                             else next.delete(id)
                             setSelectedIds(next)
                           }}
-                          className="rounded border-muted-foreground/50"
+                          className="h-4 w-4 rounded border-muted-foreground/30 accent-primary cursor-pointer"
                         />
                       </td>
                     )}
@@ -623,7 +647,7 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                       </td>
                     ))}
                     {hasRowActions && (
-                      <td className="px-2 py-2.5 text-right">
+                      <td className="px-3 py-2.5 text-right">
                         <div className="flex items-center gap-1 justify-end">
                           {actions.filter(a => a.row).map(action => (
                             <button
@@ -637,9 +661,10 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                                   void executeAction(action.name, [id])
                                 }
                               }}
-                              className={`text-xs px-1.5 py-0.5 rounded ${action.destructive ? 'text-red-500 hover:bg-red-500/10' : 'text-muted-foreground hover:bg-accent'}`}
+                              title={action.label}
+                              className={`p-1 rounded transition-colors ${action.destructive ? 'text-red-500 hover:bg-red-500/10' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
                             >
-                              {action.label}
+                              <span className="text-xs">{action.label}</span>
                             </button>
                           ))}
                         </div>
@@ -665,35 +690,57 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
 
       {/* Pagination: pages mode */}
       {pagination && pagination.type === 'pages' && pagination.lastPage > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t bg-muted/20">
+        <div className="flex items-center justify-between px-5 py-3 border-t bg-muted/10">
           <p className="text-xs text-muted-foreground">
-            {i18n.showing?.replace(':n', String(records.length)).replace(':total', String(pagination.total)) ?? `Showing ${records.length} of ${pagination.total}`}
+            {(i18n.page ?? 'Page :current of :last').replace(':current', String(currentPage)).replace(':last', String(pagination.lastPage))}
+            {' '}
+            <span className="text-muted-foreground/60">
+              ({(i18n.records ?? ':n records').replace(':n', String(pagination.total))})
+            </span>
           </p>
           <div className="flex items-center gap-1">
+            {/* Previous button */}
+            <button
+              onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="px-2 py-1 text-xs rounded text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
             {Array.from({ length: pagination.lastPage }, (_, i) => i + 1).map(page => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-2.5 py-1 text-xs rounded ${page === currentPage ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}`}
+                className={`min-w-[28px] px-2 py-1 text-xs rounded transition-colors ${page === currentPage ? 'bg-primary text-primary-foreground font-medium' : 'text-muted-foreground hover:bg-accent'}`}
               >
                 {page}
               </button>
             ))}
+            {/* Next button */}
+            <button
+              onClick={() => currentPage < pagination.lastPage && handlePageChange(currentPage + 1)}
+              disabled={currentPage >= pagination.lastPage}
+              className="px-2 py-1 text-xs rounded text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
           </div>
         </div>
       )}
 
       {/* Pagination: loadMore mode */}
       {pagination && pagination.type === 'loadMore' && records.length < pagination.total && (
-        <div className="px-5 py-3 border-t">
+        <div className="px-5 py-3 border-t bg-muted/10">
           <button
             onClick={() => handlePageChange(currentPage + 1)}
-            className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-1.5"
+            disabled={loadingMore}
+            className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-2 rounded hover:bg-accent/50 transition-colors disabled:opacity-50"
           >
-            {loadingMore ? (i18n.loading ?? 'Loading…') : (i18n.loadMore ?? 'Load more')}
+            {loadingMore ? (i18n.loading ?? 'Loading...') : `${i18n.loadMore ?? 'Load more'} (${records.length} / ${pagination.total})`}
           </button>
         </div>
       )}
+      </div>{/* end table card */}
     </div>
   )
 }
