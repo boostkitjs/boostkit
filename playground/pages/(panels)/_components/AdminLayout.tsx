@@ -373,22 +373,26 @@ function SidebarNavigation({ items, currentSlug, badges, panelMeta }: {
             const isParentActive = item.slug === currentSlug
             const isChildActive = allChildren.some(c => c.slug === currentSlug)
             return (
-              <Collapsible key={item.slug} defaultOpen={isParentActive || isChildActive}>
+              <Collapsible key={item.slug} defaultOpen={isParentActive || isChildActive} className="group/collapsible">
                 <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip={item.label}>
+                  <div className="flex items-center w-full">
+                    <SidebarMenuButton
+                      render={<a href={item.href} />}
+                      isActive={isParentActive}
+                      tooltip={item.label}
+                      className="flex-1"
+                    >
                       <ResourceIcon icon={item.icon} />
                       <span>{item.label}</span>
-                      <svg className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/collapsible:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </SidebarMenuButton>
-                  </CollapsibleTrigger>
+                    <CollapsibleTrigger asChild>
+                      <button className="p-1.5 rounded hover:bg-accent shrink-0">
+                        <svg className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/collapsible:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    </CollapsibleTrigger>
+                  </div>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton render={<a href={item.href} />} isActive={isParentActive}>
-                          <span>Overview</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
                       {allChildren.map(child => (
                         <SidebarMenuSubItem key={child.slug}>
                           <SidebarMenuSubButton render={<a href={child.href} />} isActive={child.slug === currentSlug}>
