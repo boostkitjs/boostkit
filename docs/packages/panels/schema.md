@@ -151,6 +151,7 @@ Table.make('Browser Stats')
 | `.id(id)` | Explicit ID for API endpoint (auto-generated from title if not set) |
 | `.filters([...])` | Attach `SelectFilter` / `SearchFilter` dropdowns |
 | `.actions([...])` | Attach bulk/row `Action` handlers |
+| `.remember(mode)` | Persist table state across navigations: `false` (default), `'localStorage'`, `'url'`, `'session'` |
 
 #### Pagination
 
@@ -188,6 +189,31 @@ Table.make('Live Orders')
   .lazy()
   .poll(5000)  // re-fetch every 5 seconds
 ```
+
+#### Table State Persistence (`.remember()`)
+
+Persist page, sort column, sort direction, search query, and filters across navigations and page refreshes:
+
+```ts
+Table.make('Recent Articles')
+  .fromModel(Article)
+  .columns([...])
+  .paginated('pages', 10)
+  .searchable()
+  .remember()              // localStorage (default)
+  .remember('url')         // URL query params — shareable, SSR
+  .remember('session')     // server session — SSR, clean URL
+  .remember(false)         // no persistence (default)
+```
+
+| Mode | URL changes | SSR state | Survives refresh | Shareable |
+|------|------------|-----------|------------------|-----------|
+| `false` | No | No | No | No |
+| `'localStorage'` | No | No | Yes | No |
+| `'url'` | Yes | Yes | Yes | Yes |
+| `'session'` | No | Yes | Yes | No |
+
+The `mode` parameter accepts the shared `PersistMode` type (see below), which is also used by `Tabs.persist()`.
 
 ### `Column`
 
@@ -408,6 +434,8 @@ Tabs.make('my-tabs', [...])
 
 Default: `false` (no persistence). Must explicitly opt in.
 
+The `mode` parameter accepts the shared `PersistMode` type, exported from `@boostkit/panels`. The same type is used by `Table.remember()`.
+
 #### `ListTab` — Resource list tabs
 
 For Resource list filtering tabs (e.g. All / Published / Draft), use `ListTab` -- distinct from the schema-level `Tab`:
@@ -541,7 +569,7 @@ Widgets render above the record fields on the show page. All schema element type
 
 ## SchemaElementRenderer Component
 
-The `SchemaElementRenderer` React component (renamed from `WidgetRenderer`) renders any schema element type. It is used internally by the panel landing page, resource show page, and the dashboard builder. Also available for custom pages.
+The `SchemaElementRenderer` React component renders any schema element type. It is used internally by the panel landing page, resource show page, and the dashboard builder. Also available for custom pages.
 
 ```tsx
 import { SchemaElementRenderer } from '@boostkit/panels/client'

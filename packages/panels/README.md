@@ -254,6 +254,8 @@ fields() {
 | `'url'` | Store active tab in URL query params |
 | `'session'` | Persist for the current session via `sessionStorage` |
 
+The `mode` parameter accepts the shared `PersistMode` type (exported from `@boostkit/panels`), which is also used by `Table.remember()`.
+
 **SSR behavior** — all tabs are server-rendered by default. Use `.lazy()` on a `Tab` (or on individual schema elements inside a tab) to defer heavy content to client-side rendering with a skeleton placeholder.
 
 **Model-backed tabs** -- generate tabs dynamically from database records:
@@ -490,7 +492,7 @@ The schema function receives `PanelContext` (`{ user, headers, path }`) and can 
 | `Text.make(content)` | Paragraph of text |
 | `Stats.make([...stats])` | Row of stat cards. Also accepts a string ID for async mode: `.data(fn)`, `.lazy()`, `.poll(ms)` |
 | `Stat.make(label)` | Single stat -- `.value(n)`, `.description(text)`, `.trend(n)` (positive=↑, negative=↓) |
-| `Table.make(title)` | Data table -- `.fromResource()`, `.fromModel()`, `.rows([...])`, `.columns()`, `.limit()`, `.sortBy()`, `.scope()`, `.searchable()`, `.paginated()`, `.lazy()`, `.poll()`, `.filters()`, `.actions()`, `.reorderable()` |
+| `Table.make(title)` | Data table -- `.fromResource()`, `.fromModel()`, `.rows([...])`, `.columns()`, `.limit()`, `.sortBy()`, `.scope()`, `.searchable()`, `.paginated()`, `.remember()`, `.lazy()`, `.poll()`, `.filters()`, `.actions()`, `.reorderable()` |
 | `Column.make(name)` | Typed display column for `Table.make()` — `.label()`, `.sortable()`, `.searchable()`, `.date()`, `.badge()`, `.href()` |
 | `Form.make(id)` | Standalone form — `.fields()`, `.onSubmit()`, `.description()`, `.method()`, `.action()`, `.data()`, `.beforeSubmit()`, `.afterSubmit()`, `.submitLabel()`, `.successMessage()` |
 | `Dialog.make(id)` | Modal dialog wrapper — `.trigger(label)`, `.title()`, `.description()`, `.schema([...elements])` |
@@ -597,6 +599,32 @@ Table.make('Browsers')
 | `.description(text)` | Subtitle below the table title |
 | `.emptyMessage(text)` | Custom empty state text |
 | `.href(url)` | Override the "View all" header link |
+| `.remember(mode)` | Persist table state: `false` (default), `'localStorage'`, `'url'`, `'session'` |
+
+#### Table State Persistence (`.remember()`)
+
+Persist page, sort column, sort direction, search query, and filters across navigations:
+
+```ts
+Table.make('Recent Articles')
+  .fromModel(Article)
+  .columns([...])
+  .paginated('pages', 10)
+  .searchable()
+  .remember()              // localStorage (default)
+  .remember('url')         // URL query params — shareable, SSR
+  .remember('session')     // server session — SSR, clean URL
+  .remember(false)         // no persistence (default)
+```
+
+| Mode | URL changes | SSR state | Survives refresh | Shareable |
+|------|------------|-----------|------------------|-----------|
+| `false` | No | No | No | No |
+| `'localStorage'` | No | No | Yes | No |
+| `'url'` | Yes | Yes | Yes | Yes |
+| `'session'` | No | Yes | Yes | No |
+
+The `mode` parameter accepts the shared `PersistMode` type (exported from `@boostkit/panels`), which is also used by `Tabs.persist()`.
 
 ### `Stats`
 

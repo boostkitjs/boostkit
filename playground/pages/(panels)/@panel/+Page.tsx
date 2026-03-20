@@ -354,7 +354,7 @@ function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, modelBa
           window.history.replaceState(null, '', url.pathname + url.search)
         }
       } else {
-        saveClientState(persist as PersistMode, `tabs:${id}`, { value: slug }, {
+        saveClientState(persist as PersistMode, `tabs:${id}`, { tab: slug }, {
           pathSegment,
           apiPath: `/api/_tabs/${id}/active`,
         })
