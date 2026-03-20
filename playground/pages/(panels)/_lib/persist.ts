@@ -58,11 +58,16 @@ export function saveClientState(
   if (mode === 'url' && typeof window !== 'undefined') {
     const url = new URL(window.location.href)
     const prefix = opts?.urlPrefix ?? storeKey
+    // Remove all existing params with this prefix (cleans up stale keys like cleared filters)
+    const toDelete: string[] = []
+    for (const key of url.searchParams.keys()) {
+      if (key.startsWith(`${prefix}_`)) toDelete.push(key)
+    }
+    for (const key of toDelete) url.searchParams.delete(key)
+    // Set new params
     for (const [k, v] of Object.entries(state)) {
       if (v !== undefined && v !== null && v !== '') {
         url.searchParams.set(`${prefix}_${k}`, String(v))
-      } else {
-        url.searchParams.delete(`${prefix}_${k}`)
       }
     }
     window.history.replaceState(null, '', url.pathname + url.search)

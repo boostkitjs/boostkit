@@ -503,7 +503,7 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
           })}
           {Object.keys(activeFilters).length > 0 && (
             <button
-              onClick={() => { setActiveFilters({}); if (hasPagination) void fetchTable({ page: 1, filters: {} }) }}
+              onClick={() => { setActiveFilters({}); setCurrentPage(1); if (hasPagination) void fetchTable({ page: 1, filters: {} }); saveRememberState({ sort: sort?.col, dir: sort?.dir, search, page: 1 }) }}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               {i18n.clearFilters ?? 'Clear filters'}
