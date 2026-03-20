@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { PanelSchemaElementMeta, PanelStatMeta, PanelColumnMeta, PanelI18n, ChartElementMeta, ChartDataset, ListElementMeta } from '@boostkit/panels'
 import { readClientState, saveClientState } from '../_lib/persist.js'
+import { Checkbox } from '@/components/ui/checkbox.js'
 import type { PersistMode } from '../_lib/persist.js'
 
 // Extended type to include custom widget types not in PanelSchemaElementMeta
@@ -568,15 +569,13 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
             <thead>
               <tr className="border-b bg-muted/40">
                 {hasBulkActions && (
-                  <th className="w-10 px-4">
-                    <input
-                      type="checkbox"
+                  <th className="w-10 px-4 py-3">
+                    <Checkbox
                       checked={selectedIds.size === displayRecords.length && displayRecords.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(new Set(displayRecords.map(r => String(r['id'] ?? ''))))
+                      onCheckedChange={(checked) => {
+                        if (checked) setSelectedIds(new Set(displayRecords.map(r => String(r['id'] ?? ''))))
                         else setSelectedIds(new Set())
                       }}
-                      className="h-4 w-4 rounded border-muted-foreground/30 accent-primary cursor-pointer"
                     />
                   </th>
                 )}
@@ -625,16 +624,14 @@ function SchemaTable({ element, panelPath, i18n }: { element: Extract<PanelSchem
                   >
                     {hasBulkActions && (
                       <td className="px-4 py-2.5">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedIds.has(id)}
-                          onChange={(e) => {
+                          onCheckedChange={(checked) => {
                             const next = new Set(selectedIds)
-                            if (e.target.checked) next.add(id)
+                            if (checked) next.add(id)
                             else next.delete(id)
                             setSelectedIds(next)
                           }}
-                          className="h-4 w-4 rounded border-muted-foreground/30 accent-primary cursor-pointer"
                         />
                       </td>
                     )}
