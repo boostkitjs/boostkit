@@ -1,15 +1,16 @@
-import { Page, Heading, Text, Table, Column, SelectFilter, Action } from '@boostkit/panels'
+import { Page, Heading, Text, Table, Column, SelectFilter, Action, SelectField, TextareaField } from '@boostkit/panels'
 import type { PanelContext } from '@boostkit/panels'
 import { Article } from '../../../Models/Article.js'
 import { User }    from '../../../Models/User.js'
 import { PaginationDemo }   from './tables/PaginationDemo.js'
 import { ExternalDataDemo } from './tables/ExternalDataDemo.js'
+import { InlineEditDemo }   from './tables/InlineEditDemo.js'
 
 export class TablesDemo extends Page {
   static slug  = 'tables-demo'
   static label = 'Tables Demo'
   static icon  = 'table'
-  static pages = [PaginationDemo, ExternalDataDemo]
+  static pages = [PaginationDemo, ExternalDataDemo, InlineEditDemo]
 
   static async schema(_ctx: PanelContext) {
     return [
@@ -228,6 +229,51 @@ export class TablesDemo extends Page {
         .searchable()
         .lazy()
         .description('20 posts from jsonplaceholder.typicode.com — lazy loaded'),
+
+      // ── Inline Editing ──────────────────────────────────────
+      Heading.make('Inline Editable Table').level(2),
+      Text.make('Click cell values to edit inline. Different edit modes: inline (text/select/toggle), popover (textarea), modal (complex fields).'),
+
+      Table.make('Editable Users')
+        .fromModel(User)
+        .columns([
+          Column.make('name').label('Name').sortable().searchable().editable(),
+          Column.make('email').label('Email').sortable().searchable().editable(),
+          Column.make('role').label('Role').editable(
+            SelectField.make('role').options([
+              { label: 'Admin', value: 'admin' },
+              { label: 'User', value: 'user' },
+            ]),
+          ),
+          Column.make('createdAt').label('Joined').date(),
+        ])
+        .paginated('pages', 5)
+        .searchable(),
+
+      // ── Static editable (fromArray + onSave) ────────────────
+      Heading.make('Static Editable Table').level(2),
+      Text.make('Editable fromArray() table with onSave handler. Demonstrates inline, popover, and modal modes.'),
+
+      Table.make('Editable Team')
+        .fromArray([
+          { id: 1, name: 'Alice', role: 'admin', active: true, bio: 'Full-stack developer with 10 years of experience.' },
+          { id: 2, name: 'Bob', role: 'user', active: false, bio: 'UI/UX designer passionate about accessibility.' },
+          { id: 3, name: 'Carol', role: 'user', active: true, bio: 'DevOps engineer specializing in cloud infrastructure.' },
+        ])
+        .columns([
+          Column.make('name').label('Name').editable(),
+          Column.make('role').label('Role').editable(
+            SelectField.make('role').options([
+              { label: 'Admin', value: 'admin' },
+              { label: 'User', value: 'user' },
+            ]),
+          ),
+          Column.make('active').label('Active').boolean().editable(),
+          Column.make('bio').label('Bio').editable(TextareaField.make('bio'), 'popover'),
+        ])
+        .onSave(async (record, field, value) => {
+          console.log('[inline edit]', { recordId: record['id'], field, value })
+        }),
     ]
   }
 }

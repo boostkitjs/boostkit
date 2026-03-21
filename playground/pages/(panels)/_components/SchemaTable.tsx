@@ -5,6 +5,7 @@ import type { PanelSchemaElementMeta, PanelColumnMeta, PanelI18n } from '@boostk
 import { readClientState, saveClientState } from '../_lib/persist.js'
 import { Checkbox } from '@/components/ui/checkbox.js'
 import type { PersistMode } from '../_lib/persist.js'
+import { TableEditCell } from './TableEditCell.js'
 
 // Client-side cache for table state — survives tab switches within the same page
 const tableStateCache = new Map<string, Record<string, unknown>>()
@@ -609,7 +610,21 @@ export function SchemaTable({ element, panelPath, i18n }: { element: Extract<Pan
                     )}
                     {element.columns.map((col: PanelColumnMeta) => (
                       <td key={col.name} className="px-4 py-2.5 text-muted-foreground">
-                        {formatCellValue(record[col.name], col, i18n, panelPath)}
+                        {col.editable && col.editField
+                          ? <TableEditCell
+                              record={record}
+                              column={col}
+                              saveEndpoint={`/${pathSegment}/api/_tables/${tableId}/save`}
+                              panelPath={panelPath}
+                              i18n={i18n}
+                              onSaved={(rec, field, value) => {
+                                setRecords(prev => prev.map(r =>
+                                  r['id'] === rec['id'] ? { ...r, [field]: value } : r
+                                ))
+                              }}
+                            />
+                          : formatCellValue(record[col.name], col, i18n, panelPath)
+                        }
                       </td>
                     ))}
                     {hasRowActions && (
