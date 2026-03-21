@@ -184,6 +184,83 @@ export async function validatePayload(
   return Object.keys(errors).length > 0 ? errors : null
 }
 
+/**
+ * Coerce raw form values using a flat Field[] list (for schema Forms).
+ */
+export function coerceFormPayload(
+  fields: Field[],
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = { ...body }
+  for (const field of fields) {
+    const name = field.getName()
+    if (!(name in result)) continue
+    const val  = result[name]
+    const type = field.getType()
+    if (type === 'boolean' || type === 'toggle') {
+      result[name] = val === true || val === 'true' || val === '1' || val === 1
+    } else if (type === 'number') {
+      result[name] = (val === '' || val === null || val === undefined) ? null : Number(val)
+    } else if (type === 'date' || type === 'datetime') {
+      if (val === '' || val === null || val === undefined) {
+        result[name] = null
+      } else {
+        const d = new Date(String(val))
+        result[name] = isNaN(d.getTime()) ? null : d
+      }
+    } else if (type === 'tags') {
+      result[name] = Array.isArray(val) ? val : (val ?? [])
+    } else if (type === 'content' || type === 'richcontent') {
+      if (val === '' || val === null || val === undefined) {
+        result[name] = null
+      } else if (typeof val === 'string') {
+        try { result[name] = JSON.parse(val) } catch { result[name] = null }
+      }
+    }
+  }
+  return result
+}
+
+/**
+ * Validate form payload using a flat Field[] list (for schema Forms).
+ * Returns { fieldName: ['error'] } or null if valid.
+ */
+export async function validateFormPayload(
+  fields: Field[],
+  body: Record<string, unknown>,
+): Promise<Record<string, string[]> | null> {
+  const errors: Record<string, string[]> = {}
+
+  for (const field of fields) {
+    if (field.isReadonly()) continue
+    const name  = field.getName()
+    const value = body[name]
+
+    // Required check
+    if (field.isRequired() && (value === undefined || value === null || value === '')) {
+      errors[name] = [`${field.getLabel() || name} is required.`]
+    }
+  }
+
+  // Custom validators
+  for (const field of fields) {
+    if (!field.hasValidate()) continue
+    if (field.isReadonly()) continue
+    const name  = field.getName()
+    const value = body[name]
+    const result = await field.runValidate(value, body)
+    if (result !== true) {
+      if (errors[name]) {
+        errors[name]!.push(result)
+      } else {
+        errors[name] = [result]
+      }
+    }
+  }
+
+  return Object.keys(errors).length > 0 ? errors : null
+}
+
 export function applyTransforms(resource: Resource, records: unknown[]): unknown[] {
   const fields = flattenFields(resource.fields())
   const displayFields  = fields.filter(f => f.hasDisplay())

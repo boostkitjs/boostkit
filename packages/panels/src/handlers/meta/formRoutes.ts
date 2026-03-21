@@ -4,6 +4,7 @@ import type { Panel } from '../../Panel.js'
 import { FormRegistry } from '../../registries/FormRegistry.js'
 import { ComputeRegistry } from '../../registries/ComputeRegistry.js'
 import { warmUpRegistries, debugWarn, buildContext } from './shared.js'
+import { flattenFields, coerceFormPayload, validateFormPayload } from '../utils.js'
 
 export function mountFormRoutes(
   router: RouterLike,
@@ -69,6 +70,14 @@ export function mountFormRoutes(
 
     let data = (req.body as Record<string, unknown> | undefined) ?? {}
     const ctx = buildContext(req)
+
+    // Coerce + validate if fields are registered
+    const fields = entry.fields ? flattenFields(entry.fields as any) : []
+    if (fields.length > 0) {
+      data = coerceFormPayload(fields, data)
+      const errors = await validateFormPayload(fields, data)
+      if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
+    }
 
     try {
       // Before hook — transform data before submission

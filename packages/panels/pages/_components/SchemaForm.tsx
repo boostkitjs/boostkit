@@ -288,8 +288,15 @@ export function SchemaForm({ form, panelPath, i18n }: SchemaFormProps) {
       if (res.ok) {
         setSubmitted(true)
       } else {
-        const body = await res.json() as { message?: string; errors?: Record<string, string> }
-        if (body.errors) setFieldErrors(body.errors)
+        const body = await res.json() as { message?: string; errors?: Record<string, string | string[]> }
+        if (body.errors) {
+          // Flatten string[] to first error string
+          const flat: Record<string, string> = {}
+          for (const [k, v] of Object.entries(body.errors)) {
+            flat[k] = Array.isArray(v) ? v[0] ?? '' : v
+          }
+          setFieldErrors(flat)
+        }
         else setServerError(body.message ?? 'Submission failed.')
       }
     } catch {
