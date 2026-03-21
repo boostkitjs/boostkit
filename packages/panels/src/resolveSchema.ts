@@ -3,6 +3,7 @@ import type { PanelContext, SchemaElementLike }  from './types.js'
 import type {
   TextElementMeta,
   HeadingElementMeta,
+  CodeElementMeta,
   StatsElementMeta,
   TableElementMeta,
   ChartElementMeta,
@@ -26,6 +27,7 @@ import { resolveField }     from './resolvers/resolveField.js'
 export type PanelSchemaElementMeta =
   | TextElementMeta
   | HeadingElementMeta
+  | CodeElementMeta
   | StatsElementMeta
   | TableElementMeta
   | ChartElementMeta

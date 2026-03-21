@@ -1,5 +1,5 @@
 import {
-  Page, Heading, Text, Form, Section,
+  Page, Heading, Text, Code, Form, Section,
   TextField, EmailField, PasswordField, NumberField,
   TextareaField, SelectField, BooleanField, ToggleField,
   DateField, ColorField, TagsField, SlugField,
@@ -294,6 +294,35 @@ export class FieldsDemo extends Page {
         .submitLabel('Publish')
         .successMessage('Published!')
         .onSubmit(async (data) => { console.log('[persist-derive]', data) }),
+
+      // ── Code Blocks ──────────────────────────────────────────
+      Heading.make('Code Blocks').level(2),
+      Text.make('Code.make() renders syntax-highlighted code blocks with copy button.'),
+
+      Code.make(`import { Application } from '@boostkit/core'
+import { hono } from '@boostkit/server-hono'
+
+export default Application.configure({
+  server: hono(configs.server),
+  providers,
+}).create()`).language('typescript').title('bootstrap/app.ts'),
+
+      Code.make(`pnpm add @boostkit/core @boostkit/server-hono
+pnpm build
+cd playground && pnpm dev`).language('bash').title('Quick Start'),
+
+      Code.make(`{
+  "name": "@boostkit/panels",
+  "version": "0.0.3",
+  "type": "module"
+}`).language('json').title('package.json'),
+
+      Code.make(`SELECT a.title, a.status, COUNT(c.id) as comments
+FROM articles a
+LEFT JOIN comments c ON c.article_id = a.id
+GROUP BY a.id
+ORDER BY comments DESC
+LIMIT 10;`).language('sql').title('Top Articles by Comments').lineNumbers(),
     ]
   }
 }

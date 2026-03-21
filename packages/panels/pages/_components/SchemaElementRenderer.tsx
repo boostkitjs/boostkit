@@ -30,6 +30,10 @@ export function SchemaElementRenderer({ element, panelPath, i18n }: SchemaElemen
     return <Tag className={cls}>{element.content}</Tag>
   }
 
+  if (element.type === 'code') {
+    return <CodeBlock code={element.content} language={element.language} title={element.title} lineNumbers={element.lineNumbers} />
+  }
+
   if (element.type === 'stats') {
     return <StatsRow stats={element.stats} />
   }
@@ -242,6 +246,80 @@ function StatProgressWidget({ data }: { data: Record<string, unknown> }) {
       <div>
         <p className="text-2xl font-bold tabular-nums">{value}<span className="text-sm font-normal text-muted-foreground">/{max}</span></p>
         {label && <p className="text-xs text-muted-foreground mt-0.5">{label}</p>}
+      </div>
+    </div>
+  )
+}
+
+function CodeBlock({ code, language, title, lineNumbers }: { code: string; language?: string; title?: string; lineNumbers?: boolean }) {
+  const [html, setHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    import('shiki').then(async ({ codeToHtml }) => {
+      if (cancelled) return
+      const result = await codeToHtml(code, {
+        lang: language ?? 'text',
+        themes: {
+          light: 'github-light',
+          dark: 'github-dark-high-contrast',
+        },
+        defaultColor: false,
+      })
+      if (!cancelled) setHtml(result)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [code, language])
+
+  const lines = code.split('\n')
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      {title && (
+        <div className="px-4 py-2 border-b bg-muted/40 flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">{title}</span>
+          <button
+            type="button"
+            onClick={() => { void navigator.clipboard.writeText(code) }}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Copy"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+          </button>
+        </div>
+      )}
+      <div className="relative">
+        {!title && (
+          <button
+            type="button"
+            onClick={() => { void navigator.clipboard.writeText(code) }}
+            className="absolute top-2 right-2 text-xs text-muted-foreground hover:text-foreground transition-colors z-10"
+            title="Copy"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+          </button>
+        )}
+        {html ? (
+          <div
+            className="text-sm [&_pre]:!rounded-none [&_pre]:!m-0 [&_pre]:p-4 [&_pre]:overflow-x-auto [&_span]:!text-[var(--shiki-light)] dark:[&_span]:!text-[var(--shiki-dark)] [&_pre]:!bg-[var(--shiki-light-bg,#fff)] dark:[&_pre]:!bg-[var(--shiki-dark-bg,#24292e)]"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        ) : (
+          <div className="flex text-sm font-mono">
+            {lineNumbers && (
+              <div className="select-none text-right pr-4 pl-4 py-4 text-muted-foreground/40 border-r border-border/50 bg-muted/20">
+                {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
+              </div>
+            )}
+            <pre className="p-4 overflow-x-auto flex-1"><code>{code}</code></pre>
+          </div>
+        )}
       </div>
     </div>
   )
