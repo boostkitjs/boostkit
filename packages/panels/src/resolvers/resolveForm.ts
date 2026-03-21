@@ -23,10 +23,12 @@ export async function resolveForm(
     ((data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined
   const afterSubmit = (form as unknown as { getAfterSubmit?(): unknown }).getAfterSubmit?.() as
     ((result: Record<string, unknown>, ctx: PanelContext) => Promise<void>) | undefined
-  if (beforeSubmit || afterSubmit) {
+  const refreshes = (form as unknown as { getRefreshes?(): string[] }).getRefreshes?.() ?? []
+  if (beforeSubmit || afterSubmit || refreshes.length > 0) {
     FormRegistry.registerHooks(panel.getName(), form.getId(), {
       beforeSubmit,
       afterSubmit,
+      ...(refreshes.length > 0 ? { refreshes } : {}),
     })
   }
 

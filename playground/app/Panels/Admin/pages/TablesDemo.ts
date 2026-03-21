@@ -1,4 +1,4 @@
-import { Page, Heading, Text, Table, Column, SelectFilter, Action, SelectField, TextareaField, TagsField, ColorField, ToggleField } from '@boostkit/panels'
+import { Page, Heading, Text, Table, Column, SelectFilter, Action, SelectField, TextareaField, TagsField, ColorField, ToggleField, Form, TextField } from '@boostkit/panels'
 import type { PanelContext } from '@boostkit/panels'
 import { Article } from '../../../Models/Article.js'
 import { User }    from '../../../Models/User.js'
@@ -175,6 +175,40 @@ export class TablesDemo extends Page {
           ),
           Column.make('featured').label('Featured').editable(ToggleField.make('featured')),
           Column.make('createdAt').label('Created').date(),
+        ])
+        .sortBy('createdAt', 'DESC')
+        .paginated('pages', 5)
+        .searchable()
+        .live(),
+
+      // ── Form + Live Table (.refreshes) ──────────────────────
+      Heading.make('Form + Live Table').level(2),
+      Text.make('Submit the form to create an article — the live table below refreshes automatically via .refreshes().'),
+
+      Form.make('quick-article')
+        .description('Quick-add a new article.')
+        .fields([
+          TextField.make('title').label('Title').required(),
+          SelectField.make('draftStatus').label('Status').default('draft').options([
+            { label: 'Draft', value: 'draft' },
+            { label: 'Published', value: 'published' },
+          ]),
+        ])
+        .onSubmit(async (data) => {
+          const base = String(data.title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+          const slug = `${base}-${Date.now().toString(36)}`
+          await Article.create({ title: data.title, slug, draftStatus: data.draftStatus ?? 'draft' } as any)
+        })
+        .refreshes('Live Form Articles')
+        .submitLabel('Create Article')
+        .successMessage('Article created!'),
+
+      Table.make('Live Form Articles')
+        .fromModel(Article)
+        .columns([
+          Column.make('title').label('Title').sortable().searchable(),
+          Column.make('draftStatus').label('Status').badge(),
+          Column.make('createdAt').label('Created').date().sortable(),
         ])
         .sortBy('createdAt', 'DESC')
         .paginated('pages', 5)
