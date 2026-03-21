@@ -1,9 +1,11 @@
 import type { FormSubmitFn } from '../schema/Form.js'
+import type { Field } from '../schema/Field.js'
 import type { PanelContext } from '../types.js'
 import { createRegistry } from './BaseRegistry.js'
 
 interface FormEntry {
   handler: FormSubmitFn
+  fields?: Field[]
   beforeSubmit?: ((data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined
   afterSubmit?: ((result: Record<string, unknown>, ctx: PanelContext) => Promise<void>) | undefined
   refreshes?: string[]
@@ -38,6 +40,15 @@ export const FormRegistry = {
       if (hooks.refreshes) existing.refreshes = hooks.refreshes
     } else {
       base.register(panelName, formId, { handler: async () => {}, ...hooks })
+    }
+  },
+
+  registerFields(panelName: string, formId: string, fields: Field[]): void {
+    const existing = base.get(panelName, formId)
+    if (existing) {
+      existing.fields = fields
+    } else {
+      base.register(panelName, formId, { handler: async () => {}, fields })
     }
   },
 

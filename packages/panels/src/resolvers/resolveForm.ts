@@ -18,6 +18,10 @@ export async function resolveForm(
     FormRegistry.register(panel.getName(), form.getId(), handler)
   }
 
+  // Store fields for server-side validation in submit endpoint
+  const rawFields = (form as unknown as { getFields?(): unknown[] }).getFields?.() ?? []
+  FormRegistry.registerFields(panel.getName(), form.getId(), rawFields as import('../schema/Field.js').Field[])
+
   // Register lifecycle hooks
   const beforeSubmit = (form as unknown as { getBeforeSubmit?(): unknown }).getBeforeSubmit?.() as
     ((data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined
