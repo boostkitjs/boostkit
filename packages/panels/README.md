@@ -1512,6 +1512,25 @@ export class ArticleResource extends Resource {
 ### `live`
 Table auto-refreshes when any user saves. Uses `@boostkit/broadcast` — no Yjs.
 
+You can also enable real-time updates on individual schema elements (tables, stats, charts) using `.live()`:
+
+```ts
+// Auto-refresh a standalone table whenever any record changes
+Table.make('Recent Orders')
+  .fromModel(Order)
+  .columns([...])
+  .live()
+
+// Auto-refresh stats without polling
+Stats.make('dashboard-stats')
+  .data(async () => [
+    { label: 'Active Users', value: await User.query().count() },
+  ])
+  .live()
+```
+
+`.live()` subscribes to broadcast events from `@boostkit/broadcast` — no polling interval needed. Requires `@boostkit/broadcast` registered in providers.
+
 ### `versioned`
 Each save/publish creates a JSON snapshot in `PanelVersion`. View history and revert. The version history panel highlights the active version and lets users restore any snapshot. No Yjs needed.
 
@@ -1619,6 +1638,44 @@ DateField.make('startDate').default(() => new Date().toISOString())
 
 **Priority**: `.data(fn)` on Form > field `.persist()` restored value > `.default()`. On the edit page, the existing record value always takes precedence.
 
+### Standalone Fields
+
+Fields can be placed directly in a panel schema (landing page or custom page) without a `Form` wrapper. They render as simple display or input elements in context:
+
+```ts
+.schema(async (ctx) => [
+  Heading.make('User Settings'),
+  TextField.make('apiKey').label('API Key').readonly(),
+  ToggleField.make('notifications').label('Email Notifications'),
+])
+```
+
+Useful for one-off read-only displays or lightweight inputs that don't need the full form submit lifecycle.
+
+### `Field.from().derive()` — Reactive Derived Fields
+
+Use `.from()` + `.derive()` to create a field whose value is computed reactively from another field's value. Runs client-side in real time as the user types.
+
+```ts
+// Auto-generate a slug from the title field
+SlugField.make('slug')
+  .from('title')
+  .derive((title) => String(title).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
+
+// Word count badge from body
+ComputedField.make('wordCount')
+  .label('Words')
+  .from('body')
+  .derive((body) => String(body ?? '').split(/\s+/).filter(Boolean).length)
+```
+
+| Method | Description |
+|--------|-------------|
+| `.from(field)` | Source field name to watch |
+| `.derive(fn)` | Transform function — receives the source value and returns the derived value |
+
+`.derive()` is client-only and does not affect server-side validation or persistence. For server-side computed columns in tables, use `ComputedField.compute()` or `Column.compute()`.
+
 ### Collaborative Fields in Forms
 
 Standalone `Form.make()` elements support collaborative editing via `.persist('websocket')`:
@@ -1720,6 +1777,48 @@ NumberField.make('priority').inlineEditable()  // click → number input
 
 Sends `PUT /api/{resource}/:id` with just the changed field (partial update). Validation only runs on the submitted field.
 
+### `Column.editable()` — Advanced Inline Editing
+
+For `Table.make()` and schema tables, use `Column.editable()` for full control over inline edit behavior:
+
+```ts
+import { Table, Column } from '@boostkit/panels'
+
+Table.make('Tasks')
+  .fromModel(Task)
+  .columns([
+    Column.make('title')
+      .editable('inline')                        // edit in place
+      .onSave(async (id, value) => {
+        await Task.query().update(id, { title: value as string })
+      }),
+
+    Column.make('status')
+      .editable('popover')                       // click → popover with input
+      .onSave(async (id, value) => {
+        await Task.query().update(id, { status: value as string })
+      }),
+
+    Column.make('description')
+      .editable('modal')                         // click → full modal editor
+      .onSave(async (id, value) => {
+        await Task.query().update(id, { description: value as string })
+      }),
+  ])
+  .onSave(async (id, field, value) => {
+    // Table-level save handler — receives field name alongside id and value
+    await Task.query().update(id, { [field]: value })
+  })
+```
+
+| Method | Description |
+|--------|-------------|
+| `Column.editable(mode)` | Enable inline editing. Modes: `'inline'` (in-cell), `'popover'` (floating input), `'modal'` (dialog) |
+| `Column.onSave(fn)` | Column-level save handler: `(id, value) => Promise<void>` |
+| `Table.onSave(fn)` | Table-level save handler: `(id, field, value) => Promise<void>` — covers all editable columns |
+
+`Column.onSave()` takes priority over `Table.onSave()` when both are set.
+
 ---
 
 ## API Routes
@@ -1757,3 +1856,20 @@ The `GET` list endpoint supports:
 - `?sort=name&dir=ASC` — sort by `.sortable()` field
 - `?filter[field]=value` — apply filters
 - `?trashed=true` — show soft-deleted records (when `softDeletes` enabled)
+
+---
+
+## Package Internals (Folder Structure)
+
+The `@boostkit/panels` source is organized into purpose-specific directories:
+
+```
+packages/panels/src/
+├── schema/        # Schema element classes: Field, Section, Tabs, Table, Column, Form, Chart, List, Stats, Widget, Dashboard …
+├── registries/    # Singleton registries: PanelRegistry, ResourceRegistry, editorRegistry
+├── resolvers/     # Server-side data resolvers: list, show, create, update, delete, versions, globals …
+├── handlers/      # HTTP route handlers mounted by PanelServiceProvider
+└── __tests__/     # Unit tests (node:test)
+```
+
+This separation keeps schema definition (pure TypeScript classes with fluent APIs) decoupled from HTTP handling and data resolution, making the internals easier to navigate and extend.

@@ -27,7 +27,9 @@ NumberField.make('completion').progressBar({ max: 100, color: '#22c55e' })
 
 ### Inline Table Editing
 
-Edit values directly in the table cell:
+Edit values directly in the table cell. Two approaches are available:
+
+**Field-level** — use `.inlineEditable()` on the field in your resource definition:
 
 ```ts
 SelectField.make('status').inlineEditable()   // click -> dropdown
@@ -35,7 +37,15 @@ ToggleField.make('featured').inlineEditable() // click -> toggle
 TextField.make('title').inlineEditable()       // click -> input
 ```
 
-Sends partial `PUT` with only the changed field.
+**Column-level** — use `Column.editable()` on schema Table columns (see [Schema > Column Inline Editing](/packages/panels/schema#inline-editing) for full details):
+
+```ts
+Column.make('status').editable()                     // auto mode
+Column.make('notes').editable('popover')             // forced popover mode
+Column.make('status').editable(SelectField.make('status').options([...]))  // custom field
+```
+
+Both approaches send a partial `PUT` with only the changed field. Column-level `.editable()` offers more control with three edit modes (inline, popover, modal) and custom save handlers via `.onSave()`.
 
 ---
 
