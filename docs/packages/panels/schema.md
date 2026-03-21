@@ -69,6 +69,7 @@ Stats.make('dashboard-stats')
 | `.data(fn)` | Async function returning `PanelStatMeta[]` (async mode) |
 | `.lazy()` | Defer loading to client-side (shows skeleton) |
 | `.poll(ms)` | Re-fetch every N milliseconds |
+| `.live()` | Push updates via WebSocket (requires `@boostkit/broadcast`) |
 
 The `Stats` row auto-sizes: 1 stat = full width, 2 = two columns, 3 = three columns, 4 = four columns (max).
 
@@ -165,9 +166,11 @@ type DataSource<T> = T[] | ((ctx: PanelContext) => T[] | Promise<T[]>)
 | `.paginated(mode?, perPage?)` | Enable pagination: `'pages'` or `'loadMore'` (default: `'pages'`, 15/page) |
 | `.lazy()` | Defer data loading to client-side (shows skeleton) |
 | `.poll(ms)` | Re-fetch data every N milliseconds |
+| `.live()` | Push updates via WebSocket (requires `@boostkit/broadcast`) |
 | `.id(id)` | Explicit ID for API endpoint (auto-generated from title if not set) |
 | `.filters([...])` | Attach `SelectFilter` / `SearchFilter` dropdowns |
 | `.actions([...])` | Attach bulk/row `Action` handlers |
+| `.onSave(fn)` | Table-level save handler for inline editing (fallback for columns without `.onSave()`) |
 | `.remember(mode)` | Persist table state across navigations: `false` (default), `'localStorage'`, `'url'`, `'session'` |
 
 #### Pagination
@@ -261,6 +264,8 @@ Column.make('name').label('Name').href('/admin/resources/users/:id')
 | `.href(pattern)` | Wrap cell in a link; use `:id` as placeholder |
 | `.compute(fn)` | Derive value from the full record — runs server-side |
 | `.display(fn)` | Format value for display — runs server-side |
+| `.editable()` | Enable inline editing (see below) |
+| `.onSave(fn)` | Column-level save handler for inline editing |
 
 #### Computed & Display Columns
 
@@ -278,6 +283,85 @@ Column.make('price').label('Price')
 ```
 
 `.compute(fn)` receives the full record and returns a derived value. `.display(fn)` receives the raw (or computed) value and returns a formatted string. Chain both to derive and format in one column.
+
+#### Inline Editing
+
+Enable editing directly in table cells with `Column.editable()`. Three edit modes are available:
+
+```ts
+// Auto mode — infers from column type (inline for text/number/toggle, popover for textarea/tags)
+Column.make('title').editable()
+
+// Forced mode
+Column.make('title').editable('inline')    // edit in-cell
+Column.make('notes').editable('popover')   // popover dropdown
+Column.make('body').editable('modal')      // full modal dialog
+
+// Custom field — use a specific field type for the editor
+Column.make('status').editable(SelectField.make('status').options([
+  { label: 'Draft', value: 'draft' },
+  { label: 'Published', value: 'published' },
+]))
+
+// Custom field + forced mode
+Column.make('description').editable(TextareaField.make('description'), 'modal')
+```
+
+**Auto mode resolution**: When no mode is specified, the edit mode is inferred from the field type:
+- **inline**: text, email, number, select, toggle, boolean, color, date
+- **popover**: textarea, tags, json, slug
+- **modal**: everything else
+
+**Save handlers**: When a cell is edited, the save is handled by the first matching handler:
+
+1. **Column-level** `.onSave(fn)` — highest priority
+2. **Table-level** `.onSave(fn)` — fallback for all columns
+3. **Default** — sends a partial `PUT` to the resource API endpoint
+
+```ts
+// Column-level save
+Column.make('status').editable()
+  .onSave(async (record, value, ctx) => {
+    await Article.query().update(record.id as string, { status: value })
+  })
+
+// Table-level save — catches all columns without their own onSave
+Table.make('Articles')
+  .fromModel(Article)
+  .columns([
+    Column.make('title').editable(),
+    Column.make('status').editable(),
+  ])
+  .onSave(async (record, field, value, ctx) => {
+    await Article.query().update(record.id as string, { [field]: value })
+  })
+```
+
+Note: `Column.onSave(fn)` receives `(record, value, ctx)` while `Table.onSave(fn)` receives `(record, field, value, ctx)` — the table handler includes the field name since it handles multiple columns.
+
+#### Real-Time Updates (`.live()`)
+
+Push data updates to the client via WebSocket using `.live()`. When server data changes, the table refreshes automatically without polling. Requires `@boostkit/broadcast` to be registered.
+
+```ts
+Table.make('Live Orders')
+  .fromModel(Order)
+  .columns([
+    Column.make('customer').sortable(),
+    Column.make('total').numeric(),
+    Column.make('status').badge(),
+  ])
+  .live()
+```
+
+`.live()` is available on all async schema elements — `Table`, `Stats`, `Chart`, and `List`. It can be combined with `.lazy()` for deferred initial load:
+
+```ts
+Stats.make('live-metrics')
+  .data(async (ctx) => [...])
+  .live()
+  .lazy()
+```
 
 ### `Chart`
 
@@ -302,6 +386,11 @@ Chart.make('Revenue')
 | `.labels([...])` | X-axis labels (or slice labels for pie/doughnut) |
 | `.datasets([...])` | Array of `{ label, data, color? }` |
 | `.height(px)` | Chart height in pixels (default: 300) |
+| `.data(fn)` | Async function returning `{ labels, datasets }` — overrides static data |
+| `.description(text)` | Subtitle below the chart title |
+| `.lazy()` | Defer loading to client-side (shows skeleton) |
+| `.poll(ms)` | Re-fetch every N milliseconds |
+| `.live()` | Push updates via WebSocket (requires `@boostkit/broadcast`) |
 
 Chart types:
 
@@ -312,6 +401,20 @@ Chart types:
 | `area` | Filled area chart |
 | `pie` | Pie chart |
 | `doughnut` | Doughnut (pie with inner radius) |
+
+**Async mode** — load chart data dynamically:
+
+```ts
+Chart.make('Revenue Trend')
+  .id('revenue-trend')
+  .chartType('area')
+  .data(async (ctx) => ({
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [{ label: 'Revenue', data: await getMonthlyRevenue() }],
+  }))
+  .lazy()
+  .poll(60000)
+```
 
 **Requirement**: Install `recharts` -- `pnpm add recharts`
 
@@ -335,6 +438,11 @@ List.make('Quick Links')
 |--------|-------------|
 | `.items([...])` | Array of `{ label, description?, href?, icon? }` |
 | `.limit(n)` | Maximum items to display (default: 5) |
+| `.data(fn)` | Async function returning `ListItem[]` — overrides static items |
+| `.description(text)` | Subtitle below the list title |
+| `.lazy()` | Defer loading to client-side (shows skeleton) |
+| `.poll(ms)` | Re-fetch every N milliseconds |
+| `.live()` | Push updates via WebSocket (requires `@boostkit/broadcast`) |
 
 ### `Tab` and `Tabs` (schema-level)
 

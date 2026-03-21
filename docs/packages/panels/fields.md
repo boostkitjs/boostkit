@@ -43,6 +43,10 @@ TextField.make('name')
   .sortable()               // clickable column header -> ?sort=name&dir=ASC
   .searchable()             // included in search -> WHERE name LIKE '%foo%'
   .default('value')         // default value for create forms (static or function)
+  .from('title')            // declare dependency fields for reactive derivation
+  .derive(fn)               // compute value from dependencies (client-side)
+  .debounce(300)            // debounce time for derive recomputation (default: 200ms)
+  .inlineEditable()         // allow editing directly in table cells
   .collaborative()          // shorthand for .persist('websocket') — real-time Yjs sync
   .persist()                // survive page reload (localStorage, url, session, or websocket)
   .hideFrom('table' | 'create' | 'edit' | 'view')
@@ -50,6 +54,50 @@ TextField.make('name')
   .hideFromCreate()
   .hideFromEdit()
 ```
+
+---
+
+## Reactive Derived Fields (`.from().derive()`)
+
+Declare field dependencies with `.from()` and compute the value reactively with `.derive()`. When any dependency field changes in the form, the derived field updates automatically (debounced).
+
+```ts
+// Auto-generate slug from title
+TextField.make('slug').from('title')
+  .derive(({ title }) => (title as string).toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+
+// Compute total from price and quantity
+NumberField.make('total').from('price', 'quantity')
+  .derive(({ price, quantity }) => (price as number) * (quantity as number))
+  .readonly()
+
+// Preview combining multiple fields
+TextField.make('preview').from('title', 'status')
+  .derive(({ title, status }) => `${title} [${status}]`)
+  .readonly()
+```
+
+| Method | Description |
+|--------|-------------|
+| `.from(...fields)` | Declare dependency fields — triggers recomputation when they change |
+| `.derive(fn)` | Compute this field's value from dependency values. Runs client-side on every change |
+| `.debounce(ms)` | Debounce time before recomputing (default: 200ms) |
+
+The derived field remains editable by default — the user can override the computed value. Add `.readonly()` to make it purely computed.
+
+---
+
+## Inline Table Editing (`.inlineEditable()`)
+
+Allow editing a field's value directly in the resource table cell. Click to edit, blur or Enter to save.
+
+```ts
+SelectField.make('status').inlineEditable()   // click -> dropdown
+ToggleField.make('featured').inlineEditable() // click -> toggle
+TextField.make('title').inlineEditable()       // click -> input
+```
+
+Sends a partial `PUT` with only the changed field. Supported on text, number, email, select, toggle, boolean, color, and date field types.
 
 ---
 

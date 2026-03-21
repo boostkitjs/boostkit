@@ -7,11 +7,12 @@ Admin panel builder for BoostKit. Define resources in TypeScript — the package
 | Page | Description |
 |---|---|
 | [Resources](./resources) | Defining resources, feature flags, duplicate record |
-| [Fields](./fields) | Field types, layout groupings, relations, validation, access control |
-| [Listing Records](./listing) | Table columns, search, sort, filters, tab filters, pagination, actions |
+| [Fields](./fields) | Field types, layout groupings, relations, validation, access control, derived fields, inline editing |
+| [Listing Records](./listing) | Table columns, search, sort, filters, tab filters, pagination, actions, inline editing |
+| [Widgets & Schema](./schema) | Stats, Chart, Table, List, Form, Dialog, Tabs, Column inline editing, `.live()` real-time, `.lazy()`, `.poll()` |
 | [Navigation](./navigation) | Navigation groups, badges, guard |
 | [Globals](./globals) | Single-record settings pages |
-| [Custom Pages](./pages) | Custom pages, custom resource views, panel schema (dashboard) |
+| [Custom Pages](./pages) | Custom pages, sub-pages, navigation nesting, custom resource views |
 | [Editor](./editor) | Rich-text editor registry, `@boostkit/panels-lexical` |
 | [API Routes](./api) | Auto-generated CRUD endpoints |
 
