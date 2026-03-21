@@ -29,6 +29,8 @@ type ModelClass = { new(): any; query(): any }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ResourceClass = { new(): any; getSlug(): string; model?: ModelClass }
 
+type TableSaveHandler = (record: Record<string, unknown>, field: string, value: unknown, ctx: import('../types.js').PanelContext) => Promise<void> | void
+
 export interface PanelColumnMeta {
   name:        string
   label:       string
@@ -37,6 +39,9 @@ export interface PanelColumnMeta {
   type?:       ColumnMeta['type']
   format?:     string
   href?:       string
+  editable?:   boolean
+  editMode?:   import('./Column.js').EditMode
+  editField?:  import('../schema/Field.js').FieldMeta
 }
 
 export interface TableElementMeta {
@@ -54,6 +59,7 @@ export interface TableElementMeta {
   searchColumns?:    string[] | undefined
   filters?:          FilterMeta[]
   actions?:          ActionMeta[]
+  editable?:         boolean
   lazy?:             boolean
   pollInterval?:     number
   live?:             boolean
@@ -101,6 +107,7 @@ export interface TableConfig {
   live?:          boolean | undefined
   id?:            string | undefined
   remember?:      TableRememberMode | undefined
+  onSave?:        TableSaveHandler | undefined
 }
 
 export class Table {
@@ -132,6 +139,7 @@ export class Table {
   private _remember:       TableRememberMode = false
   private _filters:        Filter[] = []
   private _actions:        Action[] = []
+  private _onSaveFn?:      TableSaveHandler
 
   protected constructor(title: string) {
     this._title = title
@@ -337,6 +345,14 @@ export class Table {
     return this
   }
 
+  /** Table-level save handler for inline editing. Called when no column-level onSave is defined. */
+  onSave(fn: TableSaveHandler): this {
+    this._onSaveFn = fn
+    return this
+  }
+
+  getOnSave(): TableSaveHandler | undefined { return this._onSaveFn }
+
   getFilters(): Filter[] { return this._filters }
   getActions(): Action[] { return this._actions }
 
@@ -374,6 +390,7 @@ export class Table {
       live:           this._live || undefined,
       id:             this.getId(),
       remember:       this._remember || undefined,
+      onSave:         this._onSaveFn,
     }
   }
 }

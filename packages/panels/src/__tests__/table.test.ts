@@ -257,6 +257,113 @@ describe('Table live', () => {
   })
 })
 
+// ─── Column editable ────────────────────────────────────────────────
+
+describe('Column editable', () => {
+  it('editable() sets editable with default inline mode', () => {
+    const col = Column.make('name').editable()
+    assert.equal(col.isEditable(), true)
+    assert.equal(col.getEditMode(), undefined) // resolved in toMeta
+  })
+
+  it('editable("popover") forces popover mode', () => {
+    const col = Column.make('name').editable('popover')
+    assert.equal(col.isEditable(), true)
+    assert.equal(col.getEditMode(), 'popover')
+  })
+
+  it('editable(field) sets custom field with auto mode', () => {
+    const fakeField = { getType: () => 'textarea', toMeta: () => ({ name: 'bio', type: 'textarea', label: 'Bio', required: false, readonly: false, sortable: false, searchable: false, hidden: [], extra: {} }) }
+    const col = Column.make('bio').editable(fakeField as any)
+    assert.equal(col.isEditable(), true)
+    assert.equal(col.getEditField(), fakeField)
+    assert.equal(col.getEditMode(), undefined) // resolved in toMeta
+  })
+
+  it('editable(field, "modal") sets custom field + forced mode', () => {
+    const fakeField = { getType: () => 'text', toMeta: () => ({ name: 'x', type: 'text', label: '', required: false, readonly: false, sortable: false, searchable: false, hidden: [], extra: {} }) }
+    const col = Column.make('x').editable(fakeField as any, 'modal')
+    assert.equal(col.isEditable(), true)
+    assert.equal(col.getEditField(), fakeField)
+    assert.equal(col.getEditMode(), 'modal')
+  })
+
+  it('editable().onSave(fn) stores handler', () => {
+    const fn = async () => {}
+    const col = Column.make('name').editable().onSave(fn)
+    assert.equal(col.getOnSaveFn(), fn)
+  })
+
+  it('toMeta() includes editable properties', () => {
+    const meta = Column.make('name').editable().toMeta()
+    assert.equal(meta.editable, true)
+    assert.equal(meta.editMode, 'inline')
+    assert.ok(meta.editField)
+    assert.equal(meta.editField!.name, 'name')
+    assert.equal(meta.editField!.type, 'text')
+  })
+
+  it('toMeta() excludes editable when not set', () => {
+    const meta = Column.make('name').toMeta()
+    assert.equal(meta.editable, undefined)
+    assert.equal(meta.editMode, undefined)
+    assert.equal(meta.editField, undefined)
+  })
+
+  it('edit mode auto-detection: textarea → popover', () => {
+    const fakeField = { getType: () => 'textarea', toMeta: () => ({ name: 'bio', type: 'textarea', label: '', required: false, readonly: false, sortable: false, searchable: false, hidden: [], extra: {} }) }
+    const meta = Column.make('bio').editable(fakeField as any).toMeta()
+    assert.equal(meta.editMode, 'popover')
+  })
+
+  it('edit mode auto-detection: select → inline', () => {
+    const fakeField = { getType: () => 'select', toMeta: () => ({ name: 'status', type: 'select', label: '', required: false, readonly: false, sortable: false, searchable: false, hidden: [], extra: {} }) }
+    const meta = Column.make('status').editable(fakeField as any).toMeta()
+    assert.equal(meta.editMode, 'inline')
+  })
+
+  it('edit mode auto-detection: richcontent → modal', () => {
+    const fakeField = { getType: () => 'richcontent', toMeta: () => ({ name: 'body', type: 'richcontent', label: '', required: false, readonly: false, sortable: false, searchable: false, hidden: [], extra: {} }) }
+    const meta = Column.make('body').editable(fakeField as any).toMeta()
+    assert.equal(meta.editMode, 'modal')
+  })
+
+  it('default editField for numeric column', () => {
+    const meta = Column.make('price').numeric().editable().toMeta()
+    assert.equal(meta.editField!.type, 'number')
+  })
+
+  it('default editField for boolean column', () => {
+    const meta = Column.make('active').boolean().editable().toMeta()
+    assert.equal(meta.editField!.type, 'toggle')
+  })
+
+  it('default editField for date column', () => {
+    const meta = Column.make('createdAt').date().editable().toMeta()
+    assert.equal(meta.editField!.type, 'date')
+  })
+})
+
+// ─── Table onSave ────────────────────────────────────────────────
+
+describe('Table onSave', () => {
+  it('onSave(fn) stores handler', () => {
+    const fn = async () => {}
+    const t = Table.make('T').onSave(fn)
+    assert.equal(t.getOnSave(), fn)
+  })
+
+  it('getConfig includes onSave', () => {
+    const fn = async () => {}
+    const c = Table.make('T').onSave(fn).getConfig()
+    assert.equal(c.onSave, fn)
+  })
+
+  it('getOnSave returns undefined by default', () => {
+    assert.equal(Table.make('T').getOnSave(), undefined)
+  })
+})
+
 // ─── Column compute/display ────────────────────────────────────────
 
 describe('Column compute/display', () => {

@@ -107,7 +107,7 @@ export { List }    from './schema/List.js'
 export { Form }    from './schema/Form.js'
 export type { FormElementMeta, FormElementMeta as SchemaFormMeta, FormSubmitFn, FormItem } from './schema/Form.js'
 export { Column }  from './schema/Column.js'
-export type { ColumnMeta } from './schema/Column.js'
+export type { ColumnMeta, EditMode } from './schema/Column.js'
 export { Dialog }  from './schema/Dialog.js'
 export type { DialogElementMeta, DialogElementMeta as SchemaDialogMeta } from './schema/Dialog.js'
 export type {

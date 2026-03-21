@@ -171,6 +171,12 @@ export function buildTableMeta(
   if (config.searchable)          { meta.searchable = true; meta.searchColumns = config.searchColumns }
   if (config.filters.length > 0) meta.filters = config.filters.map(f => f.toMeta())
   if (config.actions.length > 0) meta.actions = config.actions.map(a => a.toMeta())
+  // Mark table as editable if any column has editable enabled
+  const hasEditableColumns = config.columns.length > 0
+    && typeof (config.columns[0] as { isEditable?: unknown })?.isEditable === 'function'
+    && (config.columns as Array<{ isEditable(): boolean }>).some(c => c.isEditable())
+  if (hasEditableColumns) meta.editable = true
+
   if (config.lazy)                meta.lazy         = true
   if (config.pollInterval)        meta.pollInterval = config.pollInterval
   if (opts.pagination)            meta.pagination   = opts.pagination

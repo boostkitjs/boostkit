@@ -226,6 +226,61 @@ export function mountTableRoutes(
     return res.json({ records, pagination })
   }, mw)
 
+  // Table inline-edit save endpoint
+  router.post(`${apiBase}/_tables/:tableId/save`, async (req, res) => {
+    const tableId = (req.params as Record<string, string> | undefined)?.['tableId']
+    if (!tableId) return res.status(400).json({ message: 'Missing tableId.' })
+
+    const { recordId, field, value } = (req.body as { recordId?: string | number; field?: string; value?: unknown }) ?? {}
+    if (recordId === undefined || !field) return res.status(400).json({ message: 'recordId and field are required.' })
+
+    let table = TableRegistry.get(panel.getName(), tableId)
+    if (!table) {
+      try {
+        await warmUpRegistries(panel, req)
+      } catch (e) { debugWarn('registry.warmup', e) }
+      table = TableRegistry.get(panel.getName(), tableId)
+    }
+
+    if (!table) return res.status(404).json({ message: `Table "${tableId}" not found.` })
+
+    const config = table.getConfig()
+    const ctx = buildContext(req)
+
+    // Find the Column instance by name
+    const isColumnInstances = config.columns.length > 0 && typeof (config.columns[0] as { isEditable?: unknown })?.isEditable === 'function'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type ColumnLike = { getName(): string; isEditable(): boolean; getOnSaveFn?(): ((record: Record<string, unknown>, value: unknown, ctx: any) => Promise<void> | void) | undefined }
+    const column = isColumnInstances
+      ? (config.columns as unknown as ColumnLike[]).find(c => c.getName() === field)
+      : undefined
+
+    if (column && !column.isEditable()) {
+      return res.status(403).json({ message: `Column "${field}" is not editable.` })
+    }
+
+    // Determine save handler: column-level → table-level → auto (model update)
+    const columnSaveFn = column?.getOnSaveFn?.()
+    const tableSaveFn = config.onSave ?? table.getOnSave?.()
+
+    try {
+      if (columnSaveFn) {
+        await columnSaveFn({ id: recordId } as Record<string, unknown>, value, ctx)
+      } else if (tableSaveFn) {
+        await tableSaveFn({ id: recordId } as Record<string, unknown>, field, value, ctx)
+      } else if (config.model) {
+        // Auto: update model by ID
+        const Model = config.model as ModelClass<RecordRow>
+        await Model.query().update(recordId, { [field]: value })
+      } else {
+        return res.status(400).json({ message: 'No save handler configured.' })
+      }
+      return res.json({ success: true })
+    } catch (err) {
+      return res.status(500).json({ success: false, message: String(err) })
+    }
+  }, mw)
+
   // Table action endpoint — execute bulk/row actions on table records
   router.post(`${apiBase}/_tables/:tableId/action/:actionName`, async (req, res) => {
     const tableId = (req.params as Record<string, string> | undefined)?.['tableId']
