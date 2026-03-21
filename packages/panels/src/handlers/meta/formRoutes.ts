@@ -85,6 +85,18 @@ export function mountFormRoutes(
         await entry.afterSubmit(responseData, ctx)
       }
 
+      // Broadcast live refresh to linked tables
+      if (entry.refreshes && entry.refreshes.length > 0) {
+        try {
+          const broadcastPkg = '@boostkit/broadcast'
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { broadcast } = await import(/* @vite-ignore */ broadcastPkg) as any
+          for (const tableId of entry.refreshes) {
+            broadcast(`live:table:${tableId}`, 'refresh', { source: 'form', formId })
+          }
+        } catch { /* @boostkit/broadcast not available */ }
+      }
+
       return res.json({ success: true, ...responseData })
     } catch (err: unknown) {
       return res.status(422).json({ message: String(err) })

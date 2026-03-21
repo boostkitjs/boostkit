@@ -30,6 +30,8 @@ export interface FormElementMeta {
   liveProviders?:  string[]
   /** True when field was placed directly in schema (no Form wrapper) */
   standalone?:     boolean
+  /** Table IDs to broadcast live refresh after successful submit */
+  refreshes?:      string[]
 }
 
 // ─── Form class ─────────────────────────────────────────────
@@ -65,6 +67,7 @@ export class Form {
   private _dataFn?:         (ctx: PanelContext) => Promise<Record<string, unknown>>
   private _beforeSubmit?:   (data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>
   private _afterSubmit?:    (result: Record<string, unknown>, ctx: PanelContext) => Promise<void>
+  private _refreshes:       string[] = []
 
   private constructor(id: string) {
     this._id = id
@@ -135,6 +138,12 @@ export class Form {
     return this
   }
 
+  /** Broadcast a live refresh to the given table ID(s) after successful submit. */
+  refreshes(...tableIds: string[]): this {
+    this._refreshes.push(...tableIds)
+    return this
+  }
+
   getId(): string                        { return this._id }
   getFields(): FormItem[]                { return this._fields }
   getSubmitHandler(): FormSubmitFn | undefined { return this._onSubmit }
@@ -142,6 +151,7 @@ export class Form {
   getDataFn(): ((ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined { return this._dataFn }
   getBeforeSubmit(): ((data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined { return this._beforeSubmit }
   getAfterSubmit(): ((result: Record<string, unknown>, ctx: PanelContext) => Promise<void>) | undefined { return this._afterSubmit }
+  getRefreshes(): string[] { return this._refreshes }
 
   /** @internal — serialized for the meta endpoint */
   toMeta(): FormElementMeta {
@@ -155,6 +165,7 @@ export class Form {
     if (this._description    !== undefined) meta.description    = this._description
     if (this._method !== 'POST')           meta.method          = this._method
     if (this._action         !== undefined) meta.action          = this._action
+    if (this._refreshes.length > 0)       meta.refreshes       = this._refreshes
     return meta
   }
 }

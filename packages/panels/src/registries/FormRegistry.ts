@@ -6,6 +6,7 @@ interface FormEntry {
   handler: FormSubmitFn
   beforeSubmit?: ((data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>) | undefined
   afterSubmit?: ((result: Record<string, unknown>, ctx: PanelContext) => Promise<void>) | undefined
+  refreshes?: string[]
 }
 
 const base = createRegistry<FormEntry>()
@@ -27,12 +28,14 @@ export const FormRegistry = {
     hooks: {
       beforeSubmit?: FormEntry['beforeSubmit']
       afterSubmit?: FormEntry['afterSubmit']
+      refreshes?: string[]
     },
   ): void {
     const existing = base.get(panelName, formId)
     if (existing) {
       if (hooks.beforeSubmit) existing.beforeSubmit = hooks.beforeSubmit
       if (hooks.afterSubmit) existing.afterSubmit = hooks.afterSubmit
+      if (hooks.refreshes) existing.refreshes = hooks.refreshes
     } else {
       base.register(panelName, formId, { handler: async () => {}, ...hooks })
     }
