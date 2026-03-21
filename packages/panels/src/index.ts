@@ -100,6 +100,8 @@ export type { ActionMeta, ActionHandler } from './schema/Action.js'
 
 export { Text }    from './schema/Text.js'
 export { Heading } from './schema/Heading.js'
+export { Code }    from './schema/Code.js'
+export type { CodeElementMeta } from './schema/Code.js'
 export { Stats, Stat } from './schema/Stats.js'
 export { Table }   from './schema/Table.js'
 export { Chart }   from './schema/Chart.js'
