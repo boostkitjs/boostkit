@@ -68,6 +68,16 @@ export function SchemaTable({ element, panelPath, i18n }: { element: Extract<Pan
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Refs to track current state for live refresh (avoids stale closure in WebSocket handler)
+  const currentPageRef = useRef(currentPage)
+  const sortRef = useRef(sort)
+  const searchRef = useRef(search)
+  const activeFiltersRef = useRef(activeFilters)
+  currentPageRef.current = currentPage
+  sortRef.current = sort
+  searchRef.current = search
+  activeFiltersRef.current = activeFilters
+
   // ── Shared fetch function — all table state changes go through API ──
   async function fetchTable(opts: { page?: number; search?: string; sort?: string; dir?: string; append?: boolean; filters?: Record<string, string> } = {}) {
     if (!tableId) return
@@ -296,8 +306,14 @@ export function SchemaTable({ element, panelPath, i18n }: { element: Extract<Pan
           try {
             const msg = JSON.parse(String(event.data)) as { type: string; event?: string; channel?: string }
             if (msg.type === 'event' && msg.channel === liveChannel) {
-              // Refetch table data
-              void fetchTable()
+              // Refetch table data with current state (from refs, not stale closure)
+              void fetchTable({
+                page: currentPageRef.current,
+                search: searchRef.current || undefined,
+                sort: sortRef.current?.col,
+                dir: sortRef.current?.dir,
+                filters: activeFiltersRef.current,
+              })
             }
           } catch { /* ignore non-JSON */ }
         }
