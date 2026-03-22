@@ -81,12 +81,14 @@ export async function data(pageContext: PageContextServer) {
         // Resolve through the standard table pipeline (SSR data, persist, etc.)
         const resolvedTable = await resolveTable(tabTable as any, panel, ctx)
 
-        // Override href for resource row links
+        // Override href for resource row links (but don't set resource slug —
+        // per-tab tables fetch from /api/_tables/:tabId which has the scope baked in)
         if (resolvedTable && 'href' in resolvedTable) {
           (resolvedTable as any).href = `/${pathSegment}/resources/${slug}`
         }
+        // Clear resource slug so SchemaTable uses table API (with scope) instead of resource API (no scope)
         if (resolvedTable && 'resource' in resolvedTable) {
-          (resolvedTable as any).resource = slug
+          (resolvedTable as any).resource = ''
         }
 
         const tabMeta: { label: string; icon?: string; fields: never[]; elements: PanelSchemaElementMeta[] } = {
