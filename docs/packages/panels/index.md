@@ -253,6 +253,44 @@ By default the panel root (`/admin`) redirects to the first resource. Define a c
 
 ---
 
+## Icons
+
+Resources, Pages, and Globals support four icon formats via `static icon`:
+
+```ts
+// 1. Lucide icon name — lazy-loaded on client (brief invisible placeholder)
+static icon = 'settings'
+static icon = 'file-text'
+
+// 2. Lucide SVG import — SSR instant, no loading flash (recommended)
+import { Settings } from 'lucide-static'
+static icon = Settings
+
+// 3. Inline SVG string — SSR instant
+static icon = '<svg viewBox="0 0 24 24" ...><path d="..."/></svg>'
+
+// 4. Emoji — SSR instant
+static icon = '📦'
+```
+
+For instant SSR rendering (no loading flash), use `lucide-static` imports:
+
+```bash
+pnpm add lucide-static
+```
+
+```ts
+import { Table as TableIcon, FileInput, BarChart3 } from 'lucide-static'
+
+export class TablesDemo extends Page {
+  static icon = TableIcon
+}
+```
+
+> **Tip:** Alias the import if it conflicts with a schema element name (e.g. `Table` from `@boostkit/panels`).
+
+---
+
 ## Layout Options
 
 ```ts

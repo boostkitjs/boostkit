@@ -166,7 +166,6 @@ export type {
 // ─── Data helpers ───────────────────────────────────────────
 
 export { resourceData } from './resourceData.js'
-export { resolveIcon, resolveIcons } from './resolveIcon.js'
 export type { ResourceDataContext, ResourceDataResult } from './resourceData.js'
 
 // ─── Widget ─────────────────────────────────────────────
