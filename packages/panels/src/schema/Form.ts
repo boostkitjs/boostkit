@@ -32,6 +32,14 @@ export interface FormElementMeta {
   standalone?:     boolean
   /** Table IDs to broadcast live refresh after successful submit */
   refreshes?:      string[]
+  /** Autosave enabled */
+  autosave?:       boolean
+  /** Autosave interval in ms */
+  autosaveInterval?: number
+  /** Version history enabled */
+  versioned?:      boolean
+  /** Draft/publish workflow enabled */
+  draftable?:      boolean
 }
 
 // ─── Form class ─────────────────────────────────────────────
@@ -68,6 +76,9 @@ export class Form {
   private _beforeSubmit?:   (data: Record<string, unknown>, ctx: PanelContext) => Promise<Record<string, unknown>>
   private _afterSubmit?:    (result: Record<string, unknown>, ctx: PanelContext) => Promise<void>
   private _refreshes:       string[] = []
+  private _autosave:        false | { interval: number } = false
+  private _versioned:       boolean = false
+  private _draftable:       boolean = false
 
   private constructor(id: string) {
     this._id = id
@@ -144,6 +155,24 @@ export class Form {
     return this
   }
 
+  /** Enable periodic autosave. Saves when dirty and user is idle. */
+  autosave(interval = 30000): this {
+    this._autosave = { interval }
+    return this
+  }
+
+  /** Enable version history — each save creates a snapshot. */
+  versioned(): this {
+    this._versioned = true
+    return this
+  }
+
+  /** Enable draft/publish workflow. */
+  draftable(): this {
+    this._draftable = true
+    return this
+  }
+
   getId(): string                        { return this._id }
   getFields(): FormItem[]                { return this._fields }
   getSubmitHandler(): FormSubmitFn | undefined { return this._onSubmit }
@@ -166,6 +195,9 @@ export class Form {
     if (this._method !== 'POST')           meta.method          = this._method
     if (this._action         !== undefined) meta.action          = this._action
     if (this._refreshes.length > 0)       meta.refreshes       = this._refreshes
+    if (this._autosave)                  { meta.autosave = true; meta.autosaveInterval = this._autosave.interval }
+    if (this._versioned)                 meta.versioned       = true
+    if (this._draftable)                 meta.draftable       = true
     return meta
   }
 }

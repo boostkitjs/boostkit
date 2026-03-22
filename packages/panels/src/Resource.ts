@@ -169,7 +169,17 @@ export class Resource {
   /** @internal — Constructs Form, calls this.form(). */
   _resolveForm(): Form {
     const Cls = this.constructor as typeof Resource
-    return this.form(Form.make(Cls.getSlug()))
+    const form = Form.make(Cls.getSlug())
+    // Wire resource-level flags to Form
+    if (Cls.autosave) {
+      const interval = typeof Cls.autosave === 'object' && Cls.autosave.interval
+        ? Cls.autosave.interval
+        : Cls.autosaveInterval
+      form.autosave(interval)
+    }
+    if (Cls.versioned) form.versioned()
+    if (Cls.draftable) form.draftable()
+    return this.form(form)
   }
 
   // ── Static helpers ──────────────────────────────────────
