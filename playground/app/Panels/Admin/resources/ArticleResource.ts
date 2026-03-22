@@ -42,7 +42,7 @@ export class ArticleResource extends Resource {
       .columns([
         Column.make('title').sortable().searchable(),
         Column.make('slug'),
-        Column.make('featured').boolean(),
+        Column.make('featured').boolean().editable(ToggleField.make('featured')),
         Column.make('publishedAt').date(),
         Column.make('createdAt').date().sortable(),
         Column.make('wordCount'),

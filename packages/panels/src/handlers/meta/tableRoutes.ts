@@ -282,6 +282,16 @@ export function mountTableRoutes(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { broadcast } = await import(/* @vite-ignore */ broadcastPkg) as any
           broadcast(`live:table:${tableId}`, 'refresh', { field, recordId })
+          // Also broadcast on resource channel (resource tables listen on panel:{slug})
+          const resourceSlug = config.resourceClass?.getSlug?.() as string | undefined
+          if (resourceSlug) {
+            broadcast(`panel:${resourceSlug}`, 'record.updated', { id: recordId })
+          } else {
+            // Per-tab tables: derive slug from tableId (e.g. 'articles-all' → 'articles')
+            const slugFromId = tableId.replace(/-[^-]+$/, '')
+            const matchingResource = panel.getResources().find(R => R.getSlug() === slugFromId)
+            if (matchingResource) broadcast(`panel:${slugFromId}`, 'record.updated', { id: recordId })
+          }
         } catch { /* @boostkit/broadcast not available */ }
       }
 
