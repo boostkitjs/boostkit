@@ -90,6 +90,10 @@ export async function data(pageContext: PageContextServer) {
         if (resolvedTable && 'resource' in resolvedTable) {
           (resolvedTable as any).resource = ''
         }
+        // Override live channel to match resource broadcast channel (panel:{slug})
+        if (resolvedTable && (resolvedTable as any).live) {
+          (resolvedTable as any).liveChannel = `panel:${slug}`
+        }
 
         const tabMeta: { label: string; icon?: string; fields: never[]; elements: PanelSchemaElementMeta[] } = {
           label: tab.getLabel(),
@@ -123,6 +127,10 @@ export async function data(pageContext: PageContextServer) {
       }
       if (tableElement && 'resource' in tableElement) {
         (tableElement as any).resource = slug
+      }
+      // Override live channel to match resource broadcast channel
+      if (tableElement && (tableElement as any).live) {
+        (tableElement as any).liveChannel = `panel:${slug}`
       }
     }
   }

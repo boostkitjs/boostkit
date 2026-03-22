@@ -87,6 +87,23 @@ export function coercePayload(
       result[name]  = mode === 'create' ? { connect: records } : { set: records }
     }
   }
+
+  // Strip fields that shouldn't be sent to the ORM:
+  // - Fields not defined in the form (e.g. updatedAt, id, deletedAt)
+  // - Readonly fields (e.g. createdAt)
+  // - Fields hidden from the current mode
+  const writableFieldNames = new Set<string>()
+  for (const field of formFields) {
+    if (field.isReadonly()) continue
+    if (mode === 'create' && field.isHiddenFrom('create')) continue
+    if (mode === 'update' && field.isHiddenFrom('edit')) continue
+    writableFieldNames.add(field.getName())
+  }
+  writableFieldNames.add('draftStatus') // always allow draftStatus for draftable resources
+  for (const key of Object.keys(result)) {
+    if (!writableFieldNames.has(key)) delete result[key]
+  }
+
   return result
 }
 

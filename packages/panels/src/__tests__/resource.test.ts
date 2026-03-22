@@ -367,7 +367,7 @@ describe('Resource — navigation badge color', () => {
   })
 })
 
-// ─── Resource — autosave & draftRecovery ──────────────────
+// ─── Resource — autosave (via form) ──────────────────
 
 describe('Resource — autosave', () => {
   it('defaults to autosave=false', () => {
@@ -377,51 +377,22 @@ describe('Resource — autosave', () => {
     assert.equal(meta.autosaveInterval, 30000)
   })
 
-  it('static autosave = true', () => {
+  it('form().autosave() sets autosave in meta', () => {
     class R extends Resource {
-      static autosave = true
-
-    }
-    const meta = new R().toMeta()
-    assert.equal(meta.autosave, true)
-    assert.equal(meta.autosaveInterval, 30000)
-  })
-
-  it('static autosave = { interval: 10000 }', () => {
-    class R extends Resource {
-      static autosave = { interval: 10000 }
-
+      form(form: Form) { return form.autosave(10000) }
     }
     const meta = new R().toMeta()
     assert.equal(meta.autosave, true)
     assert.equal(meta.autosaveInterval, 10000)
   })
 
-  it('static autosave object without interval uses default', () => {
+  it('form().autosave() default interval', () => {
     class R extends Resource {
-      static autosave = {} as { interval?: number }
-
+      form(form: Form) { return form.autosave() }
     }
     const meta = new R().toMeta()
     assert.equal(meta.autosave, true)
     assert.equal(meta.autosaveInterval, 30000)
-  })
-})
-
-describe('Resource — draftRecovery', () => {
-  it('defaults to false', () => {
-    class R extends Resource {}
-    const meta = new R().toMeta()
-    assert.equal(meta.draftRecovery, false)
-  })
-
-  it('static draftRecovery = true', () => {
-    class R extends Resource {
-      static draftRecovery = true
-
-    }
-    const meta = new R().toMeta()
-    assert.equal(meta.draftRecovery, true)
   })
 })
 

@@ -23,8 +23,16 @@ export function mountResourceRoutes(
 ): void {
   const slug    = ResourceClass.getSlug()
   const base    = `${panel.getApiBase()}/${slug}`
-   
+
   const Model   = ResourceClass.model as ModelClass<RecordRow> | undefined
+
+  // Resolve resource config once at mount time
+  const mountResource = new ResourceClass()
+  const mountTableConfig = Model ? mountResource._resolveTable().getConfig() : undefined
+  const mountFormMeta = mountResource._resolveForm().toMeta()
+  const isLive = mountTableConfig?.live ?? false
+  const isDraftable = !!mountFormMeta.draftable
+  const isVersioned = !!mountFormMeta.versioned
 
   // ── GET /panel/api/resource — list (paginated) ────────
   router.get(base, async (req, res) => {
@@ -75,7 +83,7 @@ export function mountResourceRoutes(
     }
 
     // Draftable — filter by draft status
-    const hasDraftable = ResourceClass.draftable === true
+    const hasDraftable = isDraftable === true
     const draftFilter  = url.searchParams.get('draft')
     if (hasDraftable) {
       if (draftFilter === 'true') {
@@ -249,12 +257,12 @@ export function mountResourceRoutes(
     if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
     // Draftable: default draftStatus to 'draft' unless explicitly set
-    if (ResourceClass.draftable && !body['draftStatus']) {
+    if (isDraftable && !body['draftStatus']) {
       body['draftStatus'] = 'draft'
     }
 
     const record = await Model.create(body)
-    if (ResourceClass.live) liveBroadcast(slug, 'record.created', { id: (record as RecordRow)['id'] })
+    if (isLive) liveBroadcast(slug, 'record.created', { id: (record as RecordRow)['id'] })
     return res.status(201).json({ data: record })
   }, mw)
 
@@ -276,7 +284,7 @@ export function mountResourceRoutes(
     if (errors) return res.status(422).json({ message: 'Validation failed.', errors })
 
     const record = await Model.query().update(id, body)
-    if (ResourceClass.live) liveBroadcast(slug, 'record.updated', { id })
+    if (isLive) liveBroadcast(slug, 'record.updated', { id })
     return res.json({ data: record })
   }, mw)
 
@@ -297,7 +305,7 @@ export function mountResourceRoutes(
     } else {
       await Model.query().delete(id)
     }
-    if (ResourceClass.live) liveBroadcast(slug, 'record.deleted', { id })
+    if (isLive) liveBroadcast(slug, 'record.deleted', { id })
     return res.json({ message: 'Deleted successfully.' })
   }, mw)
 
@@ -325,7 +333,7 @@ export function mountResourceRoutes(
       }
     }
 
-    if (ResourceClass.live) liveBroadcast(slug, 'records.deleted', { ids, deleted })
+    if (isLive) liveBroadcast(slug, 'records.deleted', { ids, deleted })
     return res.json({ message: `${deleted} records deleted.`, deleted })
   }, mw)
 
@@ -353,7 +361,7 @@ export function mountResourceRoutes(
     }
 
     await action.execute(records)
-    if (ResourceClass.live) liveBroadcast(slug, 'action.executed', { action: actionName, ids })
+    if (isLive) liveBroadcast(slug, 'action.executed', { action: actionName, ids })
     return res.json({ message: 'Action executed successfully.' })
   }, mw)
 
@@ -372,7 +380,7 @@ export function mountResourceRoutes(
       if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
       await Model.query().update(id, { deletedAt: null })
-      if (ResourceClass.live) liveBroadcast(slug, 'record.restored', { id })
+      if (isLive) liveBroadcast(slug, 'record.restored', { id })
       return res.json({ message: 'Record restored.' })
     }, mw)
 
@@ -388,7 +396,7 @@ export function mountResourceRoutes(
       if (!exists) return res.status(404).json({ message: 'Record not found.' })
 
       await Model.query().delete(id)
-      if (ResourceClass.live) liveBroadcast(slug, 'record.forceDeleted', { id })
+      if (isLive) liveBroadcast(slug, 'record.forceDeleted', { id })
       return res.json({ message: 'Permanently deleted.' })
     }, mw)
 
@@ -411,7 +419,7 @@ export function mountResourceRoutes(
         }
       }
 
-      if (ResourceClass.live) liveBroadcast(slug, 'records.restored', { ids, restored })
+      if (isLive) liveBroadcast(slug, 'records.restored', { ids, restored })
       return res.json({ message: `${restored} records restored.`, restored })
     }, mw)
 
@@ -434,7 +442,7 @@ export function mountResourceRoutes(
         }
       }
 
-      if (ResourceClass.live) liveBroadcast(slug, 'records.forceDeleted', { ids, deleted })
+      if (isLive) liveBroadcast(slug, 'records.forceDeleted', { ids, deleted })
       return res.json({ message: `${deleted} records permanently deleted.`, deleted })
     }, mw)
   }
@@ -442,7 +450,7 @@ export function mountResourceRoutes(
   // ── Version routes (versioned or collaborative resources) ───
   const versionResource = new ResourceClass()
   const hasCollabFields = flattenFields(versionResource._resolveForm().getFields() as import('../Resource.js').FieldOrGrouping[]).some(f => f.isYjs())
-  if (ResourceClass.versioned || hasCollabFields) {
+  if (isVersioned || hasCollabFields) {
     mountVersionRoutes(router, panel, ResourceClass, mw)
   }
 }

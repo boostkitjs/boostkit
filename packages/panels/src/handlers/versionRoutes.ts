@@ -110,13 +110,15 @@ export function mountVersionRoutes(
       const coerced = coercePayload(resource, fieldValues, 'update')
 
       // Handle draftable: set _status if provided
-      if (ResourceClass.draftable && body.draftStatus) {
+      const vFormMeta = new ResourceClass()._resolveForm().toMeta()
+      if (vFormMeta.draftable && body.draftStatus) {
         coerced['draftStatus'] = body.draftStatus
       }
 
       await Model.query().update(id, coerced)
 
-      if (ResourceClass.live) liveBroadcast(slug, 'record.updated', { id })
+      const vTableConfig = Model ? new ResourceClass()._resolveTable().getConfig() : undefined
+      if (vTableConfig?.live) liveBroadcast(slug, 'record.updated', { id })
 
       return res.json({ message: 'Version saved and published.' })
     } catch (err) {
