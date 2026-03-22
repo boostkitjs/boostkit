@@ -27,6 +27,29 @@ export async function warmUpRegistries(panel: Panel, req: AppRequest): Promise<v
       await resolveSchema(pagePanel, ctx)
     } catch { /* page schema failed */ }
   }
+
+  // Register resource tables (including per-tab table clones)
+  const { resolveTable } = await import('../../resolvers/resolveTable.js')
+  for (const ResourceClass of panel.getResources()) {
+    if (!ResourceClass.model) continue
+    try {
+      const resource = new ResourceClass()
+      const table = resource._resolveTable()
+      const tableConfig = table.getConfig()
+
+      if (tableConfig.tabs.length > 0) {
+        // Register each per-tab table clone
+        for (const tab of tableConfig.tabs) {
+          const tabName = tab.getLabel().toLowerCase().replace(/\s+/g, '-')
+          const tabTableId = `${ResourceClass.getSlug()}-${tabName}`
+          const tabTable = table._cloneWithScope(tabTableId, tab.getScope())
+          await resolveTable(tabTable as any, panel, ctx)
+        }
+      } else {
+        await resolveTable(table as any, panel, ctx)
+      }
+    } catch { /* resource schema failed */ }
+  }
 }
 
 /**
