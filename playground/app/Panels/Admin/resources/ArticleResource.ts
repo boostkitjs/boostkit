@@ -32,9 +32,6 @@ export class ArticleResource extends Resource {
   static labelSingular  = 'Article'
   static icon           = 'file-text'
   static perPageOptions = [5, 10, 15, 25, 50, 100]
-  static live           = true
-  static versioned      = true
-  static draftable      = true
 
   static navigationGroup      = 'Content'
   static navigationBadge      = async () => await Article.query().count()
@@ -56,6 +53,7 @@ export class ArticleResource extends Resource {
       .searchable(['title'])
       .paginated('pages', 5)
       .remember('session')
+      .live()
       .emptyState({
         icon: 'file-text',
         heading: 'No :label yet',
@@ -107,9 +105,11 @@ export class ArticleResource extends Resource {
             }
           }),
       ])
+      .live()
   }
 
   form(form: Form) {
+    form.versioned().draftable()
     return form.fields([
       // ── Content ──────────────────────────────────────────────
       TextField.make('title')

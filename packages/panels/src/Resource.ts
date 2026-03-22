@@ -78,28 +78,8 @@ export class Resource {
   /** Navigation badge color. */
   static navigationBadgeColor?: 'gray' | 'primary' | 'success' | 'warning' | 'danger'
 
-  // ── Feature flags (resource-level, not table/form-level) ──
-
-  /** Enable version history. */
-  static versioned = false
-
-  /** Enable draft/publish workflow. */
-  static draftable = false
-
-  /** Enable form draft recovery via localStorage. */
-  static draftRecovery = false
-
-  /** Enable autosave on edit page. */
-  static autosave: boolean | { interval?: number } = false
-
-  /** Default autosave interval in milliseconds. */
-  static autosaveInterval = 30000
-
   /** Options shown in the per-page dropdown. */
   static perPageOptions = [10, 15, 25, 50, 100]
-
-  /** Enable live table updates via WebSocket. */
-  static live = false
 
   // ── table() / form() / detail() ───────────────────────
 
@@ -162,24 +142,13 @@ export class Resource {
   _resolveTable(): Table {
     const Cls = this.constructor as typeof Resource
     const table = Table.make(Cls.getLabel()).fromModel(Cls.model!)
-    if (Cls.live) table.live()
     return this.table(table)
   }
 
   /** @internal — Constructs Form, calls this.form(). */
   _resolveForm(): Form {
     const Cls = this.constructor as typeof Resource
-    const form = Form.make(Cls.getSlug())
-    // Wire resource-level flags to Form
-    if (Cls.autosave) {
-      const interval = typeof Cls.autosave === 'object' && Cls.autosave.interval
-        ? Cls.autosave.interval
-        : Cls.autosaveInterval
-      form.autosave(interval)
-    }
-    if (Cls.versioned) form.versioned()
-    if (Cls.draftable) form.draftable()
-    return this.form(form)
+    return this.form(Form.make(Cls.getSlug()))
   }
 
   // ── Static helpers ──────────────────────────────────────
@@ -226,9 +195,10 @@ export class Resource {
       return 'isYjs' in item && (item as Field).isYjs()
     })
 
-    // Resolve table for table-level config
+    // Resolve table and form for config
     const table = Cls.model ? this._resolveTable() : undefined
     const tableConfig = table?.getConfig()
+    const formMeta = form.toMeta()
 
     // Serialize Tab-based tabs to ListTabMeta format
     let tabsMeta: ListTabMeta[] = []
@@ -266,17 +236,15 @@ export class Resource {
       tabs:          tabsMeta,
       actions:       tableConfig?.actions.map((a) => a.toMeta()) ?? [],
       rememberTable:  !!tableConfig?.remember,
-      draftRecovery:  Cls.draftRecovery,
-      autosave:           typeof Cls.autosave === 'object' ? true : !!Cls.autosave,
-      autosaveInterval:   typeof Cls.autosave === 'object' && Cls.autosave.interval
-                            ? Cls.autosave.interval
-                            : Cls.autosaveInterval,
+      draftRecovery:  false,
+      autosave:       !!formMeta.autosave,
+      autosaveInterval: formMeta.autosaveInterval ?? 30000,
       perPage:         tableConfig?.perPage ?? 15,
       perPageOptions:  Cls.perPageOptions,
       paginationType:  tableConfig?.paginationType === 'loadMore' ? 'loadMore' : 'pagination',
-      live:            tableConfig?.live ?? Cls.live,
-      versioned:       Cls.versioned,
-      draftable:       Cls.draftable,
+      live:            tableConfig?.live ?? false,
+      versioned:       !!formMeta.versioned,
+      draftable:       !!formMeta.draftable,
       yjs:             hasYjsField,
       softDeletes:     tableConfig?.softDeletes ?? false,
     }

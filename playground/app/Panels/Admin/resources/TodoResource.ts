@@ -6,10 +6,10 @@ export class TodoResource extends Resource {
   static label = 'Todos'
   static labelSingular = 'Todo'
   static icon = 'list-todo'
-  static live = true
 
   table(table: Table) {
     return table
+      .live()
       .columns([
         Column.make('title').sortable().searchable(),
         Column.make('completed').boolean(),
