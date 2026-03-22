@@ -4,6 +4,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { SchemaFormMeta, PanelI18n, FieldMeta } from '@boostkit/panels'
 import { FieldInput } from './FieldInput.js'
 import { SchemaRenderer } from './edit/SchemaRenderer.js'
+import { EditToolbar } from './edit/EditToolbar.js'
+import { FormActions } from './edit/FormActions.js'
+import { VersionHistory } from './edit/VersionHistory.js'
+import { useAutosave } from '../_hooks/useAutosave.js'
+import { useFormPersist } from '../_hooks/useFormPersist.js'
+import { useFieldPersist } from '../_hooks/useFieldPersist.js'
+import { flattenFormFields } from '../_lib/formHelpers.js'
 import type { SchemaItem } from '../_lib/formHelpers.js'
 
 interface SchemaFormProps {
@@ -22,12 +29,18 @@ interface SchemaFormProps {
   mode?: 'create' | 'edit'
   /** Cancel URL — shows a cancel link next to submit. */
   cancelUrl?: string
+  /** Record ID — enables edit mode (autosave, versioning, draft workflow). */
+  recordId?: string
+  /** Resource slug — for API endpoints in edit mode. */
+  resourceSlug?: string
+  /** Back navigation URL after save. */
+  backUrl?: string
 }
 
 // Text-based field types that get per-field Y.Doc (not shared Y.Map)
 const TEXT_TYPES = new Set(['text', 'textarea', 'email', 'richcontent', 'content'])
 
-export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submitMethod, prefill, mode = 'create', cancelUrl }: SchemaFormProps) {
+export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submitMethod, prefill, mode = 'create', cancelUrl, recordId, resourceSlug, backUrl }: SchemaFormProps) {
   const pathSegment = panelPath.replace(/^\//, '')
   const isStandalone = (form as SchemaFormMeta & { standalone?: boolean }).standalone === true
   const formYjs = form as SchemaFormMeta & { yjs?: boolean; wsLivePath?: string | null; docName?: string | null; liveProviders?: string[] }
@@ -117,14 +130,28 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     const needsIndexeddb = formYjs.liveProviders?.includes('indexeddb') ?? false
     if (!needsWebsocket && !needsIndexeddb) return
 
+    // Flatten Section/Tabs to find all collaborative non-text fields
     const mapFields: string[] = []
-    for (const item of form.fields) {
-      const field = item as FieldMeta
-      if (field.name && field.yjs && !TEXT_TYPES.has(field.type)) {
-        mapFields.push(field.name)
+    function collectMapFields(items: unknown[]) {
+      for (const item of items) {
+        const f = item as FieldMeta & { type: string; fields?: unknown[] }
+        if (f.type === 'section' || f.type === 'tabs') {
+          // Section: recurse into fields
+          if (f.fields) collectMapFields(f.fields)
+          // Tabs: recurse into each tab's fields
+          if (f.type === 'tabs' && (f as any).tabs) {
+            for (const tab of (f as any).tabs) {
+              if (tab.fields) collectMapFields(tab.fields)
+            }
+          }
+        } else if (f.name && f.yjs && !TEXT_TYPES.has(f.type)) {
+          mapFields.push(f.name)
+        }
       }
     }
-    if (mapFields.length === 0) return
+    collectMapFields(form.fields)
+    // Even if no map fields, still set up WebSocket for connection status tracking
+    if (mapFields.length === 0 && !needsWebsocket) return
 
     let destroyed = false
 
@@ -293,8 +320,164 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     }
   }
 
+  // ── Edit-mode features (autosave, versioning, draft) ──────
+  const formMeta = form as SchemaFormMeta & { autosave?: boolean; autosaveInterval?: number; versioned?: boolean; draftable?: boolean }
+  const isEditMode = !!recordId && !!resourceSlug
+  const autosaveEnabled = isEditMode && !!formMeta.autosave
+  const versionedEnabled = isEditMode && !!formMeta.versioned
+  const draftableEnabled = isEditMode && !!formMeta.draftable
+  const effectiveBackUrl = backUrl ?? cancelUrl ?? panelPath
+
+  const [saving, setSaving] = useState(false)
+  const [formKey, setFormKey] = useState(0)
+  const isRestorePreview = formKey !== 0
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+
+  // ── Edit-mode save handler ──────────────────────────────
+  async function handleEditSave(publishAction?: 'draft' | 'publish' | 'unpublish') {
+    if (!isEditMode) return
+    setSaving(true)
+    setFieldErrors({})
+    try {
+      const payload = { ...values } as Record<string, unknown>
+      if (draftableEnabled && publishAction) {
+        payload['draftStatus'] = publishAction === 'publish' ? 'published' : 'draft'
+      }
+      const res = await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.status === 422) {
+        const body = await res.json() as { errors: Record<string, string | string[]> }
+        const flat: Record<string, string> = {}
+        for (const [k, v] of Object.entries(body.errors)) flat[k] = Array.isArray(v) ? v[0] ?? '' : v
+        setFieldErrors(flat)
+        return
+      }
+      if (!res.ok) {
+        const { toast } = await import('sonner')
+        toast.error((i18n as Record<string, string>).saveError ?? 'Save failed.')
+        return
+      }
+      // Create version snapshot
+      if (versionedEnabled) {
+        await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}/_versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: null, fields: values }),
+        })
+      }
+      // Toast + navigate
+      const { toast } = await import('sonner')
+      if (draftableEnabled && publishAction === 'publish') toast.success((i18n as Record<string, string>).publishedToastDraft ?? 'Published.')
+      else if (draftableEnabled && publishAction === 'unpublish') toast.success((i18n as Record<string, string>).unpublishedToast ?? 'Unpublished.')
+      else toast.success((i18n as Record<string, string>).savedToast ?? 'Saved.')
+
+      // Sync live if restoring
+      if (formYjs.yjs && isRestorePreview && collabRef.current?.fieldsMap) {
+        const doc = collabRef.current
+        doc.doc.transact(() => {
+          for (const [k, v] of Object.entries(values)) doc.fieldsMap.set(k, v)
+        })
+        await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}/_sync-live`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      }
+
+      autosaveResetBaseline?.()
+      const { navigate } = await import('vike/client/router')
+      void navigate(effectiveBackUrl)
+    } catch {
+      const { toast } = await import('sonner')
+      toast.error((i18n as Record<string, string>).saveError ?? 'Save failed.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Version restore ──────────────────────────────────────
+  async function restoreVersion(versionId: string) {
+    if (!isEditMode) return
+    try {
+      const res = await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}/_versions/${versionId}`)
+      if (res.ok) {
+        const body = await res.json() as { data: { fields: Record<string, unknown> } }
+        const merged = { ...values, ...body.data.fields }
+        setValues(merged)
+        valuesRef.current = merged
+        setFormKey(k => k + 1)
+        setActiveVersionId(versionId)
+        const { toast } = await import('sonner')
+        toast.success((i18n as Record<string, string>).restoredToast ?? 'Version restored.')
+      }
+    } catch {
+      const { toast } = await import('sonner')
+      toast.error((i18n as Record<string, string>).restoreError ?? 'Failed to restore.')
+    }
+  }
+
+  function rejoinLive() {
+    setFormKey(0)
+    setActiveVersionId(null)
+  }
+
+  // ── Autosave ──────────────────────────────────────────────
+  const { autosaveStatus, autosaveDirty, resetBaseline: autosaveResetBaseline } = useAutosave({
+    enabled: autosaveEnabled,
+    interval: formMeta.autosaveInterval ?? 30000,
+    endpoint: isEditMode ? `/${pathSegment}/api/${resourceSlug}/${recordId}` : '',
+    values,
+    initialValues: (form as { initialValues?: Record<string, unknown> }).initialValues ?? {},
+    saving,
+    isRestorePreview,
+    yjs: !!formYjs.yjs,
+    syncAllFieldsToDoc: formYjs.yjs && collabRef.current?.fieldsMap ? (vals) => {
+      const doc = collabRef.current
+      if (!doc) return
+      doc.doc.transact(() => {
+        for (const [k, v] of Object.entries(vals)) doc.fieldsMap.set(k, v)
+      })
+    } : undefined,
+  })
+
+  // ── Per-field persist (edit mode) ─────────────────────────
+  const editFormFields = isEditMode ? flattenFormFields(form.fields as SchemaItem[], 'edit') : []
+  const fieldPersistKey = isEditMode ? `bk:${pathSegment}:${resourceSlug}:${recordId}:edit` : ''
+  const { clearPersistedFields } = useFieldPersist({
+    storageKeyPrefix: fieldPersistKey,
+    formFields: editFormFields,
+    values,
+    setValue: (name: string, value: unknown) => handleChange(name, value),
+  })
+
+  // ── Draft recovery (edit mode) ────────────────────────────
+  const draftRecoveryKey = isEditMode ? `bk:${pathSegment}:${resourceSlug}:${recordId}:edit` : ''
+  const persistOps = useFormPersist({
+    storageKey: draftRecoveryKey,
+    enabled: false, // draft recovery controlled by resource, not form
+    values,
+    initialValues: (form as { initialValues?: Record<string, unknown> }).initialValues ?? {},
+    onRestore: (restored) => {
+      for (const [key, val] of Object.entries(restored)) handleChange(key, val)
+    },
+  })
+
+  // Record status for draft badge
+  const recordStatus = draftableEnabled
+    ? (String(values['draftStatus'] ?? 'draft'))
+    : null
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    // In edit mode, delegate to edit save handler
+    if (isEditMode) {
+      if (draftableEnabled) {
+        await handleEditSave('draft')
+      } else {
+        await handleEditSave()
+      }
+      return
+    }
     setSubmitting(true)
     setServerError(null)
     const apiBase = panelPath.replace(/\/$/, '') + '/api'
@@ -356,12 +539,47 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     )
   }
 
+  // Common renderer props
+  const rendererProps = {
+    schema: form.fields as SchemaItem[],
+    values,
+    errors: Object.fromEntries(Object.entries(fieldErrors).map(([k, v]) => [k, [v]])) as Record<string, string[]>,
+    setValue: (name: string, value: unknown) => handleChange(name, value),
+    uploadBase: panelPath.replace(/\/$/, '') + '/api',
+    i18n: i18n as PanelI18n & Record<string, string>,
+    mode,
+    ...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: isRestorePreview ? null : formYjs.wsLivePath } : {}),
+    ...(formYjs.yjs && formYjs.docName ? { docName: isRestorePreview ? null : formYjs.docName } : {}),
+    ...(userName ? { userName } : {}),
+    ...(userColor ? { userColor } : {}),
+  }
+
   return (
     <div>
       {(form as { description?: string }).description && (
         <p className="text-sm text-muted-foreground mb-4">{(form as { description?: string }).description}</p>
       )}
-      {formYjs.yjs && form.fields.some(f => {
+
+      {/* Edit mode: toolbar (collab status, draft badge, autosave, version history toggle) */}
+      {isEditMode && (versionedEnabled || draftableEnabled || autosaveEnabled || formYjs.yjs) && (
+        <EditToolbar
+          yjs={!!formYjs.yjs}
+          versioned={versionedEnabled}
+          draftable={draftableEnabled}
+          connected={collabConnected}
+          presences={collabPresences}
+          recordStatus={recordStatus}
+          showHistory={showHistory}
+          onToggleHistory={() => setShowHistory(!showHistory)}
+          i18n={i18n as PanelI18n & Record<string, string>}
+          autosave={autosaveEnabled}
+          autosaveStatus={autosaveStatus}
+          autosaveDirty={autosaveDirty}
+        />
+      )}
+
+      {/* Standalone collab indicator (non-edit mode) */}
+      {!isEditMode && formYjs.yjs && form.fields.some(f => {
         const field = f as FieldMeta
         return field.yjs && !TEXT_TYPES.has(field.type)
       }) && (
@@ -373,52 +591,62 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
           )}
         </div>
       )}
-      {isStandalone ? (
-        <div className="flex flex-col gap-4">
-          <SchemaRenderer
-            schema={form.fields as SchemaItem[]}
-            values={values}
-            errors={Object.fromEntries(Object.entries(fieldErrors).map(([k, v]) => [k, [v]]))}
-            setValue={(name, value) => handleChange(name, value)}
-            uploadBase={panelPath.replace(/\/$/, '') + '/api'}
-            i18n={i18n as PanelI18n & Record<string, string>}
-            mode={mode}
-            {...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: formYjs.wsLivePath } : {})}
-            {...(formYjs.yjs && formYjs.docName ? { docName: formYjs.docName } : {})}
-            {...(userName ? { userName } : {})}
-            {...(userColor ? { userColor } : {})}
-          />
+
+      {/* Layout: form + optional version history sidebar */}
+      <div className={versionedEnabled && showHistory ? 'flex gap-6' : ''}>
+        <div className={versionedEnabled && showHistory ? 'flex-1 max-w-2xl' : ''}>
+          {isStandalone ? (
+            <div className="flex flex-col gap-4">
+              <SchemaRenderer key={formKey} {...rendererProps} />
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <SchemaRenderer key={formKey} {...rendererProps} />
+              {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+
+              {/* Edit mode: FormActions (save/publish/unpublish/cancel) */}
+              {isEditMode ? (
+                <FormActions
+                  draftable={draftableEnabled}
+                  recordStatus={recordStatus}
+                  saving={saving}
+                  backHref={effectiveBackUrl}
+                  onPublish={() => void handleEditSave('publish')}
+                  onUnpublish={() => void handleEditSave('unpublish')}
+                  i18n={i18n as PanelI18n & Record<string, string>}
+                />
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button type="submit" disabled={submitting}
+                    className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {submitting ? '...' : (form.submitLabel ?? i18n.save ?? 'Submit')}
+                  </button>
+                  {cancelUrl && (
+                    <a href={cancelUrl} className="px-5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {i18n.cancel ?? 'Cancel'}
+                    </a>
+                  )}
+                </div>
+              )}
+            </form>
+          )}
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <SchemaRenderer
-            schema={form.fields as SchemaItem[]}
-            values={values}
-            errors={Object.fromEntries(Object.entries(fieldErrors).map(([k, v]) => [k, [v]]))}
-            setValue={(name, value) => handleChange(name, value)}
-            uploadBase={panelPath.replace(/\/$/, '') + '/api'}
+
+        {/* Version history sidebar */}
+        {isEditMode && versionedEnabled && showHistory && (
+          <VersionHistory
+            pathSegment={pathSegment}
+            slug={resourceSlug!}
+            id={recordId!}
+            onRestore={restoreVersion}
+            onRejoinLive={rejoinLive}
             i18n={i18n as PanelI18n & Record<string, string>}
-            mode={mode}
-            {...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: formYjs.wsLivePath } : {})}
-            {...(formYjs.yjs && formYjs.docName ? { docName: formYjs.docName } : {})}
-            {...(userName ? { userName } : {})}
-            {...(userColor ? { userColor } : {})}
+            activeVersionId={activeVersionId}
+            isRestorePreview={isRestorePreview}
           />
-          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-          <div className="flex items-center gap-3">
-            <button type="submit" disabled={submitting}
-              className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            >
-              {submitting ? '...' : (form.submitLabel ?? i18n.save ?? 'Submit')}
-            </button>
-            {cancelUrl && (
-              <a href={cancelUrl} className="px-5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {i18n.cancel ?? 'Cancel'}
-              </a>
-            )}
-          </div>
-        </form>
-      )}
+        )}
+      </div>
     </div>
   )
 }

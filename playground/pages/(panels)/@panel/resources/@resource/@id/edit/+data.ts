@@ -99,8 +99,25 @@ export async function data(pageContext: PageContextServer) {
   const versioned = ResourceClass.versioned
   const draftable = ResourceClass.draftable
 
-  // Extract Yjs config from resolved form element (edit page hooks need them directly)
+  // Override docName to use resource-specific name (panel:slug:id, not form:slug)
   const formMeta = formElement as PanelSchemaElementMeta & { yjs?: boolean; wsLivePath?: string | null; docName?: string | null; liveProviders?: string[] }
+  if (formMeta.yjs) {
+    const resourceDocName = `panel:${slug}:${id}`
+    formMeta.docName = resourceDocName
+
+    // Re-seed Y.Doc with the correct resource-specific docName
+    if (formMeta.wsLivePath && record) {
+      try {
+        const { Live } = await import('@boostkit/live')
+        const fieldData: Record<string, unknown> = {}
+        for (const f of formFields) {
+          const name = f.getName()
+          if (name in record) fieldData[name] = record[name]
+        }
+        await Live.seed(resourceDocName, fieldData)
+      } catch { /* @boostkit/live not available */ }
+    }
+  }
 
   return {
     panelMeta, resourceMeta, record, formElement, pathSegment, slug, id, sessionUser,
