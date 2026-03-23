@@ -14,6 +14,14 @@ import type { DialogElementMeta } from './schema/Dialog.js'
 import type { SnippetElementMeta } from './schema/Snippet.js'
 import type { ExampleElementMeta } from './schema/Example.js'
 import type { Example } from './schema/Example.js'
+import type { CardElementMeta } from './schema/Card.js'
+import type { Card } from './schema/Card.js'
+import type { AlertElementMeta } from './schema/Alert.js'
+import type { DividerElementMeta } from './schema/Divider.js'
+import type { EachElementMeta } from './schema/Each.js'
+import type { Each } from './schema/Each.js'
+import type { ViewElementMeta } from './schema/View.js'
+import type { View } from './schema/View.js'
 
 import { resolveSection }   from './resolvers/resolveSection.js'
 import { resolveTabs }      from './resolvers/resolveTabs.js'
@@ -39,6 +47,11 @@ export type PanelSchemaElementMeta =
   | DialogElementMeta
   | SnippetElementMeta
   | ExampleElementMeta
+  | CardElementMeta
+  | AlertElementMeta
+  | DividerElementMeta
+  | EachElementMeta
+  | ViewElementMeta
 
 // ─── Schema resolver ───────────────────────────────────────
 
@@ -114,13 +127,98 @@ export async function resolveSchema(
     if (type === 'example') {
       const example = el as unknown as Example
       const meta = example.toMeta()
-      // Resolve inner schema elements for the live preview
       const innerElements = example.getSchema()
       if (innerElements.length > 0) {
         const examplePanel = Object.create(panel, {
           getSchema: { value: () => innerElements },
         })
         meta.elements = await resolveSchema(examplePanel, ctx)
+      }
+      result.push(meta as unknown as PanelSchemaElementMeta)
+      continue
+    }
+
+    if (type === 'card') {
+      const card = el as unknown as Card
+      const meta = card.toMeta()
+      const cardElements = card.getSchema()
+      if (cardElements.length > 0) {
+        const cardPanel = Object.create(panel, {
+          getSchema: { value: () => cardElements },
+        })
+        meta.elements = await resolveSchema(cardPanel, ctx)
+      }
+      result.push(meta as unknown as PanelSchemaElementMeta)
+      continue
+    }
+
+    if (type === 'each') {
+      const each = el as unknown as Each
+      const meta = each.toMeta()
+      const contentFn = each.getContentFn()
+
+      // Resolve data source
+      let records: Record<string, unknown>[] = []
+      const model = each.getModel()
+      const dataSource = each.getDataSource()
+      const staticItems = each.getStaticItems()
+
+      if (model) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q: any = model.query()
+        const scopeFn = each.getScope()
+        if (scopeFn) q = scopeFn(q)
+        try { records = await q.get() } catch { /* empty */ }
+      } else if (dataSource) {
+        const { resolveDataSource } = await import('./datasource.js')
+        records = await resolveDataSource(dataSource, ctx)
+      } else if (staticItems.length > 0 && !contentFn) {
+        // Static items — resolve each item's schema directly
+        for (const itemSchema of staticItems) {
+          const itemPanel = Object.create(panel, {
+            getSchema: { value: () => itemSchema },
+          })
+          const resolved = await resolveSchema(itemPanel, ctx)
+          meta.items.push({ elements: resolved })
+        }
+        result.push(meta as unknown as PanelSchemaElementMeta)
+        continue
+      }
+
+      // Generate schema per record using content function
+      if (contentFn) {
+        for (const record of records) {
+          const itemElements = contentFn(record)
+          const itemPanel = Object.create(panel, {
+            getSchema: { value: () => itemElements },
+          })
+          const resolved = await resolveSchema(itemPanel, ctx)
+          meta.items.push({ elements: resolved })
+        }
+      }
+      result.push(meta as unknown as PanelSchemaElementMeta)
+      continue
+    }
+
+    if (type === 'view') {
+      const view = el as unknown as View
+      const meta = view.toMeta()
+      const contentFn = view.getContentFn()
+      const dataFn = view.getData()
+
+      if (contentFn && dataFn) {
+        // Resolve data (sync or async)
+        let data: Record<string, unknown>
+        if (typeof dataFn === 'function') {
+          data = await dataFn(ctx)
+        } else {
+          data = dataFn
+        }
+        const viewElements = contentFn(data)
+        const viewPanel = Object.create(panel, {
+          getSchema: { value: () => viewElements },
+        })
+        meta.elements = await resolveSchema(viewPanel, ctx)
       }
       result.push(meta as unknown as PanelSchemaElementMeta)
       continue
