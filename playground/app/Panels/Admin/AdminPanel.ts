@@ -1,4 +1,6 @@
 import { Panel, Heading, Text, Stats, Stat, Chart, List, Table, Column, Tabs, Tab, Dashboard, Widget } from '@boostkit/panels'
+import { panelsLexical } from '@boostkit/panels-lexical/server'
+import { media } from '@boostkit/media/server'
 import { TodoResource }         from './resources/TodoResource.js'
 import { UserResource }         from './resources/UserResource.js'
 import { ArticleResource }      from './resources/ArticleResource.js'
@@ -22,6 +24,15 @@ import { User }       from 'App/Models/User.js'
 
 export const adminPanel = Panel.make('admin')
   .path('/admin')
+  .use(panelsLexical())
+  .use(media({
+    disk: 'public',
+    directory: 'media',
+    conversions: [
+      { name: 'thumb', width: 200, height: 200, crop: true, format: 'webp' },
+      { name: 'preview', width: 800, format: 'webp' },
+    ],
+  }))
   .branding({
     title: 'BoostKit',
     logo: '/logo.svg',

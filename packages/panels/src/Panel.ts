@@ -8,6 +8,41 @@ import type { PanelI18n } from './i18n/index.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelMiddlewareHandler = (...args: any[]) => any
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppLike = { make(key: string): any; register(provider: any): any }
+
+/**
+ * A panel plugin — extends a panel with extra behavior (routes, schema, etc.).
+ *
+ * Plugins receive the panel they're attached to, so they can mount routes
+ * scoped to that panel and read its configuration.
+ *
+ * @example
+ * ```ts
+ * Panel.make('admin')
+ *   .use(media({ conversions: [...] }))
+ *   .use(activityLog())
+ * ```
+ */
+export interface PanelPluginSchema {
+  from: string
+  to:   string
+  tag:  string
+  orm?: 'prisma' | 'drizzle'
+  driver?: 'sqlite' | 'postgresql' | 'mysql'
+}
+
+export interface PanelPlugin {
+  /** Prisma/Drizzle schema files to publish. PanelServiceProvider handles the actual publishing. */
+  schemas?: PanelPluginSchema[]
+  /** Pages directory to publish (relative to the plugin's package). */
+  pages?: string
+  /** Called during PanelServiceProvider.register() — bind DI, etc. */
+  register?(panel: Panel, app: AppLike): void
+  /** Called during PanelServiceProvider.boot() — mount routes, etc. */
+  boot?(panel: Panel, app: AppLike): void | Promise<void>
+}
+
 type PanelSchemaElement = { getType(): string }
 
 type PanelSchemaDefinition =
@@ -43,6 +78,7 @@ export class Panel {
   protected _locale?:   string
   protected _schema?:   PanelSchemaDefinition
   protected _middleware: PanelMiddlewareHandler[] = []
+  protected _plugins:   PanelPlugin[] = []
 
   protected constructor(name: string) {
     this._name = name
@@ -150,6 +186,19 @@ export class Panel {
     return this
   }
 
+  /**
+   * Register a plugin for this panel.
+   * Plugins extend the panel with extra behavior — routes, pages, schema, etc.
+   *
+   * @example
+   * Panel.make('admin')
+   *   .use(media({ conversions: [{ name: 'thumb', width: 200, format: 'webp' }] }))
+   */
+  use(plugin: PanelPlugin): this {
+    this._plugins.push(plugin)
+    return this
+  }
+
   // ── Getters ─────────────────────────────────────────────
 
   getName(): string { return this._name }
@@ -185,6 +234,7 @@ export class Panel {
     collect(this._pages)
     return result
   }
+  getPlugins(): PanelPlugin[] { return this._plugins }
   getLayout(): PanelLayout { return this._layout }
   getSchema(): PanelSchemaDefinition | undefined { return this._schema }
   hasSchema(): boolean { return this._schema !== undefined }

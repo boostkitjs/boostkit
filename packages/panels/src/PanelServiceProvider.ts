@@ -68,6 +68,11 @@ export class PanelServiceProvider extends ServiceProvider {
       }
 
       mountDashboardRoutes(router, panel, mw)
+
+      // Boot panel plugins
+      for (const plugin of panel.getPlugins()) {
+        if (plugin.boot) await plugin.boot(panel, this.app)
+      }
     }
   }
 }
@@ -101,13 +106,42 @@ export function panels(
     register(): void {
       PanelRegistry.reset()
       DashboardRegistry.reset()
+
+      const publishedSchemas = new Set<string>()
+
       for (const panel of panelList) {
         PanelRegistry.register(panel)
+
+        for (const plugin of panel.getPlugins()) {
+          // Publish plugin schemas (deduplicated — same schema published once)
+          if (plugin.schemas) {
+            for (const schema of plugin.schemas) {
+              const key = `${schema.from}:${schema.to}:${schema.tag}`
+              if (!publishedSchemas.has(key)) {
+                publishedSchemas.add(key)
+                this.publishes([schema])
+              }
+            }
+          }
+
+          if (plugin.register) plugin.register(panel, this.app)
+        }
       }
     }
 
     override async boot(): Promise<void> {
-      // Register extension providers (e.g. panels-lexical, panels-media)
+      // Publish plugin pages (deduplicated)
+      const publishedPages = new Set<string>()
+      for (const panel of panelList) {
+        for (const plugin of panel.getPlugins()) {
+          if (plugin.pages && !publishedPages.has(plugin.pages)) {
+            publishedPages.add(plugin.pages)
+            this.publishes({ from: plugin.pages, to: 'pages/(panels)', tag: 'plugin-pages' })
+          }
+        }
+      }
+
+      // Legacy: register extension providers (e.g. panels-lexical, panels-media)
       if (extensions) {
         for (const ext of extensions) {
           await this.app.register(ext)

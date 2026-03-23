@@ -13,21 +13,33 @@ export class PanelLexicalServiceProvider extends ServiceProvider {
 }
 
 /**
- * Register @boostkit/panels-lexical as a service provider.
- *
- * Calls `registerLexical()` at boot to populate the editor registry,
- * and exposes `vendor:publish --tag=panels-lexical-pages` to copy the
- * Lexical UI components into your app's `pages/(panels)/` directory.
- *
- * @example
- * // bootstrap/providers.ts
- * import { panelsLexical } from '@boostkit/panels-lexical'
- * export default [
- *   panels([adminPanel]),
- *   panelsLexical(),
- * ]
+ * @deprecated Use `panelsLexical()` as a PanelPlugin with `Panel.use(panelsLexical())`.
+ * Legacy factory for the `panels([...], [extensions])` pattern.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function panelsLexical(): new (...args: any[]) => PanelLexicalServiceProvider {
+export function panelsLexicalExtension(): new (...args: any[]) => PanelLexicalServiceProvider {
   return PanelLexicalServiceProvider
+}
+
+// ─── PanelPlugin factory ────────────────────────────────────
+
+import type { PanelPlugin } from '@boostkit/panels'
+
+const pagesDir = new URL(/* @vite-ignore */ '../pages', import.meta.url).pathname
+
+/**
+ * Register Lexical rich-text editor as a panel plugin.
+ *
+ * @example
+ * ```ts
+ * import { panelsLexical } from '@boostkit/panels-lexical/server'
+ *
+ * Panel.make('admin')
+ *   .use(panelsLexical())
+ * ```
+ */
+export function panelsLexical(): PanelPlugin {
+  return {
+    pages: pagesDir,
+  }
 }
