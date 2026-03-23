@@ -1,6 +1,6 @@
 import { PanelRegistry, resolveForm } from '@boostkit/panels'
-import type { FieldOrGrouping, Field, QueryBuilderLike, RecordRow, PanelSchemaElementMeta, PanelUser } from '@boostkit/panels'
-import { getSessionUser } from '../../../../../_lib/getSessionUser.js'
+import type { FieldOrGrouping, Field, QueryBuilderLike, RecordRow, PanelSchemaElementMeta } from '@boostkit/panels'
+import { buildPanelContext } from '../../../../../_lib/buildPanelContext.js'
 import type { PageContextServer } from 'vike/types'
 
 export type Data = Awaited<ReturnType<typeof data>>
@@ -26,7 +26,7 @@ export async function data(pageContext: PageContextServer) {
   const resource     = new ResourceClass()
   const resourceMeta = resource.toMeta()
   const panelMeta    = panel.toMeta()
-  const sessionUser  = await getSessionUser(pageContext)
+  const { ctx, sessionUser } = await buildPanelContext(pageContext)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Model  = ResourceClass.model as any
@@ -48,56 +48,15 @@ export async function data(pageContext: PageContextServer) {
     record = await q.find(id)
   }
 
-  // ── Build PanelContext with session support ──
-  let sessionGet: ((key: string) => unknown) | undefined
-  try {
-    const { app: getApp } = await import('@boostkit/core') as { app(): { make<T>(key: string): T } }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sessionConfig = getApp().make<any>('session.config')
-    if (sessionConfig?.secret && sessionConfig?.cookie?.name) {
-      const cookieHeader = ((pageContext as any).headers?.cookie ?? '') as string
-      const cookieName = sessionConfig.cookie.name as string
-      const match = cookieHeader.split(';').map((c: string) => c.trim()).find((c: string) => c.startsWith(`${cookieName}=`))
-      if (match) {
-        const cookieValue = decodeURIComponent(match.slice(cookieName.length + 1))
-        const { createHmac } = await import('node:crypto')
-        const dotIdx = cookieValue.lastIndexOf('.')
-        if (dotIdx !== -1) {
-          const b64 = cookieValue.slice(0, dotIdx)
-          const hmac = cookieValue.slice(dotIdx + 1)
-          const expected = createHmac('sha256', sessionConfig.secret as string).update(b64).digest('base64url')
-          if (expected === hmac) {
-            const payload = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8')) as { data: Record<string, unknown> }
-            sessionGet = (key: string) => payload.data[key]
-          }
-        }
-      }
-    }
-  } catch { /* session not available */ }
-
-  const ctx = {
-    user: sessionUser as PanelUser | undefined,
-    headers: (pageContext as PageContextServer & { headers?: Record<string, string> }).headers ?? {},
-    path: pageContext.urlPathname,
-    params: {},
-    urlSearch: pageContext.urlParsed?.search ?? {},
-    sessionGet,
-  }
-
-  // ── Resolve the resource form through resolveForm() ──
+  // Resolve the resource form through resolveForm()
   const form = resource._resolveForm()
   form.action(`/${pathSegment}/api/${slug}/${id}`)
   form.method('PUT')
-  // Set record as initial values
   if (record) {
     form.data(async () => record as Record<string, unknown>)
   }
 
   const formElement = await resolveForm(form as any, panel, ctx)
-
-  // Feature flags
-  const versioned = ResourceClass.versioned
-  const draftable = ResourceClass.draftable
 
   // Override docName to use resource-specific name (panel:slug:id, not form:slug)
   const formMeta = formElement as PanelSchemaElementMeta & { yjs?: boolean; wsLivePath?: string | null; docName?: string | null; liveProviders?: string[] }
@@ -105,7 +64,6 @@ export async function data(pageContext: PageContextServer) {
     const resourceDocName = `panel:${slug}:${id}`
     formMeta.docName = resourceDocName
 
-    // Re-seed Y.Doc with the correct resource-specific docName
     if (formMeta.wsLivePath && record) {
       try {
         const { Live } = await import('@boostkit/live')
@@ -119,12 +77,5 @@ export async function data(pageContext: PageContextServer) {
     }
   }
 
-  return {
-    panelMeta, resourceMeta, record, formElement, pathSegment, slug, id, sessionUser,
-    versioned, draftable,
-    yjs: formMeta.yjs ?? false,
-    wsLivePath: formMeta.wsLivePath ?? null,
-    docName: formMeta.docName ?? null,
-    liveProviders: formMeta.liveProviders ?? [],
-  }
+  return { panelMeta, resourceMeta, record, formElement, pathSegment, slug, id, sessionUser }
 }
