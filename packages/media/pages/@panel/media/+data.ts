@@ -1,5 +1,5 @@
 import type { PageContextServer } from 'vike/types'
-import type { MediaRecord } from '../../_lib/types.js'
+import type { MediaRecord } from '@boostkit/media'
 
 export type Data = Awaited<ReturnType<typeof data>>
 

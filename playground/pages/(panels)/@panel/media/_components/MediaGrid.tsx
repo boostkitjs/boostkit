@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { MediaRecord } from '../_lib/types.js'
+import type { MediaRecord } from '@boostkit/media'
 import { formatSize } from '../_lib/format.js'
 import { FileIcon } from './FileIcon.js'
 import { ContextMenu } from './ContextMenu.js'

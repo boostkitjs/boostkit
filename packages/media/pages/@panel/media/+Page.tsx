@@ -3,13 +3,13 @@
 import { useState, useCallback } from 'react'
 import { useData } from 'vike-react/useData'
 import type { Data } from './+data.js'
-import type { MediaRecord } from '../../_lib/types.js'
-import { useMediaActions } from '../../_lib/useMediaActions.js'
-import { MediaGrid } from '../../_components/MediaGrid.js'
-import { MediaList } from '../../_components/MediaList.js'
-import { MediaPreview } from '../../_components/MediaPreview.js'
-import { MediaUploadZone } from '../../_components/MediaUploadZone.js'
-import { NewFolderDialog } from '../../_components/NewFolderDialog.js'
+import type { MediaRecord } from '@boostkit/media'
+import { useMediaActions } from './_lib/useMediaActions.js'
+import { MediaGrid } from './_components/MediaGrid.js'
+import { MediaList } from './_components/MediaList.js'
+import { MediaPreview } from './_components/MediaPreview.js'
+import { MediaUploadZone } from './_components/MediaUploadZone.js'
+import { NewFolderDialog } from './_components/NewFolderDialog.js'
 
 export default function MediaPage() {
   const { items, breadcrumbs, scope, search, pathSegment, currentFolder, sessionUser } = useData<Data>()
