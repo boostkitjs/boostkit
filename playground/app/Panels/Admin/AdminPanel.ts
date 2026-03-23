@@ -13,6 +13,7 @@ import { FormsDemo }      from './pages/FormsDemo.js'
 import { FieldsDemo }        from './pages/FieldsDemo.js'
 import { SectionsDemo }      from './pages/SectionsDemo.js'
 import { DialogsDemo }       from './pages/DialogsDemo.js'
+import { ElementsDemo }     from './pages/ElementsDemo.js'
 
 import { Article }    from 'App/Models/Article.js'
 import { Category }   from 'App/Models/Category.js'
@@ -153,6 +154,7 @@ export const adminPanel = Panel.make('admin')
     FieldsDemo,
     SectionsDemo,
     DialogsDemo,
+    ElementsDemo,
     ReportsPage,
     MediaPage,
     CustomPage,
