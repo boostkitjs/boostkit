@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { MediaRecord, ConversionInfo } from '../_lib/types.js'
+import type { MediaRecord, ConversionInfo } from '@boostkit/media'
 import { formatSize, formatDate } from '../_lib/format.js'
 import { PreviewContent } from './PreviewContent.js'
 

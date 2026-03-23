@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { MediaRecord } from '../_lib/types.js'
+import type { MediaRecord } from '@boostkit/media'
 import { formatSize, formatDate } from '../_lib/format.js'
 import { FileIcon } from './FileIcon.js'
 
