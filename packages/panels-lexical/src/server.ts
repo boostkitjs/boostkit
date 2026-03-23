@@ -3,4 +3,4 @@
  * Import this from bootstrap/providers.ts (Node.js / artisan context).
  * No React or Lexical imports here.
  */
-export { PanelLexicalServiceProvider, panelsLexical } from './PanelLexicalServiceProvider.js'
+export { PanelLexicalServiceProvider, panelsLexical, panelsLexicalExtension } from './PanelLexicalServiceProvider.js'
