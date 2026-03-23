@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { PanelSchemaElementMeta, PanelStatMeta, PanelI18n, ChartElementMeta, ChartDataset, ListElementMeta, SnippetElementMeta, ExampleElementMeta } from '@boostkit/panels'
+import type { PanelSchemaElementMeta, PanelStatMeta, PanelI18n, ChartElementMeta, ChartDataset, ListElementMeta, SnippetElementMeta, ExampleElementMeta, CardElementMeta, AlertElementMeta, DividerElementMeta, EachElementMeta, ViewElementMeta } from '@boostkit/panels'
 import { SchemaTable } from './SchemaTable.js'
 import { SchemaForm } from './SchemaForm.js'
 import type { SchemaFormMeta } from '@boostkit/panels'
@@ -47,6 +47,26 @@ export function SchemaElementRenderer({ element, panelPath, i18n }: SchemaElemen
 
   if (element.type === 'form') {
     return <SchemaForm form={element as unknown as SchemaFormMeta} panelPath={panelPath} i18n={i18n} />
+  }
+
+  if (element.type === 'alert') {
+    return <AlertBlock element={element as unknown as AlertElementMeta} />
+  }
+
+  if (element.type === 'divider') {
+    return <DividerBlock element={element as unknown as DividerElementMeta} />
+  }
+
+  if (element.type === 'card') {
+    return <CardBlock element={element as unknown as CardElementMeta} panelPath={panelPath} i18n={i18n} />
+  }
+
+  if (element.type === 'each') {
+    return <EachBlock element={element as unknown as EachElementMeta} panelPath={panelPath} i18n={i18n} />
+  }
+
+  if (element.type === 'view') {
+    return <ViewBlock element={element as unknown as ViewElementMeta} panelPath={panelPath} i18n={i18n} />
   }
 
   if (element.type === 'stats') {
@@ -262,6 +282,95 @@ function StatProgressWidget({ data }: { data: Record<string, unknown> }) {
         <p className="text-2xl font-bold tabular-nums">{value}<span className="text-sm font-normal text-muted-foreground">/{max}</span></p>
         {label && <p className="text-xs text-muted-foreground mt-0.5">{label}</p>}
       </div>
+    </div>
+  )
+}
+
+/* ── Snippet — tabbed code with copy ──────────────────────── */
+
+/* ── Alert ────────────────────────────────────────────────── */
+
+const alertStyles: Record<string, { border: string; bg: string; text: string; icon: string }> = {
+  info:    { border: 'border-blue-500/30',   bg: 'bg-blue-500/10',   text: 'text-blue-700 dark:text-blue-400',     icon: 'ℹ️' },
+  warning: { border: 'border-amber-500/30',  bg: 'bg-amber-500/10',  text: 'text-amber-700 dark:text-amber-400',   icon: '⚠️' },
+  success: { border: 'border-green-500/30',  bg: 'bg-green-500/10',  text: 'text-green-700 dark:text-green-400',   icon: '✓' },
+  danger:  { border: 'border-red-500/30',    bg: 'bg-red-500/10',    text: 'text-red-700 dark:text-red-400',       icon: '✕' },
+}
+
+function AlertBlock({ element }: { element: AlertElementMeta }) {
+  const style = alertStyles[element.alertType] ?? alertStyles.info!
+  return (
+    <div className={`px-4 py-3 rounded-lg border ${style.border} ${style.bg} ${style.text}`}>
+      {element.title && <p className="text-sm font-semibold mb-1">{element.title}</p>}
+      <p className="text-sm">{element.content}</p>
+    </div>
+  )
+}
+
+/* ── Divider ──────────────────────────────────────────────── */
+
+function DividerBlock({ element }: { element: DividerElementMeta }) {
+  if (!element.label) {
+    return <hr className="border-border" />
+  }
+  return (
+    <div className="relative">
+      <hr className="border-border" />
+      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+        {element.label}
+      </span>
+    </div>
+  )
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+
+function CardBlock({ element, panelPath, i18n }: { element: CardElementMeta; panelPath: string; i18n: PanelI18n }) {
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      {(element.title || element.description) && (
+        <div className="px-5 py-3 border-b bg-muted/40">
+          {element.title && <p className="text-sm font-semibold">{element.title}</p>}
+          {element.description && <p className="text-xs text-muted-foreground mt-0.5">{element.description}</p>}
+        </div>
+      )}
+      <div className="p-5 flex flex-col gap-4">
+        {(element.elements ?? []).map((el: unknown, i: number) => (
+          <SchemaElementRenderer key={i} element={el as PanelSchemaElementMeta} panelPath={panelPath} i18n={i18n} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── Each ─────────────────────────────────────────────────── */
+
+function EachBlock({ element, panelPath, i18n }: { element: EachElementMeta; panelPath: string; i18n: PanelI18n }) {
+  const gridCls = element.layout === 'list' ? 'flex flex-col gap-4'
+    : element.layout === 'flex' ? 'flex flex-wrap gap-4'
+    : `grid gap-4 grid-cols-1 sm:grid-cols-2 ${element.columns >= 3 ? `lg:grid-cols-${element.columns}` : ''}`
+
+  return (
+    <div className={gridCls} style={element.layout === 'grid' && element.columns > 3 ? { gridTemplateColumns: `repeat(${element.columns}, minmax(0, 1fr))` } : undefined}>
+      {(element.items ?? []).map((item, i) => (
+        <div key={i} className="flex flex-col gap-4">
+          {(item.elements ?? []).map((el: unknown, j: number) => (
+            <SchemaElementRenderer key={j} element={el as PanelSchemaElementMeta} panelPath={panelPath} i18n={i18n} />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ── View ─────────────────────────────────────────────────── */
+
+function ViewBlock({ element, panelPath, i18n }: { element: ViewElementMeta; panelPath: string; i18n: PanelI18n }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {(element.elements ?? []).map((el: unknown, i: number) => (
+        <SchemaElementRenderer key={i} element={el as PanelSchemaElementMeta} panelPath={panelPath} i18n={i18n} />
+      ))}
     </div>
   )
 }
