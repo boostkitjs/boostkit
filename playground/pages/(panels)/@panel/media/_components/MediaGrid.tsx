@@ -67,7 +67,7 @@ export function MediaGrid({ items, onDoubleClick, onDelete, onRename, onMove, pa
                   ? 'bg-primary/10 ring-2 ring-primary'
                   : dragOver === item.id
                   ? 'bg-primary/20 ring-2 ring-primary ring-dashed'
-                  : 'bg-card hover:bg-muted/50'
+                  : 'hover:bg-muted/50'
               }`}
               onClick={() => setSelected(item.id)}
               onDoubleClick={() => onDoubleClick(item)}
