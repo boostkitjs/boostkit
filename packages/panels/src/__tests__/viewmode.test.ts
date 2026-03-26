@@ -1,0 +1,95 @@
+
+import { describe, it } from 'node:test'
+import assert from 'node:assert/strict'
+
+import { ViewMode } from '../schema/ViewMode.js'
+import { Column }   from '../schema/Column.js'
+
+describe('ViewMode', () => {
+  it('make() creates custom view', () => {
+    const v = ViewMode.make('kanban')
+    assert.equal(v.getType(), 'custom')
+    assert.equal(v.getName(), 'kanban')
+    assert.equal(v.getLabel(), 'Kanban')
+  })
+
+  it('list() creates list preset', () => {
+    const v = ViewMode.list()
+    assert.equal(v.getType(), 'list')
+    assert.equal(v.getName(), 'list')
+    assert.equal(v.getLabel(), 'List')
+    assert.equal(v.getIcon(), 'list')
+  })
+
+  it('grid() creates grid preset', () => {
+    const v = ViewMode.grid()
+    assert.equal(v.getType(), 'grid')
+    assert.equal(v.getName(), 'grid')
+    assert.equal(v.getLabel(), 'Grid')
+    assert.equal(v.getIcon(), 'layout-grid')
+  })
+
+  it('table() creates table preset with columns', () => {
+    const cols = [Column.make('name'), Column.make('email')]
+    const v = ViewMode.table(cols)
+    assert.equal(v.getType(), 'table')
+    assert.equal(v.getName(), 'table')
+    assert.equal(v.getLabel(), 'Table')
+    assert.equal(v.getIcon(), 'table')
+    assert.deepEqual(v.getColumns(), cols)
+  })
+
+  it('label() overrides default label', () => {
+    const v = ViewMode.make('cards').label('Card View')
+    assert.equal(v.getLabel(), 'Card View')
+  })
+
+  it('icon() sets icon', () => {
+    const v = ViewMode.make('cards').icon('layout-grid')
+    assert.equal(v.getIcon(), 'layout-grid')
+  })
+
+  it('render() stores render function', () => {
+    const fn = (r: Record<string, unknown>) => []
+    const v = ViewMode.make('cards').render(fn)
+    assert.equal(v.getRenderFn(), fn)
+  })
+
+  it('getRenderFn() returns undefined when not set', () => {
+    assert.equal(ViewMode.list().getRenderFn(), undefined)
+  })
+
+  it('getColumns() returns undefined for non-table views', () => {
+    assert.equal(ViewMode.list().getColumns(), undefined)
+    assert.equal(ViewMode.grid().getColumns(), undefined)
+    assert.equal(ViewMode.make('custom').getColumns(), undefined)
+  })
+})
+
+describe('ViewMode toMeta', () => {
+  it('list preset meta', () => {
+    const meta = ViewMode.list().toMeta()
+    assert.equal(meta.type, 'list')
+    assert.equal(meta.name, 'list')
+    assert.equal(meta.label, 'List')
+    assert.equal(meta.icon, 'list')
+    assert.equal(meta.hasColumns, undefined)
+  })
+
+  it('table preset meta includes hasColumns', () => {
+    const meta = ViewMode.table([Column.make('x')]).toMeta()
+    assert.equal(meta.type, 'table')
+    assert.equal(meta.hasColumns, true)
+  })
+
+  it('custom view meta omits icon when not set', () => {
+    const meta = ViewMode.make('cards').toMeta()
+    assert.equal(meta.type, 'custom')
+    assert.equal(meta.icon, undefined)
+  })
+
+  it('custom view with icon includes it', () => {
+    const meta = ViewMode.make('cards').icon('credit-card').toMeta()
+    assert.equal(meta.icon, 'credit-card')
+  })
+})

@@ -65,8 +65,8 @@ describe('Field', () => {
     assert.equal(meta.label, 'Title')
     assert.equal(meta.required, true)
     assert.equal(meta.sortable, true)
-    assert.equal(meta.searchable, false)
-    assert.deepEqual(meta.hidden, [])
+    assert.equal(meta.searchable, undefined)
+    assert.equal(meta.hidden, undefined)
   })
 
   it('component() stores a key on meta', () => {
@@ -195,7 +195,7 @@ describe('field-level access control', () => {
   it('readableBy stores function — not in meta', () => {
     const fn = (ctx: any) => ctx.user?.role === 'admin'
     const f = TextField.make('x').readableBy(fn)
-    assert.equal((f.toMeta().extra as any)['readableBy'], undefined)
+    assert.equal(f.toMeta().extra?.['readableBy'], undefined)
     assert.ok(f.canRead({ user: { role: 'admin' } }))
     assert.equal(f.canRead({ user: { role: 'user' } }), false)
   })
