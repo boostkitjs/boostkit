@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { navigate } from 'vike/client/router'
 import type { PanelNavigationMeta } from '@boostkit/panels'
+import { useI18n } from '../_hooks/useI18n.js'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ interface Props {
 }
 
 export function GlobalSearch({ panelMeta, pathSegment }: Props) {
-  const i18n = panelMeta.i18n
+  const i18n = useI18n()
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const [results, setResults] = useState<SearchResult[]>([])

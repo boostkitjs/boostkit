@@ -10,7 +10,8 @@ import { SchemaForm }   from '../_components/SchemaForm.js'
 import { SchemaDialog } from '../_components/SchemaDialog.js'
 import { SchemaTabs } from '../_components/SchemaTabs.js'
 import { SchemaSection } from '../_components/SchemaSection.js'
-import type { PanelSchemaElementMeta, PanelI18n, FormElementMeta, DialogElementMeta, WidgetMeta } from '@boostkit/panels'
+import type { PanelSchemaElementMeta, FormElementMeta, DialogElementMeta, WidgetMeta } from '@boostkit/panels'
+import { useI18n } from '../_hooks/useI18n.js'
 import type { WidgetWithSchema } from '../_components/WidgetCard.js'
 import type { DashboardGridProps } from '../_components/DashboardGrid.js'
 import type { Data } from './+data.js'
@@ -23,7 +24,7 @@ export default function PanelRootPage() {
   const panelName = panelMeta.branding?.title ?? panelMeta.name
   config({ title: panelName })
 
-  const i18n = panelMeta.i18n as I18nExtended
+  const i18n = useI18n() as I18nExtended
   const pathSegment = panelMeta.path.replace(/^\//, '')
 
   if (!schemaData || schemaData.length === 0) return null

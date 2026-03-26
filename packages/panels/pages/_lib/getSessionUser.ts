@@ -15,7 +15,14 @@ export async function getSessionUser(pageContext: any): Promise<SessionUser | un
     const session = await auth.api.getSession({
       headers: new Headers(pageContext.headers ?? {}),
     })
-    return session?.user ?? undefined
+    const u = session?.user
+    if (!u) return undefined
+    // Return only the fields the panel UI needs — strip emailVerified, createdAt, updatedAt, etc.
+    const slim: SessionUser = {}
+    if (u.name)  slim.name  = u.name
+    if (u.email) slim.email = u.email
+    if (u.image) slim.image = u.image
+    return slim
   } catch {
     return undefined
   }

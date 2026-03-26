@@ -7,6 +7,7 @@ import { navigate }    from 'vike/client/router'
 import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { CellValue, resolveCellValue } from '../../../../_components/CellValue.js'
 import type { FieldMeta, SectionMeta, TabsMeta, PanelI18n, RecordRow } from '@boostkit/panels'
+import { useI18n } from '../../../../_hooks/useI18n.js'
 import {
   Table,
   TableBody,
@@ -25,7 +26,7 @@ export default function ShowPage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, record, pathSegment, slug, id, hasManyData, widgetData } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  const i18n = panelMeta.i18n
+  const i18n = useI18n()
   const rec = record as Record<string, unknown> | null
 
   const recordTitle = resourceMeta.titleField && rec
