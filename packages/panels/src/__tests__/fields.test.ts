@@ -39,9 +39,9 @@ describe('NumberField', () => {
 
   it('min/max/step stored in extra', () => {
     const f = NumberField.make('x').min(0).max(100).step(5)
-    assert.equal(f.toMeta().extra['min'], 0)
-    assert.equal(f.toMeta().extra['max'], 100)
-    assert.equal(f.toMeta().extra['step'], 5)
+    assert.equal(f.toMeta().extra!['min'], 0)
+    assert.equal(f.toMeta().extra!['max'], 100)
+    assert.equal(f.toMeta().extra!['step'], 5)
   })
 })
 
@@ -50,7 +50,7 @@ describe('TextareaField', () => {
 
   it('rows stored in extra', () => {
     const f = TextareaField.make('x').rows(8)
-    assert.equal(f.toMeta().extra['rows'], 8)
+    assert.equal(f.toMeta().extra!['rows'], 8)
   })
 })
 
@@ -69,7 +69,7 @@ describe('SelectField', () => {
 
   it('normalises string options', () => {
     const meta = SelectField.make('role').options(['admin', 'user']).toMeta()
-    assert.deepEqual(meta.extra['options'], [
+    assert.deepEqual(meta.extra!['options'], [
       { label: 'admin', value: 'admin' },
       { label: 'user',  value: 'user' },
     ])
@@ -79,12 +79,12 @@ describe('SelectField', () => {
     const meta = SelectField.make('role')
       .options([{ label: 'Admin', value: 'admin' }])
       .toMeta()
-    assert.deepEqual(meta.extra['options'], [{ label: 'Admin', value: 'admin' }])
+    assert.deepEqual(meta.extra!['options'], [{ label: 'Admin', value: 'admin' }])
   })
 
   it('default stored in extra', () => {
     const meta = SelectField.make('role').options(['a', 'b']).default('a').toMeta()
-    assert.equal(meta.extra['default'], 'a')
+    assert.equal(meta.extra!['default'], 'a')
   })
 })
 
@@ -97,8 +97,8 @@ describe('RelationField', () => {
       .resource('UserResource')
       .displayField('email')
       .toMeta()
-    assert.equal(meta.extra['resource'], 'UserResource')
-    assert.equal(meta.extra['displayField'], 'email')
+    assert.equal(meta.extra!['resource'], 'UserResource')
+    assert.equal(meta.extra!['displayField'], 'email')
   })
 })
 
@@ -108,15 +108,15 @@ describe('PasswordField', () => {
   })
 
   it('confirm() sets confirm flag', () => {
-    assert.equal(PasswordField.make('password').confirm().toMeta().extra['confirm'], true)
+    assert.equal(PasswordField.make('password').confirm().toMeta().extra!['confirm'], true)
   })
 
   it('confirm defaults to false', () => {
-    assert.equal(PasswordField.make('password').toMeta().extra['confirm'], false)
+    assert.equal(PasswordField.make('password').toMeta().extra!['confirm'], false)
   })
 
   it('is hidden from table by default', () => {
-    assert.ok(PasswordField.make('password').toMeta().hidden.includes('table'))
+    assert.ok(PasswordField.make('password').toMeta().hidden!.includes('table'))
   })
 })
 
@@ -126,11 +126,11 @@ describe('SlugField', () => {
   })
 
   it('from() sets source field', () => {
-    assert.equal(SlugField.make('slug').from('title').toMeta().extra['from'], 'title')
+    assert.equal(SlugField.make('slug').from('title').toMeta().extra!['from'], 'title')
   })
 
   it('from defaults to undefined', () => {
-    assert.equal(SlugField.make('slug').toMeta().extra['from'], undefined)
+    assert.equal(SlugField.make('slug').toMeta().extra?.['from'], undefined)
   })
 })
 
@@ -140,7 +140,7 @@ describe('TagsField', () => {
   })
 
   it('placeholder() sets placeholder', () => {
-    assert.equal(TagsField.make('tags').placeholder('Add a tag').toMeta().extra['placeholder'], 'Add a tag')
+    assert.equal(TagsField.make('tags').placeholder('Add a tag').toMeta().extra!['placeholder'], 'Add a tag')
   })
 })
 
@@ -150,12 +150,12 @@ describe('HiddenField', () => {
   })
 
   it('default() sets default value', () => {
-    assert.equal(HiddenField.make('status').default('draft').toMeta().extra['default'], 'draft')
+    assert.equal(HiddenField.make('status').default('draft').toMeta().extra!['default'], 'draft')
   })
 
   it('is hidden from table by default', () => {
     const meta = HiddenField.make('x').toMeta()
-    assert.ok(meta.hidden.includes('table'))
+    assert.ok(meta.hidden!.includes('table'))
   })
 })
 
@@ -166,15 +166,15 @@ describe('ToggleField', () => {
 
   it('onLabel/offLabel defaults', () => {
     const meta = ToggleField.make('active').toMeta()
-    assert.equal(meta.extra['onLabel'],  'On')
-    assert.equal(meta.extra['offLabel'], 'Off')
+    assert.equal(meta.extra!['onLabel'],  'On')
+    assert.equal(meta.extra!['offLabel'], 'Off')
   })
 
   it('custom labels', () => {
     const meta = ToggleField.make('published')
       .onLabel('Published').offLabel('Draft').toMeta()
-    assert.equal(meta.extra['onLabel'],  'Published')
-    assert.equal(meta.extra['offLabel'], 'Draft')
+    assert.equal(meta.extra!['onLabel'],  'Published')
+    assert.equal(meta.extra!['offLabel'], 'Draft')
   })
 })
 
@@ -190,11 +190,11 @@ describe('JsonField', () => {
   })
 
   it('rows() sets row count', () => {
-    assert.equal(JsonField.make('metadata').rows(10).toMeta().extra['rows'], 10)
+    assert.equal(JsonField.make('metadata').rows(10).toMeta().extra!['rows'], 10)
   })
 
   it('rows defaults to 6', () => {
-    assert.equal(JsonField.make('metadata').toMeta().extra['rows'], 6)
+    assert.equal(JsonField.make('metadata').toMeta().extra!['rows'], 6)
   })
 })
 
@@ -209,7 +209,7 @@ describe('RepeaterField', () => {
       BooleanField.make('active'),
     ])
     const meta = f.toMeta()
-    const schema = meta.extra['schema'] as Array<{ type: string; name: string }>
+    const schema = meta.extra!['schema'] as Array<{ type: string; name: string }>
     assert.equal(schema.length, 2)
     assert.equal(schema[0]?.type, 'text')
     assert.equal(schema[1]?.type, 'boolean')
@@ -217,15 +217,15 @@ describe('RepeaterField', () => {
 
   it('addLabel() sets the add button label', () => {
     const f = RepeaterField.make('items').addLabel('Add Feature')
-    assert.equal(f.toMeta().extra['addLabel'], 'Add Feature')
+    assert.equal(f.toMeta().extra!['addLabel'], 'Add Feature')
   })
 
   it('addLabel defaults to "Add item"', () => {
-    assert.equal(RepeaterField.make('items').toMeta().extra['addLabel'], 'Add item')
+    assert.equal(RepeaterField.make('items').toMeta().extra!['addLabel'], 'Add item')
   })
 
   it('maxItems() sets max', () => {
-    assert.equal(RepeaterField.make('items').maxItems(5).toMeta().extra['maxItems'], 5)
+    assert.equal(RepeaterField.make('items').maxItems(5).toMeta().extra!['maxItems'], 5)
   })
 })
 
@@ -264,25 +264,25 @@ describe('BuilderField', () => {
       Block.make('hero').schema([TextField.make('heading')]),
       Block.make('text').schema([TextareaField.make('body')]),
     ])
-    const blocks = f.toMeta().extra['blocks'] as Array<{ name: string }>
+    const blocks = f.toMeta().extra!['blocks'] as Array<{ name: string }>
     assert.equal(blocks.length, 2)
     assert.equal(blocks[0]?.name, 'hero')
     assert.equal(blocks[1]?.name, 'text')
   })
 
   it('addLabel defaults to "Add block"', () => {
-    assert.equal(BuilderField.make('content').toMeta().extra['addLabel'], 'Add block')
+    assert.equal(BuilderField.make('content').toMeta().extra!['addLabel'], 'Add block')
   })
 
   it('addLabel() sets label', () => {
     assert.equal(
-      BuilderField.make('content').addLabel('Add section').toMeta().extra['addLabel'],
+      BuilderField.make('content').addLabel('Add section').toMeta().extra!['addLabel'],
       'Add section',
     )
   })
 
   it('maxItems() sets max', () => {
-    assert.equal(BuilderField.make('content').maxItems(10).toMeta().extra['maxItems'], 10)
+    assert.equal(BuilderField.make('content').maxItems(10).toMeta().extra!['maxItems'], 10)
   })
 })
 
@@ -298,35 +298,35 @@ describe('FileField', () => {
   })
 
   it('accept() stores mime type', () => {
-    assert.equal(FileField.make('f').accept('image/*').toMeta().extra['accept'], 'image/*')
+    assert.equal(FileField.make('f').accept('image/*').toMeta().extra!['accept'], 'image/*')
   })
 
   it('maxSize() stores size in MB', () => {
-    assert.equal(FileField.make('f').maxSize(5).toMeta().extra['maxSize'], 5)
+    assert.equal(FileField.make('f').maxSize(5).toMeta().extra!['maxSize'], 5)
   })
 
   it('maxSize defaults to 10', () => {
-    assert.equal(FileField.make('f').toMeta().extra['maxSize'], 10)
+    assert.equal(FileField.make('f').toMeta().extra!['maxSize'], 10)
   })
 
   it('multiple() sets multiple flag', () => {
-    assert.equal(FileField.make('f').multiple().toMeta().extra['multiple'], true)
+    assert.equal(FileField.make('f').multiple().toMeta().extra!['multiple'], true)
   })
 
   it('multiple defaults to false', () => {
-    assert.equal(FileField.make('f').toMeta().extra['multiple'], false)
+    assert.equal(FileField.make('f').toMeta().extra!['multiple'], false)
   })
 
   it('disk() sets disk name', () => {
-    assert.equal(FileField.make('f').disk('s3').toMeta().extra['disk'], 's3')
+    assert.equal(FileField.make('f').disk('s3').toMeta().extra!['disk'], 's3')
   })
 
   it('disk defaults to local', () => {
-    assert.equal(FileField.make('f').toMeta().extra['disk'], 'local')
+    assert.equal(FileField.make('f').toMeta().extra!['disk'], 'local')
   })
 
   it('directory() sets upload directory', () => {
-    assert.equal(FileField.make('f').directory('images').toMeta().extra['directory'], 'images')
+    assert.equal(FileField.make('f').directory('images').toMeta().extra!['directory'], 'images')
   })
 })
 
@@ -339,29 +339,29 @@ describe('HasMany', () => {
 
   it('is hidden from table, create, and edit by default', () => {
     const f = HasMany.make('comments').toMeta()
-    assert.ok(f.hidden.includes('table'))
-    assert.ok(f.hidden.includes('create'))
-    assert.ok(f.hidden.includes('edit'))
+    assert.ok(f.hidden!.includes('table'))
+    assert.ok(f.hidden!.includes('create'))
+    assert.ok(f.hidden!.includes('edit'))
   })
 
   it('sets resource slug', () => {
     const f = HasMany.make('comments').resource('comments').toMeta()
-    assert.equal(f.extra['resource'], 'comments')
+    assert.equal(f.extra!['resource'], 'comments')
   })
 
   it('sets foreignKey', () => {
     const f = HasMany.make('comments').foreignKey('postId').toMeta()
-    assert.equal(f.extra['foreignKey'], 'postId')
+    assert.equal(f.extra!['foreignKey'], 'postId')
   })
 
   it('sets display field', () => {
     const f = HasMany.make('comments').displayField('body').toMeta()
-    assert.equal(f.extra['displayField'], 'body')
+    assert.equal(f.extra!['displayField'], 'body')
   })
 
   it('throughMany sets flag', () => {
     const f = HasMany.make('tags').throughMany().toMeta()
-    assert.equal(f.extra['throughMany'], true)
+    assert.equal(f.extra!['throughMany'], true)
   })
 })
 
@@ -376,8 +376,8 @@ describe('ComputedField', () => {
   it('is auto-readonly and hidden from create/edit', () => {
     const meta = ComputedField.make('x').compute(() => '').toMeta()
     assert.equal(meta.readonly, true)
-    assert.ok(meta.hidden.includes('create'))
-    assert.ok(meta.hidden.includes('edit'))
+    assert.ok(meta.hidden!.includes('create'))
+    assert.ok(meta.hidden!.includes('edit'))
   })
 
   it('apply() calls compute function', () => {

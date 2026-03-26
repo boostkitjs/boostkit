@@ -17,7 +17,13 @@ export { Chart }               from './Chart.js'
 export type { ChartElementMeta, ChartDataset, ChartType } from './Chart.js'
 
 export { List }               from './List.js'
-export type { ListElementMeta, ListItem } from './List.js'
+export type { ListElementMeta, ListItem, ListConfig, ViewPreset } from './List.js'
+
+export { ViewMode }           from './ViewMode.js'
+export type { ViewModeMeta }  from './ViewMode.js'
+
+export { Table2 }             from './Table2.js'
+export type { Table2Config }  from './Table2.js'
 
 export { Form }               from './Form.js'
 export type { FormElementMeta, FormSubmitFn, FormItem } from './Form.js'

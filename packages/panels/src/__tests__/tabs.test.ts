@@ -31,8 +31,8 @@ describe('Tabs', () => {
     const meta = tabs.toMeta()
     assert.equal(meta.tabs.length, 1)
     assert.equal(meta.tabs[0]?.label, 'General')
-    assert.equal(meta.tabs[0]?.fields.length, 1)
-    assert.equal(meta.tabs[0]?.fields[0]?.name, 'name')
+    assert.equal(meta.tabs[0]?.fields!.length, 1)
+    assert.equal(meta.tabs[0]?.fields![0]?.name, 'name')
   })
 
   it('multiple tabs work', () => {
