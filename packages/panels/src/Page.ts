@@ -91,10 +91,10 @@ export class Page {
    *
    * The base implementation falls back to a stored definition set via define().
    */
-  static async schema(ctx: PanelContext): Promise<PageSchemaElement[]> {
+  static schema(ctx?: PanelContext): PageSchemaElement[] | Promise<PageSchemaElement[]> {
     if (!this._schemaDef) return []
     return typeof this._schemaDef === 'function'
-      ? this._schemaDef(ctx)
+      ? this._schemaDef(ctx as PanelContext)
       : this._schemaDef
   }
 
