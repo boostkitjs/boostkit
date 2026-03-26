@@ -16,8 +16,16 @@ export async function data(pageContext: PageContextServer) {
 
   const resource     = new ResourceClass()
   const fullMeta     = resource.toMeta()
-  // Strip fields from resourceMeta on list page — fields are for forms (create/edit), not table view
-  const { fields: _fields, ...resourceMeta } = fullMeta
+  // List page only needs identity + a few flags — everything else is in the table element
+  const resourceMeta: Record<string, unknown> = {
+    label:          fullMeta.label,
+    labelSingular:  fullMeta.labelSingular,
+  }
+  if (fullMeta.softDeletes)           resourceMeta.softDeletes           = true
+  if (fullMeta.draftable)             resourceMeta.draftable             = true
+  if (fullMeta.emptyStateIcon)        resourceMeta.emptyStateIcon        = fullMeta.emptyStateIcon
+  if (fullMeta.emptyStateHeading)     resourceMeta.emptyStateHeading     = fullMeta.emptyStateHeading
+  if (fullMeta.emptyStateDescription) resourceMeta.emptyStateDescription = fullMeta.emptyStateDescription
   const panelMeta    = panel.toNavigationMeta()
   const { ctx, sessionUser } = await buildPanelContext(pageContext)
 

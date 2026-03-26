@@ -6,13 +6,14 @@ import { toast } from 'sonner'
 import { Breadcrumbs } from '../../../_components/Breadcrumbs.js'
 import { SchemaForm }  from '../../../_components/SchemaForm.js'
 import type { SchemaFormMeta } from '@boostkit/panels'
+import { useI18n } from '../../../_hooks/useI18n.js'
 import type { Data } from './+data.js'
 
 export default function GlobalEditPage() {
   const config = useConfig()
   const { panelMeta, globalMeta, formElement, pathSegment, slug } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  const i18n = panelMeta.i18n
+  const i18n = useI18n()
   config({ title: `${globalMeta.label} — ${panelName}` })
 
   return (

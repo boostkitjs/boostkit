@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Breadcrumbs } from '../../../../_components/Breadcrumbs.js'
 import { SchemaForm }  from '../../../../_components/SchemaForm.js'
 import type { SchemaFormMeta } from '@boostkit/panels'
+import { useI18n } from '../../../../_hooks/useI18n.js'
 import { t } from '../../../../_lib/formHelpers.js'
 import type { Data } from './+data.js'
 
@@ -13,7 +14,7 @@ export default function CreatePage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, formElement, pathSegment, slug, prefill, backHref } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  const i18n = panelMeta.i18n
+  const i18n = useI18n()
   config({ title: `${t(i18n.create, { singular: resourceMeta.labelSingular })} — ${panelName}` })
 
   return (

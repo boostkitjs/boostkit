@@ -81,7 +81,6 @@ export interface PanelNavigationMeta {
   layout:    PanelLayout
   locale:    string
   dir:       'ltr' | 'rtl'
-  i18n:      PanelI18n
 }
 
 /** Full panel meta — includes complete resource/global definitions. */
@@ -284,24 +283,29 @@ export class Panel {
       name:      this._name,
       path:      this._path,
       branding:  this._branding,
-      resources: this._resources.map((R) => ({
-        label:          R.label ?? R.name.replace(/Resource$/, ''),
-        labelSingular:  R.labelSingular ?? R.label ?? R.name.replace(/Resource$/, ''),
-        slug:           R.getSlug(),
-        icon:           R.icon,
-        navigationGroup: R.navigationGroup,
-        navigationBadgeColor: R.navigationBadgeColor,
-      })),
-      globals:   this._globals.map((G) => ({
-        label:  G.label ?? G.name.replace(/Global$/, ''),
-        slug:   G.getSlug(),
-        icon:   G.icon,
-      })),
+      resources: this._resources.map((R) => {
+        const meta: ResourceNavigationMeta = {
+          label:          R.label ?? R.name.replace(/Resource$/, ''),
+          labelSingular:  R.labelSingular ?? R.label ?? R.name.replace(/Resource$/, ''),
+          slug:           R.getSlug(),
+        }
+        if (R.icon)                 meta.icon = R.icon
+        if (R.navigationGroup)      meta.navigationGroup = R.navigationGroup
+        if (R.navigationBadgeColor) meta.navigationBadgeColor = R.navigationBadgeColor
+        return meta
+      }),
+      globals:   this._globals.map((G) => {
+        const meta: GlobalNavigationMeta = {
+          label:  G.label ?? G.name.replace(/Global$/, ''),
+          slug:   G.getSlug(),
+        }
+        if (G.icon) meta.icon = G.icon
+        return meta
+      }),
       pages:     this._pages.map((P) => P.toMeta()),
       layout:    this._layout,
       locale,
       dir:       getPanelDir(locale),
-      i18n:      getPanelI18n(locale),
     }
   }
 

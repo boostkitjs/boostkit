@@ -4,6 +4,7 @@ import { navigate } from 'vike/client/router'
 import { Toaster } from 'sonner'
 import type { PanelNavigationMeta } from '@boostkit/panels'
 import { GlobalSearch } from './GlobalSearch.js'
+import { useI18n } from '../_hooks/useI18n.js'
 import { ResourceIcon } from './ResourceIcon.js'
 import { ThemeProvider } from './ThemeProvider.js'
 import { ThemeToggle } from './ThemeToggle.js'
@@ -426,7 +427,7 @@ function SidebarLayout({ panelMeta, currentSlug, initialUser, children }: Props 
   const items  = useNavItemsWithPersistedState(panelMeta)
   const badges = useNavigationBadges(panelMeta)
   const user   = useSessionUser(initialUser)
-  const i18n   = panelMeta.i18n
+  const i18n   = useI18n()
   const dir    = panelMeta.dir ?? 'ltr'
   const branding = panelMeta.branding
 
@@ -472,7 +473,7 @@ function SidebarLayout({ panelMeta, currentSlug, initialUser, children }: Props 
 function TopbarLayout({ panelMeta, currentSlug, initialUser, children }: Props & { currentSlug: string }) {
   const items = useNavItemsWithPersistedState(panelMeta)
   const user  = useSessionUser(initialUser)
-  const i18n  = panelMeta.i18n
+  const i18n  = useI18n()
   const dir   = panelMeta.dir ?? 'ltr'
   const branding = panelMeta.branding
 

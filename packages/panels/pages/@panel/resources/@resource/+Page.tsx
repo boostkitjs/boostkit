@@ -9,6 +9,7 @@ import { SchemaTable } from '../../../_components/SchemaTable.js'
 import type { SchemaTableResourceProps } from '../../../_components/SchemaTable.js'
 import { SchemaTabs } from '../../../_components/SchemaTabs.js'
 import type { PanelSchemaElementMeta } from '@boostkit/panels'
+import { useI18n } from '../../../_hooks/useI18n.js'
 import { t } from '../../../_lib/formHelpers.js'
 import type { Data } from './+data.js'
 
@@ -16,7 +17,7 @@ export default function ResourceListPage() {
   const config = useConfig()
   const { panelMeta, resourceMeta, element, pathSegment, slug } = useData<Data>()
   const panelName = panelMeta.branding?.title ?? panelMeta.name
-  const i18n = panelMeta.i18n
+  const i18n = useI18n()
   config({ title: `${resourceMeta.label} — ${panelName}` })
 
   const [isTrashed, setIsTrashed] = useState(false)
