@@ -432,6 +432,33 @@ describe('Table2 List features', () => {
     const c = Table2.make('T').render(fn).getConfig()
     assert.equal(c.renderFn, fn)
   })
+
+  it('sortable with string array', () => {
+    const c = Table2.make('T').sortable(['title', 'createdAt']).getConfig()
+    assert.equal(c.sortableOptions?.length, 2)
+    assert.equal(c.sortableOptions?.[0]?.field, 'title')
+    assert.equal(c.sortableOptions?.[0]?.label, 'Title')
+    assert.equal(c.sortableOptions?.[1]?.field, 'createdAt')
+    assert.equal(c.sortableOptions?.[1]?.label, 'Created At')
+  })
+
+  it('sortable with custom labels', () => {
+    const c = Table2.make('T').sortable([
+      { field: 'title', label: 'العنوان' },
+      { field: 'date', label: 'التاريخ' },
+    ]).getConfig()
+    assert.equal(c.sortableOptions?.[0]?.label, 'العنوان')
+    assert.equal(c.sortableOptions?.[1]?.label, 'التاريخ')
+  })
+
+  it('sortable with mix of strings and objects', () => {
+    const c = Table2.make('T').sortable([
+      'title',
+      { field: 'createdAt', label: 'Date Created' },
+    ]).getConfig()
+    assert.equal(c.sortableOptions?.[0]?.label, 'Title')
+    assert.equal(c.sortableOptions?.[1]?.label, 'Date Created')
+  })
 })
 
 // ─── Table2 _cloneWithScope ─────────────────────────────────
