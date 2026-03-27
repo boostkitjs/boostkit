@@ -77,6 +77,10 @@ export interface ListConfig {
   folderField?:      string | undefined
   sortableOptions?:  { field: string; label: string }[] | undefined
   scopes?:           ScopePreset[] | undefined
+  reorderable:       boolean
+  reorderField:      string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSave?:           ((record: Record<string, unknown>, field: string, value: unknown, ctx: any) => Promise<void> | void) | undefined
 }
 
 // ─── Legacy ListElementMeta (kept for backward compat) ──
@@ -134,6 +138,10 @@ export class List {
   protected _exportable?:      ('csv' | 'json')[] | boolean
   protected _defaultView?:     Record<string, string>
   protected _folderField?:     string
+  protected _reorderable       = false
+  protected _reorderField      = 'position'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected _onSaveFn?:        (record: Record<string, unknown>, field: string, value: unknown, ctx: any) => Promise<void> | void
   protected _sortableOptions?: { field: string; label: string }[]
   protected _scopes?:          ScopePreset[]
 
@@ -356,6 +364,33 @@ export class List {
     return this
   }
 
+  // ── Reorder ──────────────────────────────────────
+
+  /**
+   * Enable drag-to-reorder rows.
+   * Works in list and table views.
+   */
+  reorderable(positionField = 'position'): this {
+    this._reorderable  = true
+    this._reorderField = positionField
+    return this
+  }
+
+  // ── Save handler ────────────────────────────────
+
+  /**
+   * Custom save handler for inline editing.
+   * Called for any editable field across all views.
+   * Without this, auto-updates via Model.query().update().
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSave(fn: (record: Record<string, unknown>, field: string, value: unknown, ctx: any) => Promise<void> | void): this {
+    this._onSaveFn = fn
+    return this
+  }
+
+  getOnSave(): typeof this._onSaveFn { return this._onSaveFn }
+
   // ── State ─────────────────────────────────────────
 
   /** Persist navigation state across page loads. */
@@ -496,6 +531,9 @@ export class List {
       folderField:     this._folderField,
       sortableOptions: this._sortableOptions,
       scopes:          this._scopes,
+      reorderable:     this._reorderable,
+      reorderField:    this._reorderField,
+      onSave:          this._onSaveFn,
     }
   }
 
@@ -532,6 +570,9 @@ export class List {
     if (this._folderField)     target._folderField     = this._folderField
     if (this._sortableOptions) target._sortableOptions = [...this._sortableOptions]
     if (this._scopes)          target._scopes          = [...this._scopes]
+    target._reorderable  = this._reorderable
+    target._reorderField = this._reorderField
+    if (this._onSaveFn)        target._onSaveFn        = this._onSaveFn
     if (this._onRecordClick)   target._onRecordClick   = this._onRecordClick
     if (this._exportable)      target._exportable      = this._exportable
     if (this._defaultView)     target._defaultView     = this._defaultView

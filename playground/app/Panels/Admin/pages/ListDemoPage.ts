@@ -28,11 +28,11 @@ export class ListDemoPage extends Page {
         .live()
         .views([
           ViewMode.list([
-            DataField.make('name'),
-            DataField.make('slug'),
+            DataField.make('name').editable(),
+            DataField.make('slug').editable('popover'),
           ]),
           ViewMode.grid([
-            DataField.make('name'),
+            DataField.make('name').editable(),
             DataField.make('slug').badge(),
           ]),
           ViewMode.table([

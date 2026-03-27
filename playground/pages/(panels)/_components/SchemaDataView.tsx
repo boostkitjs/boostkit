@@ -493,6 +493,10 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
               imageField={imageField}
               getHref={getRecordHref}
               groupBy={groupBy}
+              saveEndpoint={saveEndpoint}
+              panelPath={panelPath}
+              i18n={i18n}
+              onSaved={handleEditSaved}
             />
           )
         }
@@ -506,6 +510,10 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
             imageField={imageField}
             getHref={getRecordHref}
             groupBy={groupBy}
+            saveEndpoint={saveEndpoint}
+            panelPath={panelPath}
+            i18n={i18n}
+            onSaved={handleEditSaved}
           />
         )
       })()}
@@ -539,7 +547,28 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
 
 // ─── FieldValue — renders a single DataField value ──────────
 
-function FieldValue({ field, record }: { field: DataFieldMeta; record: Record<string, unknown> }) {
+function FieldValue({ field, record, saveEndpoint, panelPath, i18n, onSaved }: {
+  field:         DataFieldMeta
+  record:        Record<string, unknown>
+  saveEndpoint?: string
+  panelPath?:    string
+  i18n?:         PanelI18n
+  onSaved?:      (record: Record<string, unknown>, field: string, value: unknown) => void
+}) {
+  // Editable field — delegate to TableEditCell
+  if (field.editable && saveEndpoint && panelPath && i18n) {
+    return (
+      <TableEditCell
+        record={record}
+        column={field as unknown as PanelColumnMeta}
+        saveEndpoint={saveEndpoint}
+        panelPath={panelPath}
+        i18n={i18n}
+        onSaved={onSaved}
+      />
+    )
+  }
+
   const value = record[field.name]
   if (value === null || value === undefined) return <span className="text-muted-foreground/40">—</span>
 
@@ -564,7 +593,7 @@ function FieldValue({ field, record }: { field: DataFieldMeta; record: Record<st
 
 // ─── ListView ───────────────────────────────────────────────
 
-function ListView({ groups, fields, titleField, descriptionField, imageField, getHref, groupBy }: {
+function ListView({ groups, fields, titleField, descriptionField, imageField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved }: {
   groups:           { label: string; records: Record<string, unknown>[] }[]
   fields?:          DataFieldMeta[]
   titleField:       string
@@ -572,6 +601,10 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ge
   imageField?:      string
   getHref:          (r: Record<string, unknown>) => string | undefined
   groupBy?:         string
+  saveEndpoint?:    string
+  panelPath?:       string
+  i18n?:            PanelI18n
+  onSaved?:         (record: Record<string, unknown>, field: string, value: unknown) => void
 }) {
   return (
     <div className="rounded-xl border overflow-hidden divide-y">
@@ -592,11 +625,11 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ge
               const textFields = fields.filter(f => f.type !== 'image')
               return (
                 <Tag key={String(record.id)} {...(href ? { href } : {})} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
-                  {imgField && record[imgField.name] && <FieldValue field={imgField} record={record} />}
+                  {imgField && record[imgField.name] && <FieldValue field={imgField} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />}
                   <div className="flex-1 min-w-0">
                     {textFields.map((f, i) => (
                       <p key={f.name} className={i === 0 ? 'text-sm font-medium truncate' : 'text-xs text-muted-foreground truncate'}>
-                        <FieldValue field={f} record={record} />
+                        <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
                       </p>
                     ))}
                   </div>
@@ -629,7 +662,7 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ge
 
 // ─── GridView ───────────────────────────────────────────────
 
-function GridView({ groups, fields, titleField, descriptionField, imageField, getHref, groupBy }: {
+function GridView({ groups, fields, titleField, descriptionField, imageField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved }: {
   groups:           { label: string; records: Record<string, unknown>[] }[]
   fields?:          DataFieldMeta[]
   titleField:       string
@@ -637,6 +670,10 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ge
   imageField?:      string
   getHref:          (r: Record<string, unknown>) => string | undefined
   groupBy?:         string
+  saveEndpoint?:    string
+  panelPath?:       string
+  i18n?:            PanelI18n
+  onSaved?:         (record: Record<string, unknown>, field: string, value: unknown) => void
 }) {
   return (
     <div>
@@ -663,7 +700,7 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ge
                     )}
                     {textFields.map((f, i) => (
                       <p key={f.name} className={i === 0 ? 'text-sm font-medium truncate' : 'text-xs text-muted-foreground truncate'}>
-                        <FieldValue field={f} record={record} />
+                        <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
                       </p>
                     ))}
                   </Tag>
@@ -750,7 +787,7 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
                         onSaved={onSaved}
                       />
                     ) : (
-                      <FieldValue field={f} record={record} />
+                      <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
                     )}
                   </td>
                 ))}
