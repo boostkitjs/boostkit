@@ -2,13 +2,15 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { PanelI18n, PanelColumnMeta } from '@boostkit/panels'
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { ResourceIcon } from './ResourceIcon.js'
 import { TableEditCell } from './TableEditCell.js'
-import { TreeView } from './TreeView.js'
+
+// ─── Client-only hook ───────────────────────────────────────
+function useIsMounted() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  return mounted
+}
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -105,6 +107,14 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   } = element
   const sortableOptions = element.sortableOptions
   const scopePresets = element.scopes
+
+  // Force re-render after dnd-kit loads (client-only)
+  const [dndReady, setDndReady] = useState(!!_dnd)
+  useEffect(() => {
+    if (!dndReady && _dndPromise) {
+      _dndPromise.then(() => setDndReady(true))
+    }
+  }, [dndReady])
 
   // ── State ──
   const [records, setRecords] = useState(initialRecords)
@@ -356,16 +366,17 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [element.live, element.liveChannel])
 
-  // ── Reorder handler (dnd-kit) ──
+  // ── Reorder handler (dnd-kit — client only) ──
   const reorderEndpoint = element.reorderEndpoint ? `${panelPath}/api${element.reorderEndpoint.replace(/^.*\/api/, '')}` : undefined
-  const handleReorder = useCallback((event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id || !reorderEndpoint) return
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleReorder = useCallback((event: any) => {
+    const { active, over } = event as { active: { id: string | number }; over: { id: string | number } | null }
+    if (!over || active.id === over.id || !reorderEndpoint || !_dnd) return
     setRecords(prev => {
       const oldIndex = prev.findIndex(r => String(r.id) === String(active.id))
       const newIndex = prev.findIndex(r => String(r.id) === String(over.id))
       if (oldIndex === -1 || newIndex === -1) return prev
-      const next = arrayMove(prev, oldIndex, newIndex)
+      const next = _dnd!.arrayMove(prev, oldIndex, newIndex)
       // Persist
       const ids = next.map(r => String(r.id))
       fetch(reorderEndpoint, {
@@ -376,8 +387,6 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
       return next
     })
   }, [reorderEndpoint, element.reorderField, element.reorderModel])
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // ── Editable save handler ──
   const saveEndpoint = `${panelPath}/api/_tables/${elementId}/save`
@@ -631,11 +640,11 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
         const isReorderable = !!element.reorderable && !groupBy
 
         if (viewType === 'table' && viewFields) {
-          return <TableView records={records} fields={viewFields} getHref={getRecordHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} sensors={sensors} onReorder={handleReorder} />
+          return <TableView records={records} fields={viewFields} getHref={getRecordHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder} />
         }
         if (viewType === 'tree' && element.folderField) {
           return (
-            <TreeView
+            <ClientTreeView
               records={records}
               folderField={element.folderField}
               titleField={titleField ?? 'id'}
@@ -688,11 +697,9 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
 
         if (isReorderable) {
           return (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder}>
-              <SortableContext items={records.map(r => String(r.id))} strategy={viewType === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
-                {viewContent}
-              </SortableContext>
-            </DndContext>
+            <DndWrapper items={records.map(r => String(r.id))} onDragEnd={handleReorder} strategy={viewType === 'grid' ? 'grid' : 'vertical'}>
+              {viewContent}
+            </DndWrapper>
           )
         }
         return viewContent
@@ -725,39 +732,86 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   )
 }
 
-// ─── SortableItem — wraps a record row/card for dnd-kit ─────
+// ─── ClientTreeView — lazy-loads TreeView on client only ─────
 
-function SortableItem({ id, children, reorderable }: { id: string; children: React.ReactNode; reorderable?: boolean }) {
-  if (!reorderable) return <>{children}</>
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ClientTreeView(props: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [Comp, setComp] = useState<React.ComponentType<any> | null>(null)
+  useEffect(() => {
+    import('./TreeView.js').then(m => setComp(() => m.TreeView))
+  }, [])
+
+  // SSR / before hydration: render a static tree (indented list)
+  if (!Comp) {
+    return <StaticTreeView {...props} />
+  }
+  return <Comp {...props} />
+}
+
+/** SSR-safe static tree — renders records as indented list using folderField */
+function StaticTreeView({ records, folderField, titleField, iconField }: {
+  records: Record<string, unknown>[]; folderField: string; titleField: string; iconField?: string
+}) {
+  // Build parent→children map
+  const childMap = new Map<string | null, Record<string, unknown>[]>()
+  for (const r of records) {
+    const pid = r[folderField] ? String(r[folderField]) : null
+    if (!childMap.has(pid)) childMap.set(pid, [])
+    childMap.get(pid)!.push(r)
+  }
+  function renderLevel(parentId: string | null, depth: number): React.ReactNode {
+    const children = childMap.get(parentId)
+    if (!children) return null
+    return children.map(r => {
+      const id = String(r.id)
+      const icon = iconField ? r[iconField] as string | undefined : undefined
+      return (
+        <div key={id}>
+          <div className="flex items-center gap-2 py-1.5 px-2 rounded-md" style={{ paddingLeft: `${depth * 24 + 8}px` }}>
+            {icon && <span className="text-muted-foreground shrink-0"><ResourceIcon icon={icon} /></span>}
+            <span className="text-sm font-medium truncate">{String(r[titleField] ?? id)}</span>
+          </div>
+          {renderLevel(id, depth + 1)}
+        </div>
+      )
+    })
+  }
   return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      {...attributes}
-      {...listeners}
-    >
-      {children}
+    <div className="rounded-xl border bg-card p-2">
+      {renderLevel(null, 0)}
     </div>
   )
 }
 
-// ─── SortableTableRow — wraps a <tr> for dnd-kit ────────────
+// ─── SSR-safe sortable wrappers ─────────────────────────────
+// dnd-kit references `document` at module level — cannot import during SSR.
+// These wrappers render plain elements during SSR, and load SortableList.tsx on client.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _dnd: typeof import('./SortableList.js') | null = null
+const _dndPromise = typeof window !== 'undefined' ? import('./SortableList.js').then(m => { _dnd = m }) : null
+
+function SortableItem({ id, children, reorderable, showHandle }: { id: string; children: React.ReactNode; reorderable?: boolean; showHandle?: boolean }) {
+  if (!reorderable || !_dnd) return <>{children}</>
+  return <_dnd.SortableItem id={id} showHandle={showHandle}>{children}</_dnd.SortableItem>
+}
 
 function SortableTableRow({ id, children, reorderable }: { id: string; children: React.ReactNode; reorderable?: boolean }) {
-  if (!reorderable) return <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">{children}</tr>
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  return (
-    <tr
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="border-b last:border-0 hover:bg-muted/30 transition-colors"
-      {...attributes}
-      {...listeners}
-    >
-      {children}
-    </tr>
-  )
+  if (!reorderable || !_dnd) return <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">{children}</tr>
+  return <_dnd.SortableTableRow id={id}>{children}</_dnd.SortableTableRow>
+}
+
+function TableDragHandle({ id }: { id: string }) {
+  if (!_dnd) return null
+  return <_dnd.TableDragHandle id={id} />
+}
+
+function DndWrapper({ items, onDragEnd, strategy, children }: {
+  items: string[]; onDragEnd: (e: unknown) => void; strategy: 'vertical' | 'grid'; children: React.ReactNode
+}) {
+  if (!_dnd) return <>{children}</>
+  return <_dnd.SortableWrapper items={items} onDragEnd={onDragEnd} strategy={strategy}>{children}</_dnd.SortableWrapper>
 }
 
 // ─── FieldValue — renders a single DataField value ──────────
@@ -846,9 +900,8 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ic
               const imgField = fields.find(f => f.type === 'image')
               const textFields = fields.filter(f => f.type !== 'image')
               return (
-                <SortableItem key={rid} id={rid} reorderable={reorderable}>
-                  <Tag {...(href ? { href } : {})} onClick={folderClick} className={`flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors${isFolder ? ' cursor-pointer' : ''}${reorderable ? ' cursor-grab active:cursor-grabbing' : ''}`}>
-                    {reorderable && <span className="text-muted-foreground/40 shrink-0">⠿</span>}
+                <SortableItem key={rid} id={rid} reorderable={reorderable} showHandle>
+                  <Tag {...(href ? { href } : {})} onClick={folderClick} className={`flex items-center gap-4 py-3 hover:bg-muted/30 transition-colors${reorderable ? ' pl-8' : ' px-4'}${isFolder ? ' cursor-pointer' : ''}`} style={reorderable ? { paddingLeft: '2rem', paddingRight: '1rem' } : undefined}>
                     {icon && <span className="text-muted-foreground shrink-0"><ResourceIcon icon={icon} /></span>}
                     {imgField && record[imgField.name] && <FieldValue field={imgField} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />}
                     <div className="flex-1 min-w-0">
@@ -866,9 +919,8 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ic
 
             // Fallback: titleField / descriptionField / imageField
             return (
-              <SortableItem key={rid} id={rid} reorderable={reorderable}>
-                <Tag {...(href ? { href } : {})} onClick={folderClick} className={`flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors${isFolder ? ' cursor-pointer' : ''}${reorderable ? ' cursor-grab active:cursor-grabbing' : ''}`}>
-                  {reorderable && <span className="text-muted-foreground/40 shrink-0">⠿</span>}
+              <SortableItem key={rid} id={rid} reorderable={reorderable} showHandle>
+                <Tag {...(href ? { href } : {})} onClick={folderClick} className={`flex items-center gap-4 py-3 hover:bg-muted/30 transition-colors${isFolder ? ' cursor-pointer' : ''}`} style={reorderable ? { paddingLeft: '2rem', paddingRight: '1rem' } : undefined}>
                   {icon && <span className="text-muted-foreground shrink-0"><ResourceIcon icon={icon} /></span>}
                   {imageField && record[imageField] && (
                     <img src={String(record[imageField])} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
@@ -931,8 +983,8 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
                 const imgField = fields.find(f => f.type === 'image')
                 const textFields = fields.filter(f => f.type !== 'image')
                 return (
-                  <SortableItem key={rid} id={rid} reorderable={reorderable}>
-                    <Tag {...(href ? { href } : {})} onClick={folderClick} className={`rounded-xl border bg-card p-4 hover:bg-muted/30 transition-colors flex flex-col gap-2${isFolder ? ' cursor-pointer' : ''}${reorderable ? ' cursor-grab active:cursor-grabbing' : ''}`}>
+                  <SortableItem key={rid} id={rid} reorderable={reorderable} showHandle>
+                    <Tag {...(href ? { href } : {})} onClick={folderClick} className={`rounded-xl border bg-card p-4 hover:bg-muted/30 transition-colors flex flex-col gap-2${isFolder ? ' cursor-pointer' : ''}`}>
                       {imgField && record[imgField.name] && (
                         <img src={String(record[imgField.name])} alt="" className="h-32 w-full rounded-lg object-cover" />
                       )}
@@ -951,8 +1003,8 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
 
               // Fallback
               return (
-                <SortableItem key={rid} id={rid} reorderable={reorderable}>
-                  <Tag {...(href ? { href } : {})} onClick={folderClick} className={`rounded-xl border bg-card p-4 hover:bg-muted/30 transition-colors flex flex-col gap-2${isFolder ? ' cursor-pointer' : ''}${reorderable ? ' cursor-grab active:cursor-grabbing' : ''}`}>
+                <SortableItem key={rid} id={rid} reorderable={reorderable} showHandle>
+                  <Tag {...(href ? { href } : {})} onClick={folderClick} className={`rounded-xl border bg-card p-4 hover:bg-muted/30 transition-colors flex flex-col gap-2${isFolder ? ' cursor-pointer' : ''}`}>
                     {imageField && record[imageField] && (
                       <img src={String(record[imageField])} alt="" className="h-32 w-full rounded-lg object-cover" />
                     )}
@@ -976,7 +1028,7 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
 
 // ─── TableView ──────────────────────────────────────────────
 
-function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, sensors, onReorder }: {
+function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, onReorder }: {
   records:       Record<string, unknown>[]
   fields:        DataFieldMeta[]
   getHref:       (r: Record<string, unknown>) => string | undefined
@@ -989,8 +1041,7 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
   onSaved?:      (record: Record<string, unknown>, field: string, value: unknown) => void
   reorderable?:  boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sensors?:      any
-  onReorder?:    (event: DragEndEvent) => void
+  onReorder?:    (event: any) => void
 }) {
   const table = (
     <div className="rounded-xl border overflow-hidden">
@@ -1029,7 +1080,7 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
               const rid = String(record.id)
               return (
                 <SortableTableRow key={rid} id={rid} reorderable={reorderable}>
-                  {reorderable && <td className="px-1 py-2.5 text-muted-foreground/40 cursor-grab active:cursor-grabbing">⠿</td>}
+                  {reorderable && <TableDragHandle id={rid} />}
                   {fields.map((f) => (
                     <td key={f.name} className="px-4 py-2.5 text-muted-foreground">
                       {f.editable && saveEndpoint && panelPath && i18n ? (
@@ -1060,13 +1111,11 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
     </div>
   )
 
-  if (reorderable && sensors && onReorder) {
+  if (reorderable && onReorder) {
     return (
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onReorder}>
-        <SortableContext items={records.map(r => String(r.id))} strategy={verticalListSortingStrategy}>
-          {table}
-        </SortableContext>
-      </DndContext>
+      <DndWrapper items={records.map(r => String(r.id))} onDragEnd={onReorder} strategy="vertical">
+        {table}
+      </DndWrapper>
     )
   }
   return table
