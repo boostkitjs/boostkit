@@ -20,6 +20,9 @@ export interface ListItem {
   icon?:        string
 }
 
+// ─── Sortable option ──────────────────────────────────
+export type SortableOption = string | { field: string; label: string }
+
 // ─── View type for config ─────────────────────────────
 export type ViewPreset = 'list' | 'grid'
 
@@ -64,6 +67,7 @@ export interface ListConfig {
   exportable?:       ('csv' | 'json')[] | boolean | undefined
   defaultView?:      Record<string, string> | undefined
   folderField?:      string | undefined
+  sortableOptions?:  { field: string; label: string }[] | undefined
 }
 
 // ─── Legacy ListElementMeta (kept for backward compat) ──
@@ -121,6 +125,7 @@ export class List {
   protected _exportable?:      ('csv' | 'json')[] | boolean
   protected _defaultView?:     Record<string, string>
   protected _folderField?:     string
+  protected _sortableOptions?: { field: string; label: string }[]
 
   // ── Legacy fields (backward compat with old List API) ──
   protected _items:            ListItem[] = []
@@ -240,6 +245,23 @@ export class List {
   searchable(columns?: string[]): this {
     this._searchable    = true
     if (columns) this._searchColumns = columns
+    return this
+  }
+
+  /**
+   * Show a sort-by dropdown in the toolbar.
+   * Accepts field names (labels auto-derived) or `{ field, label }` objects for custom labels.
+   *
+   * @example
+   * .sortable(['title', 'date'])
+   * .sortable([{ field: 'title', label: 'العنوان' }, { field: 'date', label: 'التاريخ' }])
+   */
+  sortable(options: SortableOption[]): this {
+    this._sortableOptions = options.map(o =>
+      typeof o === 'string'
+        ? { field: o, label: o.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim() }
+        : o
+    )
     return this
   }
 
@@ -446,6 +468,7 @@ export class List {
       exportable:      this._exportable,
       defaultView:     this._defaultView,
       folderField:     this._folderField,
+      sortableOptions: this._sortableOptions,
     }
   }
 
@@ -480,6 +503,7 @@ export class List {
     if (this._creatableUrl)    target._creatableUrl    = this._creatableUrl
     if (this._groupBy)         target._groupBy         = this._groupBy
     if (this._folderField)     target._folderField     = this._folderField
+    if (this._sortableOptions) target._sortableOptions = [...this._sortableOptions]
     if (this._onRecordClick)   target._onRecordClick   = this._onRecordClick
     if (this._exportable)      target._exportable      = this._exportable
     if (this._defaultView)     target._defaultView     = this._defaultView

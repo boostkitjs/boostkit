@@ -44,6 +44,34 @@ describe('ViewMode', () => {
     assert.equal(v.getLabel(), 'Card View')
   })
 
+  it('label() auto-derives name for preset views', () => {
+    const v = ViewMode.table([]).label('Compact')
+    assert.equal(v.getName(), 'compact')
+    assert.equal(v.getLabel(), 'Compact')
+  })
+
+  it('label() auto-derives unique names for duplicate types', () => {
+    const v1 = ViewMode.table([]).label('Compact')
+    const v2 = ViewMode.table([]).label('Detailed')
+    assert.equal(v1.getName(), 'compact')
+    assert.equal(v2.getName(), 'detailed')
+    assert.notEqual(v1.getName(), v2.getName())
+  })
+
+  it('label() does not override name for custom views', () => {
+    // ViewMode.make('kanban') sets name='kanban', type='custom'
+    // name !== type, so label() should NOT override name
+    const v = ViewMode.make('kanban').label('Board View')
+    assert.equal(v.getName(), 'kanban')
+    assert.equal(v.getLabel(), 'Board View')
+  })
+
+  it('name() explicitly overrides auto-derived name', () => {
+    const v = ViewMode.table([]).label('Compact').name('tbl-compact')
+    assert.equal(v.getName(), 'tbl-compact')
+    assert.equal(v.getLabel(), 'Compact')
+  })
+
   it('icon() sets icon', () => {
     const v = ViewMode.make('cards').icon('layout-grid')
     assert.equal(v.getIcon(), 'layout-grid')

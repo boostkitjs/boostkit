@@ -63,9 +63,19 @@ export class ViewMode {
     return v
   }
 
-  /** Display label for the view toggle button. */
+  /** Display label for the view toggle button. Auto-derives name from label if not explicitly set. */
   label(label: string): this {
     this._label = label
+    // Auto-derive name from label (slugified) unless explicitly set via constructor
+    if (this._name === this._type) {
+      this._name = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    }
+    return this
+  }
+
+  /** Explicit name override (for remember/persistence key). */
+  name(name: string): this {
+    this._name = name
     return this
   }
 
