@@ -165,14 +165,33 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
 
   function handleViewChange(viewName: string) {
     setActiveView(viewName)
-    saveRememberState(buildState({ view: viewName }))
-    // When switching to/from tree view, re-fetch (tree needs all records, others need folder-filtered)
     const targetView = viewOptions.find(v => v.name === viewName)
-    const isTree = targetView?.type === 'tree'
-    const wasTree = viewOptions.find(v => v.name === activeView)?.type === 'tree'
-    if (isTree || wasTree) {
-      void fetchData({ page: 1, viewType: targetView?.type, folder: isTree ? null : currentFolder })
+    const prevView = viewOptions.find(v => v.name === activeView)
+    const targetType = targetView?.type
+    const prevType = prevView?.type
+
+    // Re-fetch when switching between view types that need different data
+    const needsAllRecords = targetType === 'tree'
+    const needsFolderFilter = targetType === 'folder'
+    const hadAllRecords = prevType === 'tree'
+    const hadFolderFilter = prevType === 'folder'
+
+    if (needsAllRecords !== hadAllRecords || needsFolderFilter !== hadFolderFilter) {
+      if (needsAllRecords) {
+        // Tree: fetch all records
+        void fetchData({ page: 1, viewType: 'tree', folder: null })
+      } else if (needsFolderFilter) {
+        // Folder: fetch current folder level
+        void fetchData({ page: 1, viewType: 'folder', folder: currentFolder })
+      } else {
+        // Flat views (list/grid/table): fetch all, no folder filter, reset folder state
+        setCurrentFolder(null)
+        setBreadcrumbs([])
+        void fetchData({ page: 1, folder: null })
+      }
     }
+
+    saveRememberState(buildState({ view: viewName }))
   }
 
   // ── Container-based responsive default view (first visit only) ──
@@ -589,8 +608,8 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
         )}
       </div>
 
-      {/* Folder breadcrumbs */}
-      {folderField && (currentFolder || breadcrumbs.length > 0) && (
+      {/* Folder breadcrumbs — only in folder view */}
+      {folderField && (currentFolder || breadcrumbs.length > 0) && viewOptions.find(v => v.name === activeView)?.type === 'folder' && (
         <div className="flex items-center gap-1 py-2 text-sm">
           <button
             type="button"
@@ -659,6 +678,36 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
           )
         }
 
+        // Folder view — drill-down navigation (one level at a time + breadcrumbs)
+        if (viewType === 'folder' && folderField) {
+          const folderContent = (
+            <ListView
+              groups={grouped}
+              fields={viewFields}
+              titleField={titleField ?? 'id'}
+              descriptionField={descriptionField}
+              imageField={imageField}
+              iconField={iconField}
+              getHref={getRecordHref}
+              groupBy={groupBy}
+              saveEndpoint={saveEndpoint}
+              panelPath={panelPath}
+              i18n={i18n}
+              onSaved={handleEditSaved}
+              onFolderNavigate={handleFolderNavigate}
+              reorderable={isReorderable}
+            />
+          )
+          if (isReorderable) {
+            return (
+              <DndWrapper items={records.map(r => String(r.id))} onDragEnd={handleReorder} strategy="vertical">
+                {folderContent}
+              </DndWrapper>
+            )
+          }
+          return folderContent
+        }
+
         const viewContent = viewType === 'grid' ? (
           <GridView
             groups={grouped}
@@ -673,7 +722,6 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
             panelPath={panelPath}
             i18n={i18n}
             onSaved={handleEditSaved}
-            onFolderNavigate={folderField ? handleFolderNavigate : undefined}
             reorderable={isReorderable}
           />
         ) : (
@@ -690,7 +738,6 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
             panelPath={panelPath}
             i18n={i18n}
             onSaved={handleEditSaved}
-            onFolderNavigate={folderField ? handleFolderNavigate : undefined}
             reorderable={isReorderable}
           />
         )

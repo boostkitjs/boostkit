@@ -151,12 +151,15 @@ export function mountTableRoutes(
     let q: QueryBuilderLike<RecordRow> = Model.query()
     if (config.scope) q = config.scope(q)
 
-    // Apply folder filter (?folder=id or empty=root) — skip in tree view
+    // Apply folder filter — only for folder view (?view=folder) or when ?folder= is explicit
+    // Tree view (?view=tree) fetches all. Flat views (list/grid/table) fetch all.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const folderField = (config as any).folderField as string | undefined
-    const isTreeView = url.searchParams.get('view') === 'tree'
-    if (folderField && !isTreeView) {
-      const folderParam = url.searchParams.get('folder')
+    const viewParam = url.searchParams.get('view')
+    const isTreeView = viewParam === 'tree'
+    const isFolderView = viewParam === 'folder'
+    const folderParam = url.searchParams.get('folder')
+    if (folderField && !isTreeView && (isFolderView || folderParam)) {
       if (folderParam) {
         q = q.where(folderField, folderParam)
       } else {
@@ -224,9 +227,8 @@ export function mountTableRoutes(
       let total = records.length
       try {
         let countQ: QueryBuilderLike<RecordRow> = config.scope ? config.scope(Model.query()) : Model.query()
-        // Apply folder filter to count query
-        if (folderField) {
-          const folderParam = url.searchParams.get('folder')
+        // Apply folder filter to count query (only in folder view)
+        if (folderField && (isFolderView || folderParam)) {
           if (folderParam) countQ = countQ.where(folderField, folderParam)
           else countQ = countQ.where(folderField, null)
         }
