@@ -91,7 +91,7 @@ export function mountTableRoutes(
       let filtered = allRows
       // Search for array rows
       if (search && config.searchable) {
-        const cols = config.searchColumns ?? (config.columns as Array<{ getName?: () => string } | string>).map(c => typeof c === 'string' ? c : (c as { getName?: () => string }).getName?.() ?? '')
+        const cols = config.searchColumns ?? (config.columns ?? []).map((c: { getName?: () => string } | string) => typeof c === 'string' ? c : (c as { getName?: () => string }).getName?.() ?? '')
         filtered = allRows.filter(row =>
           cols.some(col => String(row[col as string] ?? '').toLowerCase().includes(search.toLowerCase()))
         )
@@ -133,7 +133,8 @@ export function mountTableRoutes(
     // Server-side search
     if (search && config.searchable) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const searchCols = config.searchColumns ?? (config.columns as any[])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const searchCols = config.searchColumns ?? ((config.columns ?? []) as any[])
         .filter((c: { toMeta?: () => { searchable?: boolean } }) => typeof c !== 'string' && c.toMeta?.()?.searchable)
         .map((c: { toMeta: () => { name: string } }) => c.toMeta().name)
       if (searchCols.length > 0) {
@@ -178,7 +179,8 @@ export function mountTableRoutes(
         // Apply search filter to count query
         if (search && config.searchable) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const countSearchCols = config.searchColumns ?? (config.columns as any[])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const countSearchCols = config.searchColumns ?? ((config.columns ?? []) as any[])
             .filter((c: { toMeta?: () => { searchable?: boolean } }) => typeof c !== 'string' && c.toMeta?.()?.searchable)
             .map((c: { toMeta: () => { name: string } }) => c.toMeta().name)
           if (countSearchCols.length > 0) {
@@ -209,7 +211,7 @@ export function mountTableRoutes(
     }
 
     // Apply Column.compute() + .display() transforms
-    const isColumnInstances = config.columns.length > 0 && typeof (config.columns[0] as { getComputeFn?: unknown })?.getComputeFn === 'function'
+    const isColumnInstances = config.columns?.length > 0 && typeof (config.columns[0] as { getComputeFn?: unknown })?.getComputeFn === 'function'
     if (isColumnInstances) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cols = config.columns as Array<{ getName(): string; getComputeFn?(): ((r: any) => unknown) | undefined; getDisplayFn?(): ((v: unknown, r?: any) => unknown) | undefined }>

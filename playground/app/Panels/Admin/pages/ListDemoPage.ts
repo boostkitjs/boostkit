@@ -15,6 +15,7 @@ export class ListDemoPage extends Page {
         .fromModel(Category)
         .titleField('name')
         .descriptionField('slug')
+        .sortBy('name', 'ASC')
         .searchable(['name'])
         .paginated('pages', 5)
         .views([

@@ -88,8 +88,10 @@ export async function resolveListElement(
   const config = list.getConfig()
   const listId = list.getId()
 
-  // Register for lazy/poll API endpoint
+  // Register in both ListRegistry (for future List-specific endpoints) and
+  // TableRegistry (so existing /_tables/:id fetch/remember endpoints work)
   registerList(panel.getName(), listId, list)
+  TableRegistry.register(panel.getName(), listId, list as unknown as import('../schema/Table.js').Table)
 
   // ── Read persisted view mode (SSR) ──
   const persisted = readPersistedState(
@@ -109,8 +111,26 @@ export async function resolveListElement(
     : config.model
   const result = await resolveListQuery(config, ctx, { elementId: listId, searchColumns, model })
 
-  // ── Strip records to needed fields ──
-  let records = result.records
+  // ── Strip records to only needed fields (like buildTableMeta does for tables) ──
+  const displayedKeys = new Set<string>(['id'])
+  if (config.titleField)       displayedKeys.add(config.titleField)
+  if (config.descriptionField) displayedKeys.add(config.descriptionField)
+  if (config.imageField)       displayedKeys.add(config.imageField)
+  if (config.groupBy)          displayedKeys.add(config.groupBy)
+  // Add column fields from View.table()
+  if (config.views.length > 0) {
+    for (const v of config.views) {
+      const cols = v.getColumns()
+      if (cols) for (const c of cols) displayedKeys.add(c.getName())
+    }
+  }
+  let records = result.records.map(record => {
+    const slim: RecordRow = {}
+    for (const key of displayedKeys) {
+      if (key in record) slim[key] = record[key]
+    }
+    return slim
+  })
 
   // ── Apply custom render function per record (SSR) ──
   let renderedRecords: unknown[][] | undefined

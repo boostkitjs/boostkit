@@ -124,13 +124,17 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   }, [])
 
   // ── Fetch ──
-  async function fetchData(opts: { page?: number; search?: string } = {}) {
+  async function fetchData(opts: { page?: number; search?: string; sort?: string; dir?: string; filters?: Record<string, string> } = {}) {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       params.set('page', String(opts.page ?? currentPage))
-      if (opts.search !== undefined ? opts.search : search) {
-        params.set('search', opts.search !== undefined ? opts.search : search)
+      const searchVal = opts.search !== undefined ? opts.search : search
+      if (searchVal) params.set('search', searchVal)
+      if (opts.sort) { params.set('sort', opts.sort); params.set('dir', opts.dir ?? 'asc') }
+      const filtersToApply = opts.filters ?? {}
+      for (const [k, v] of Object.entries(filtersToApply)) {
+        if (v) params.set(`filter[${k}]`, v)
       }
       const res = await fetch(`${panelPath}/api/_tables/${elementId}?${params}`)
       if (!res.ok) return
@@ -153,8 +157,8 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   }
 
   function handlePageChange(page: number) {
-    void fetchData({ page })
     setCurrentPage(page)
+    void fetchData({ page, search })
     saveRememberState({ view: activeView, search, page })
   }
 
