@@ -67,6 +67,16 @@ export class ViewMode {
     return v
   }
 
+  /** Folder view preset — drill-down navigation with breadcrumbs. Requires .folder() on the parent List. */
+  static folder(fields?: DataField[]): ViewMode {
+    const v = new ViewMode('folder')
+    v._type  = 'folder'
+    v._label = 'Folder'
+    v._icon  = 'folder'
+    if (fields) v._fields = fields
+    return v
+  }
+
   /** Tree view preset — hierarchical drag-and-drop. Requires .folder() on the parent List. */
   static tree(fields?: DataField[]): ViewMode {
     const v = new ViewMode('tree')

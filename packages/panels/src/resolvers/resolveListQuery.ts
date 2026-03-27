@@ -42,6 +42,8 @@ export interface ListQueryOpts {
   scopes?:       Array<{ scope?: (q: any) => any }> | undefined
   /** When true, skip folder filter and pagination (tree view). */
   treeView?:     boolean
+  /** When true, apply folder filter (folder view). Flat views skip it. */
+  folderView?:   boolean
 }
 
 /**
