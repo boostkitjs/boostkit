@@ -18,6 +18,7 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -308,7 +309,7 @@ function NavMain({ items, currentSlug, badges }: {
         const isActive = item.slug === currentSlug
         const isChildActive = allChildren.some(c => c.slug === currentSlug)
 
-        // Item with children → collapsible
+        // Item with children → link + collapsible chevron
         if (allChildren.length > 0) {
           return (
             <Collapsible
@@ -317,8 +318,10 @@ function NavMain({ items, currentSlug, badges }: {
               className="group/collapsible"
               render={<SidebarMenuItem />}
             >
-              <CollapsibleTrigger
-                render={<SidebarMenuButton tooltip={item.label} isActive={isActive} />}
+              <SidebarMenuButton
+                render={<a href={item.href} />}
+                isActive={isActive}
+                tooltip={item.label}
               >
                 <ResourceIcon icon={item.icon} />
                 <span>{item.label}</span>
@@ -327,7 +330,9 @@ function NavMain({ items, currentSlug, badges }: {
                     {badge}
                   </span>
                 )}
-                <ChevronRightIcon className="ms-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+              </SidebarMenuButton>
+              <CollapsibleTrigger render={<SidebarMenuAction />}>
+                <ChevronRightIcon className="transition-transform duration-200 group-data-open/collapsible:rotate-90" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
