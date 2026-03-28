@@ -33,7 +33,7 @@ interface ViewModeMeta {
   label:       string
   icon?:       string
   fields?:     DataFieldMeta[]
-  subViews?:   string[]
+  layout?:     string
 }
 
 interface PaginationMeta {
@@ -137,10 +137,6 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
   const viewOptions = views ?? []
   const defaultViewName = viewOptions.length > 0 ? viewOptions[0]!.name : 'list'
   const [activeView, setActiveView] = useState(element.activeView ?? defaultViewName)
-  // Sub-view within folder view (list/grid/table)
-  const folderViewMeta = viewOptions.find(v => v.type === 'folder')
-  const folderSubViews = folderViewMeta?.subViews ?? ['list']
-  const [folderSubView, setFolderSubView] = useState(folderSubViews[0] ?? 'list')
   const rememberMode = element.remember
   const pathSegment = panelPath.replace(/^\//, '')
 
@@ -192,7 +188,7 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
         // Flat views (list/grid/table): fetch all, no folder filter, reset folder state
         setCurrentFolder(null)
         setBreadcrumbs([])
-        void fetchData({ page: 1, folder: null })
+        void fetchData({ page: 1, folder: null, viewType: targetType })
       }
     }
 
@@ -244,7 +240,7 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
       if (!res.ok) return
       const body = await res.json() as { records: Record<string, unknown>[]; pagination?: PaginationMeta; breadcrumbs?: { id: string; label: string }[] }
       setRecords(body.records)
-      if (body.pagination) setPagination(body.pagination)
+      setPagination(body.pagination)
       if (body.breadcrumbs !== undefined) setBreadcrumbs(body.breadcrumbs ?? [])
     } finally {
       setLoading(false)
@@ -684,77 +680,46 @@ export function SchemaDataView({ element, panelPath, i18n }: Props) {
           )
         }
 
-        // Folder view — drill-down navigation with sub-view pills
+        // Folder view — drill-down + drag-to-reparent
         if (viewType === 'folder' && folderField) {
-          // Resolve fields from matching sibling view (e.g. list fields for list sub-view)
-          const subViewFields = viewOptions.find(v => v.type === folderSubView)?.fields ?? viewFields
-
-          const subViewIcons: Record<string, string> = { list: 'list', grid: 'layout-grid', table: 'table' }
-          const subViewLabels: Record<string, string> = { list: 'List', grid: 'Grid', table: 'Table' }
-
-          let folderContent: React.ReactNode
-          if (folderSubView === 'grid') {
-            folderContent = (
-              <GridView
-                groups={grouped} fields={subViewFields} titleField={titleField ?? 'id'}
-                descriptionField={descriptionField} imageField={imageField} iconField={iconField}
-                getHref={getRecordHref} groupBy={groupBy} saveEndpoint={saveEndpoint}
-                panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved}
-                onFolderNavigate={handleFolderNavigate} reorderable={isReorderable}
-              />
-            )
-          } else if (folderSubView === 'table' && subViewFields) {
-            folderContent = (
-              <TableView
-                records={records} fields={subViewFields} getHref={getRecordHref}
-                sortField={sortField} sortDir={sortDir} onSort={handleSortChange}
-                saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n}
-                onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder}
-              />
-            )
-          } else {
-            folderContent = (
-              <ListView
-                groups={grouped} fields={subViewFields} titleField={titleField ?? 'id'}
-                descriptionField={descriptionField} imageField={imageField} iconField={iconField}
-                getHref={getRecordHref} groupBy={groupBy} saveEndpoint={saveEndpoint}
-                panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved}
-                onFolderNavigate={handleFolderNavigate} reorderable={isReorderable}
-              />
-            )
-          }
-
-          const wrapped = isReorderable ? (
-            <DndWrapper items={records.map(r => String(r.id))} onDragEnd={handleReorder} strategy={folderSubView === 'grid' ? 'grid' : 'vertical'}>
-              {folderContent}
-            </DndWrapper>
-          ) : folderContent
-
+          const folderLayout = activeViewMeta?.layout ?? 'list'
+          // Reuse fields from matching sibling view if folder has no own fields
+          const folderFields = viewFields ?? viewOptions.find(v => v.type === folderLayout)?.fields ?? viewOptions.find(v => v.type === 'list')?.fields
           return (
-            <div>
-              {/* Sub-view pills */}
-              {folderSubViews.length > 1 && (
-                <div className="flex items-center gap-1 mb-2">
-                  {folderSubViews.map(sv => (
-                    <button
-                      key={sv}
-                      type="button"
-                      onClick={() => setFolderSubView(sv)}
-                      className={[
-                        'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors',
-                        folderSubView === sv
-                          ? 'bg-secondary text-secondary-foreground font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent',
-                      ].join(' ')}
-                    >
-                      {subViewIcons[sv] && <ResourceIcon icon={subViewIcons[sv]} />}
-                      {subViewLabels[sv] ?? sv}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {wrapped}
-            </div>
+            <FolderView
+              records={records}
+              fields={folderFields}
+              layout={folderLayout}
+              titleField={titleField ?? 'id'}
+              descriptionField={descriptionField}
+              imageField={imageField}
+              iconField={iconField}
+              folderField={folderField}
+              onNavigate={handleFolderNavigate}
+              onReparent={(itemId, newParentId) => {
+                // Persist reparent via reorder endpoint
+                if (reorderEndpoint) {
+                  fetch(reorderEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      ids: [itemId],
+                      field: element.reorderField ?? 'position',
+                      model: element.reorderModel,
+                      parentField: folderField,
+                      parents: { [itemId]: newParentId },
+                    }),
+                  }).then(() => {
+                    // Re-fetch to update the view
+                    void fetchData({ viewType: 'folder', folder: currentFolder })
+                  }).catch(() => {})
+                }
+              }}
+              saveEndpoint={saveEndpoint}
+              panelPath={panelPath}
+              i18n={i18n}
+              onSaved={handleEditSaved}
+            />
           )
         }
 
@@ -1230,4 +1195,189 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
     )
   }
   return table
+}
+
+// ─── FolderView — drill-down + drag-to-reparent ─────────────
+
+function FolderView({ records, fields, layout, titleField, descriptionField, imageField, iconField, folderField, onNavigate, onReparent, saveEndpoint, panelPath, i18n, onSaved }: {
+  records:          Record<string, unknown>[]
+  fields?:          DataFieldMeta[]
+  layout?:          string
+  titleField:       string
+  descriptionField?: string
+  imageField?:      string
+  iconField?:       string
+  folderField:      string
+  onNavigate:       (folderId: string | null) => void
+  onReparent:       (itemId: string, newParentId: string | null) => void
+  saveEndpoint?:    string
+  panelPath?:       string
+  i18n?:            PanelI18n
+  onSaved?:         (record: Record<string, unknown>, field: string, value: unknown) => void
+}) {
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  const dragHandlers = (rid: string) => ({
+    draggable: true,
+    onDragStart: () => setDraggingId(rid),
+    onDragEnd: () => { setDraggingId(null); setDragOverId(null) },
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); if (draggingId !== rid) setDragOverId(rid) },
+    onDragLeave: () => { if (dragOverId === rid) setDragOverId(null) },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault()
+      if (draggingId && draggingId !== rid) onReparent(draggingId, rid)
+      setDraggingId(null)
+      setDragOverId(null)
+    },
+  })
+
+  const dropClasses = (rid: string) => [
+    dragOverId === rid && draggingId !== rid ? 'ring-2 ring-primary/40 ring-inset bg-primary/5' : '',
+    draggingId === rid ? 'opacity-40' : '',
+  ].filter(Boolean).join(' ')
+
+  // ── Grid layout ──
+  if (layout === 'grid') {
+    return (
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {records.map((record) => {
+          const rid = String(record.id)
+          const icon = iconField ? record[iconField] as string | undefined : undefined
+          return (
+            <div
+              key={rid}
+              {...dragHandlers(rid)}
+              onClick={() => onNavigate(rid)}
+              className={`rounded-xl border bg-card p-4 hover:bg-muted/30 transition-all cursor-pointer flex flex-col gap-2 ${dropClasses(rid)}`}
+            >
+              {imageField && record[imageField] && (
+                <img src={String(record[imageField])} alt="" className="h-32 w-full rounded-lg object-cover" />
+              )}
+              {icon && !imageField && (
+                <div className="text-muted-foreground"><ResourceIcon icon={icon} /></div>
+              )}
+              {!icon && !imageField && (
+                <div className="text-muted-foreground/40"><ResourceIcon icon="folder" /></div>
+              )}
+              {fields && fields.length > 0 ? (
+                fields.map((f, i) => (
+                  <p key={f.name} className={i === 0 ? 'text-sm font-medium truncate' : 'text-xs text-muted-foreground truncate'}>
+                    <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
+                  </p>
+                ))
+              ) : (
+                <>
+                  <p className="text-sm font-medium truncate">{String(record[titleField] ?? '')}</p>
+                  {descriptionField && record[descriptionField] !== undefined && (
+                    <p className="text-xs text-muted-foreground truncate">{String(record[descriptionField] ?? '')}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Table layout ──
+  if (layout === 'table' && fields && fields.length > 0) {
+    return (
+      <div className="rounded-xl border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="w-8" />
+                {fields.map(f => (
+                  <th key={f.name} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{f.label}</th>
+                ))}
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((record) => {
+                const rid = String(record.id)
+                const icon = iconField ? record[iconField] as string | undefined : undefined
+                return (
+                  <tr
+                    key={rid}
+                    {...dragHandlers(rid)}
+                    onClick={() => onNavigate(rid)}
+                    className={`border-b last:border-0 hover:bg-muted/30 transition-all cursor-pointer ${dropClasses(rid)}`}
+                  >
+                    <td className="px-2 py-2.5 text-muted-foreground/40">
+                      {icon ? <ResourceIcon icon={icon} /> : <ResourceIcon icon="folder" />}
+                    </td>
+                    {fields.map(f => (
+                      <td key={f.name} className="px-4 py-2.5 text-muted-foreground">
+                        <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
+                      </td>
+                    ))}
+                    <td className="px-2 py-2.5 text-muted-foreground/40">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  // ── List layout (default) ──
+  return (
+    <div className="rounded-xl border overflow-hidden divide-y">
+      {records.map((record) => {
+        const rid = String(record.id)
+        const icon = iconField ? record[iconField] as string | undefined : undefined
+
+        return (
+          <div
+            key={rid}
+            {...dragHandlers(rid)}
+            onClick={() => onNavigate(rid)}
+            className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all hover:bg-muted/30 ${dropClasses(rid)}`}
+          >
+            {/* Icon */}
+            {icon ? (
+              <span className="text-muted-foreground shrink-0"><ResourceIcon icon={icon} /></span>
+            ) : (
+              <span className="text-muted-foreground/40 shrink-0"><ResourceIcon icon="folder" /></span>
+            )}
+
+            {/* Content */}
+            {fields && fields.length > 0 ? (
+              <div className="flex-1 min-w-0 flex items-center gap-3">
+                {fields.map((f, i) => (
+                  <span key={f.name} className={i === 0 ? 'text-sm font-medium truncate' : 'text-xs text-muted-foreground truncate'}>
+                    <FieldValue field={f} record={record} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={onSaved} />
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{String(record[titleField] ?? '')}</p>
+                {descriptionField && record[descriptionField] !== undefined && (
+                  <p className="text-xs text-muted-foreground truncate">{String(record[descriptionField] ?? '')}</p>
+                )}
+              </div>
+            )}
+
+            {/* Chevron */}
+            <span className="text-muted-foreground/40 shrink-0">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
