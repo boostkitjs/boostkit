@@ -4,6 +4,20 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import type { PanelI18n, PanelColumnMeta } from '@boostkit/panels'
 import { ResourceIcon } from './ResourceIcon.js'
 import { TableEditCell } from './TableEditCell.js'
+import { ConfirmDialog } from './ConfirmDialog.js'
+
+// ─── Action types ────────────────────────────────────────────
+interface ActionMeta {
+  name:            string
+  label:           string
+  icon?:           string
+  destructive:     boolean
+  requiresConfirm: boolean
+  confirmMessage?: string
+  bulk:            boolean
+  row:             boolean
+  url?:            string
+}
 
 // ─── Client-only hook ───────────────────────────────────────
 function useIsMounted() {
@@ -59,7 +73,7 @@ interface DataViewElement {
   searchColumns?:    string[]
   pagination?:       PaginationMeta
   filters?:          { name: string; type: string; label: string; extra?: Record<string, unknown> }[]
-  actions?:          unknown[]
+  actions?:          ActionMeta[]
   activeSearch?:     string
   activeSort?:       { col: string; dir: string }
   activeFilters?:    Record<string, string>
@@ -144,6 +158,63 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
   const filters = element.filters ?? []
   const folderField = element.folderField
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Selection (for bulk actions) ──
+  const bulkActions = (element.actions ?? []).filter(a => a.bulk)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [actionLoading, setActionLoading] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ActionMeta | null>(null)
+
+  // Clear selection when records change (e.g. page navigation, search)
+  const prevRecordIdsRef = useRef<string>('')
+  useEffect(() => {
+    const key = records.map(r => String(r.id)).join(',')
+    if (key !== prevRecordIdsRef.current) {
+      prevRecordIdsRef.current = key
+      setSelectedIds(new Set())
+    }
+  }, [records])
+
+  function toggleSelectAll() {
+    if (selectedIds.size === records.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(records.map(r => String(r.id))))
+    }
+  }
+
+  function toggleSelectRecord(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function executeAction(action: ActionMeta) {
+    if (selectedIds.size === 0) return
+    if (action.requiresConfirm && !confirmAction) {
+      setConfirmAction(action)
+      return
+    }
+    setConfirmAction(null)
+    setActionLoading(true)
+    try {
+      const endpoint = `${panelPath}/api/_tables/${elementId}/action/${action.name}`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      if (res.ok) {
+        setSelectedIds(new Set())
+        void fetchData({ page: currentPage })
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   // ── Active view ──
   const viewOptions = views ?? []
@@ -364,11 +435,19 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
     saveRememberState(buildState({ page: 1, folder: folderId ?? undefined }))
   }
 
+  // Build base href for record links (resource mode auto-generates it)
+  const resolvedHref = href ?? (resourceSlug ? `${panelPath}/resources/${resourceSlug}` : undefined)
+
   function getRecordHref(record: Record<string, unknown>): string | undefined {
-    if (recordClick === 'edit') return href ? `${href}/${record.id}/edit` : undefined
+    if (recordClick === 'edit') return resolvedHref ? `${resolvedHref}/${record.id}/edit` : undefined
     if (recordClick === 'custom' && record._href) return String(record._href)
-    if (href) return `${href}/${record.id}`
+    if (resolvedHref) return `${resolvedHref}/${record.id}`
     return undefined
+  }
+
+  function getEditHref(record: Record<string, unknown>): string | undefined {
+    if (!resourceSlug) return undefined
+    return `${panelPath}/resources/${resourceSlug}/${record.id}/edit`
   }
 
   // ── Refs for live/poll (avoid stale closures) ──
@@ -671,6 +750,54 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
       </div>
       )}
 
+      {/* Bulk action bar */}
+      {bulkActions.length > 0 && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-primary/5 border border-primary/20 mb-2">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-1.5">
+            {bulkActions.map(action => (
+              <button
+                key={action.name}
+                type="button"
+                disabled={actionLoading}
+                onClick={() => void executeAction(action)}
+                className={[
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50',
+                  action.destructive
+                    ? 'bg-destructive text-white hover:bg-destructive/90'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                ].join(' ')}
+              >
+                {action.icon && <ResourceIcon icon={action.icon} />}
+                {action.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Confirm dialog for destructive actions */}
+      {confirmAction && (
+        <ConfirmDialog
+          open={!!confirmAction}
+          onClose={() => setConfirmAction(null)}
+          onConfirm={() => void executeAction(confirmAction)}
+          title={confirmAction.label}
+          message={confirmAction.confirmMessage ?? 'Are you sure you want to perform this action?'}
+          danger={confirmAction.destructive}
+          confirmLabel={confirmAction.label}
+        />
+      )}
+
       {/* Folder breadcrumbs — only in folder view */}
       {folderField && (currentFolder || breadcrumbs.length > 0) && viewOptions.find(v => v.name === activeView)?.type === 'folder' && (
         <div className="flex items-center gap-1 py-2 text-sm">
@@ -722,7 +849,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         const isReorderable = !!element.reorderable && !groupBy
 
         if (viewType === 'table' && viewFields) {
-          return <TableView records={records} fields={viewFields} getHref={getRecordHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder} />
+          return <TableView records={records} fields={viewFields} getHref={getRecordHref} getEditHref={getEditHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder} selectable={bulkActions.length > 0} selectedIds={selectedIds} onToggleAll={toggleSelectAll} onToggleRecord={toggleSelectRecord} />
         }
         if (viewType === 'tree' && element.folderField) {
           return (
@@ -1208,10 +1335,11 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
 
 // ─── TableView ──────────────────────────────────────────────
 
-function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, onReorder }: {
+function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, onReorder, selectable, selectedIds, onToggleAll, onToggleRecord }: {
   records:       Record<string, unknown>[]
   fields:        DataFieldMeta[]
   getHref:       (r: Record<string, unknown>) => string | undefined
+  getEditHref?:  (r: Record<string, unknown>) => string | undefined
   sortField?:    string
   sortDir?:      string
   onSort?:       (field: string) => void
@@ -1222,13 +1350,30 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
   reorderable?:  boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onReorder?:    (event: any) => void
+  selectable?:   boolean
+  selectedIds?:  Set<string>
+  onToggleAll?:  () => void
+  onToggleRecord?: (id: string) => void
 }) {
+  const allSelected = selectable && selectedIds && records.length > 0 && selectedIds.size === records.length
+  const someSelected = selectable && selectedIds && selectedIds.size > 0 && selectedIds.size < records.length
   const table = (
     <div className="rounded-xl border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40">
+              {selectable && (
+                <th className="w-10 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={!!allSelected}
+                    ref={(el) => { if (el) el.indeterminate = !!someSelected }}
+                    onChange={onToggleAll}
+                    className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  />
+                </th>
+              )}
               {reorderable && <th className="w-6" />}
               {fields.map((f) => {
                 const isSortable = f.sortable
@@ -1258,8 +1403,19 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
           <tbody>
             {records.map((record) => {
               const rid = String(record.id)
+              const isSelected = selectable && selectedIds?.has(rid)
               return (
                 <SortableTableRow key={rid} id={rid} reorderable={reorderable}>
+                  {selectable && (
+                    <td className="w-10 px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={!!isSelected}
+                        onChange={() => onToggleRecord?.(rid)}
+                        className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                      />
+                    </td>
+                  )}
                   {reorderable && <TableDragHandle id={rid} />}
                   {fields.map((f) => (
                     <td key={f.name} className="px-4 py-2.5 text-muted-foreground">
@@ -1278,9 +1434,31 @@ function TableView({ records, fields, getHref, sortField, sortDir, onSort, saveE
                     </td>
                   ))}
                   <td className="px-4 py-2.5 text-right">
-                    {getHref(record) && (
-                      <a href={getHref(record)!} className="text-xs text-muted-foreground hover:text-foreground transition-colors">→</a>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {getEditHref?.(record) && (
+                        <a
+                          href={getEditHref(record)!}
+                          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="Edit"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </a>
+                      )}
+                      {getHref(record) && (
+                        <a
+                          href={getHref(record)!}
+                          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="View"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </SortableTableRow>
               )
