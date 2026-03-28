@@ -96,28 +96,25 @@ type TabsPanelProps = React.ComponentProps<typeof TabsPrimitive.Panel> &
 function TabsPanel({
   value,
   keepMounted,
-  transition = { duration: 0.5, ease: 'easeInOut' },
+  transition = { duration: 0.4, ease: 'easeInOut' },
   ...props
 }: TabsPanelProps) {
+  const { value: activeValue } = useTabs();
+  const isActive = value === activeValue;
+
+  if (!isActive && !keepMounted) return null;
+
   return (
-    <AnimatePresence mode="wait">
-      <TabsPrimitive.Panel
-        render={
-          <motion.div
-            data-slot="tabs-panel"
-            layout
-            layoutDependency={value}
-            initial={false}
-            animate={{ opacity: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, filter: 'blur(4px)' }}
-            transition={transition}
-            {...props}
-          />
-        }
-        keepMounted={keepMounted}
-        value={value}
-      />
-    </AnimatePresence>
+    <motion.div
+      key={value}
+      data-slot="tabs-panel"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={transition}
+      style={isActive ? undefined : { display: 'none' }}
+      {...props}
+    />
   );
 }
 
@@ -158,7 +155,9 @@ function TabsPanels(props: TabsPanelsProps) {
         transition={transition}
         {...autoProps}
       >
-        <React.Fragment key={value}>{children}</React.Fragment>
+        <AnimatePresence initial={false} mode="wait">
+          <React.Fragment key={value}>{children}</React.Fragment>
+        </AnimatePresence>
       </AutoHeight>
     );
   }
@@ -179,7 +178,9 @@ function TabsPanels(props: TabsPanelsProps) {
       style={{ overflow: 'hidden', ...style }}
       {...layoutProps}
     >
-      <React.Fragment key={value}>{children}</React.Fragment>
+      <AnimatePresence initial={false} mode="wait">
+        <React.Fragment key={value}>{children}</React.Fragment>
+      </AnimatePresence>
     </motion.div>
   );
 }

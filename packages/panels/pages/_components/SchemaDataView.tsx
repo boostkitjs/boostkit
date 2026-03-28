@@ -6,6 +6,7 @@ import { ResourceIcon } from './ResourceIcon.js'
 import { TableEditCell } from './TableEditCell.js'
 import { ConfirmDialog } from './ConfirmDialog.js'
 import { Checkbox } from '@/components/ui/checkbox.js'
+import { Tabs as ScopeTabs, TabsList as ScopeTabsList, TabsTab as ScopeTabsTab } from '@/components/animate-ui/components/base/tabs.js'
 
 // ─── Action types ────────────────────────────────────────────
 interface ActionMeta {
@@ -593,24 +594,20 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
 
       {/* Scope pills */}
       {scopePresets && scopePresets.length > 0 && (
-        <div className="flex items-center gap-1 mb-2">
-          {scopePresets.map((scope, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleScopeChange(i)}
-              className={[
-                'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
-                activeScope === i
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              ].join(' ')}
-            >
-              {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
-              {scope.label}
-            </button>
-          ))}
-        </div>
+        <ScopeTabs
+          value={String(activeScope)}
+          onValueChange={(v) => handleScopeChange(Number(v))}
+          className="mb-2"
+        >
+          <ScopeTabsList>
+            {scopePresets.map((scope, i) => (
+              <ScopeTabsTab key={i} value={String(i)}>
+                {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
+                {scope.label}
+              </ScopeTabsTab>
+            ))}
+          </ScopeTabsList>
+        </ScopeTabs>
       )}
 
       {/* Toolbar: search + sort + view toggle + export */}
