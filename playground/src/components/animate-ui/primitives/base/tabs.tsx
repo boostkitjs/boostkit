@@ -35,6 +35,14 @@ type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root>;
 
 function Tabs(props: TabsProps) {
   const hasInteracted = React.useRef(false);
+  const prevValue = React.useRef(props.value ?? props.defaultValue);
+
+  // For controlled tabs: detect when value actually changes after first render
+  if (props.value !== undefined && props.value !== prevValue.current && prevValue.current !== undefined) {
+    hasInteracted.current = true;
+  }
+  prevValue.current = props.value ?? prevValue.current;
+
   const [value, setValue] = useControlledState({
     value: props.value,
     defaultValue: props.defaultValue,

@@ -593,7 +593,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         </div>
       )}
 
-      {/* Scope pills — TabsList only, content panels added below */}
+      {/* Scope pills */}
       {scopePresets && scopePresets.length > 0 && (
         <ScopeTabs
           value={String(activeScope)}
@@ -607,22 +607,10 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
               </ScopeTabsTab>
             ))}
           </ScopeTabsList>
-          <ScopeTabsPanels>
-            {scopePresets.map((_, i) => (
-              <ScopeTabsPanel key={i} value={String(i)}>
-                {renderContent()}
-              </ScopeTabsPanel>
-            ))}
-          </ScopeTabsPanels>
         </ScopeTabs>
       )}
 
-      {/* No scopes — render content directly */}
-      {(!scopePresets || scopePresets.length === 0) && renderContent()}
-    </div>
-  )
-
-  function renderContent() { return (<>
+      {/* Toolbar (shared across scopes — not animated) */}
       {/* Toolbar: search + sort + view toggle + export */}
       {(searchable || filters.length > 0 || (sortableOptions && sortableOptions.length > 0) || viewOptions.length > 1 || (element.exportable && element.exportable.length > 0)) && (
       <div className="py-2.5 flex items-center gap-3 flex-wrap">
@@ -846,6 +834,22 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         </div>
       )}
 
+      {/* Data content — animated when scopes exist */}
+      {scopePresets && scopePresets.length > 0 ? (
+        <ScopeTabs value={String(activeScope)} className="gap-0">
+          <ScopeTabsPanels>
+            {scopePresets.map((_, i) => (
+              <ScopeTabsPanel key={i} value={String(i)}>
+                {renderDataContent()}
+              </ScopeTabsPanel>
+            ))}
+          </ScopeTabsPanels>
+        </ScopeTabs>
+      ) : renderDataContent()}
+    </div>
+  )
+
+  function renderDataContent() { return (<>
       {/* Empty state */}
       {isEmpty && (
         <div className="rounded-xl border bg-card p-12 text-center">
