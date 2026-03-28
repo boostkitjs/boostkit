@@ -5,7 +5,7 @@ import type { Section, SectionMeta } from './schema/Section.js'
 import type { Tabs, TabsMeta } from './schema/Tabs.js'
 import type { PolicyAction, PanelContext, ModelClass } from './types.js'
 import type { PanelColumnMeta } from './schema/Table.js'
-import { Table } from './schema/Table.js'
+import { Table2 as Table } from './schema/Table2.js'
 import { Form } from './schema/Form.js'
 import { Column } from './schema/Column.js'
 
@@ -200,21 +200,17 @@ export class Resource {
     const tableConfig = table?.getConfig()
     const formMeta = form.toMeta()
 
-    // Serialize Tab-based tabs to ListTabMeta format
+    // Serialize scopes to ListTabMeta format (backward compat with UI tabs)
     let tabsMeta: ListTabMeta[] = []
-    if (tableConfig?.tabs && tableConfig.tabs.length > 0) {
-      tabsMeta = tableConfig.tabs.map((t) => {
-        const label = t.getLabel()
+    if (tableConfig?.scopes && tableConfig.scopes.length > 0) {
+      tabsMeta = tableConfig.scopes.map((s) => {
         const meta: ListTabMeta = {
-          name:  label.toLowerCase().replace(/\s+/g, '-'),
-          label,
+          name:  s.label.toLowerCase().replace(/\s+/g, '-'),
+          label: s.label,
         }
-        const icon = t.getIcon()
-        if (icon) meta.icon = icon
+        if (s.icon) meta.icon = s.icon
         return meta
       })
-    } else if (tableConfig?.listTabs && tableConfig.listTabs.length > 0) {
-      tabsMeta = tableConfig.listTabs.map((t) => t.toMeta())
     }
 
     // Serialize Column definitions

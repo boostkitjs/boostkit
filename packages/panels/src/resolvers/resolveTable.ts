@@ -18,7 +18,7 @@ export async function resolveTable(
   const table = el as unknown as import('../schema/Table.js').Table
 
   // ── Table with .tabs() — resolve each tab's scoped table and return a tabs meta ──
-  if (config.tabs.length > 0) {
+  if (config.tabs?.length > 0) {
     return resolveTableTabs(table, config, panel, ctx)
   }
 
