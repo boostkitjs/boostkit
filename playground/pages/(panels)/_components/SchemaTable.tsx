@@ -6,6 +6,7 @@ import { readClientState, saveClientState } from '../_lib/persist.js'
 import { Checkbox } from '@/components/ui/checkbox.js'
 import type { PersistMode } from '../_lib/persist.js'
 import { TableEditCell } from './TableEditCell.js'
+import { ResourceIcon } from './ResourceIcon.js'
 
 // Client-side cache for table state — survives tab switches within the same page
 const tableStateCache = new Map<string, Record<string, unknown>>()
@@ -74,6 +75,9 @@ export function SchemaTable({ element, panelPath, i18n, resource }: { element: E
   )
   const [search, setSearch]   = useState(ssrSearch ?? (cachedState?.search ? String(cachedState.search) : ''))
   const [dragging, setDragging] = useState<string | null>(null)
+  // Scope tabs (from Table2 .scopes())
+  const scopeTabs = (element as unknown as { tabs?: { label: string; icon?: string; scope?: boolean }[] }).tabs ?? []
+  const [activeTab, setActiveTab] = useState('')
   const [pagination, setPagination] = useState<typeof element.pagination>(element.pagination)
   const [currentPage, setCurrentPage] = useState(cachedState?.page ? Number(cachedState.page) : (element.pagination?.currentPage ?? 1))
   const [loadingMore, setLoadingMore] = useState(false)
@@ -124,7 +128,7 @@ export function SchemaTable({ element, panelPath, i18n, resource }: { element: E
   activeFiltersRef.current = activeFilters
 
   // ── Shared fetch function — all table state changes go through API ──
-  async function fetchTable(opts: { page?: number; search?: string; sort?: string; dir?: string; append?: boolean; filters?: Record<string, string> } = {}) {
+  async function fetchTable(opts: { page?: number; search?: string; sort?: string; dir?: string; append?: boolean; filters?: Record<string, string>; tab?: string } = {}) {
     if (!tableId) return
     setLoadingMore(true)
     try {
@@ -140,6 +144,9 @@ export function SchemaTable({ element, panelPath, i18n, resource }: { element: E
       for (const [k, v] of Object.entries(filtersToApply)) {
         if (v) params.set(`filter[${k}]`, v)
       }
+      // Active scope tab
+      const effectiveTab = opts.tab !== undefined ? opts.tab : activeTab
+      if (effectiveTab) params.set('tab', effectiveTab)
       // Resource mode: include trashed param
       if (resourceSlug && resource?.isTrashed) {
         params.set('trashed', 'true')
@@ -546,6 +553,37 @@ export function SchemaTable({ element, panelPath, i18n, resource }: { element: E
               + {i18n.create?.replace(':singular', '') ?? 'Create'}
             </a>
           )}
+        </div>
+      )}
+
+      {/* Scope tabs */}
+      {scopeTabs.length > 0 && (
+        <div className="flex items-center gap-1 mb-2">
+          {scopeTabs.map((tab, i) => {
+            const tabName = tab.label.toLowerCase().replace(/\s+/g, '-')
+            const isActive = activeTab === tabName || (activeTab === '' && i === 0)
+            return (
+              <button
+                key={tabName}
+                type="button"
+                onClick={() => {
+                  const newTab = i === 0 ? '' : tabName
+                  setActiveTab(newTab)
+                  setCurrentPage(1)
+                  void fetchTable({ page: 1, filters: activeFilters, tab: newTab })
+                }}
+                className={[
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                ].join(' ')}
+              >
+                {tab.icon && <ResourceIcon icon={tab.icon} />}
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
       )}
 

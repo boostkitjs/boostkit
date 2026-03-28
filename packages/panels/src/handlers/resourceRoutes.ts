@@ -56,18 +56,12 @@ export function mountResourceRoutes(
 
     let q: QueryBuilderLike<RecordRow> = Model.query()
 
-    // Tab filter — apply active tab's query scope
+    // Scope filter — apply active scope's query function
     const activeTab = url.searchParams.get('tab') ?? ''
-    if (activeTab) {
-      const tabs = tableConfig.tabs
-      const tab = tabs.find((t) => t.getLabel().toLowerCase().replace(/\s+/g, '-') === activeTab)
-      const tabScope = tab?.getScope()
-      if (tabScope) {
-        q = tabScope(q) as QueryBuilderLike<RecordRow>
-      } else {
-        const listTab = tableConfig.listTabs.find((t) => t.getName() === activeTab)
-        const tabQuery = listTab?.getQueryFn()
-        if (tabQuery) q = tabQuery(q) as QueryBuilderLike<RecordRow>
+    if (activeTab && tableConfig.scopes) {
+      const scope = tableConfig.scopes.find((s) => s.label.toLowerCase().replace(/\s+/g, '-') === activeTab)
+      if (scope?.scope) {
+        q = scope.scope(q) as QueryBuilderLike<RecordRow>
       }
     }
 

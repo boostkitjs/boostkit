@@ -60,10 +60,10 @@ export class ArticleResource extends Resource {
         heading: 'No :label yet',
         description: 'Write your first article to share with the world.',
       })
-      .tabs([
-        Tab.make('All'),
-        Tab.make('Published').icon('circle-check').scope((q: any) => q.where('draftStatus', 'published')),
-        Tab.make('Drafts').icon('pencil-line').scope((q: any) => q.where('draftStatus', 'draft')),
+      .scopes([
+        { label: 'All' },
+        { label: 'Published', icon: 'circle-check', scope: (q: any) => q.where('draftStatus', 'published') },
+        { label: 'Drafts', icon: 'pencil-line', scope: (q: any) => q.where('draftStatus', 'draft') },
       ])
       .filters([
         SelectFilter.make('featured')
