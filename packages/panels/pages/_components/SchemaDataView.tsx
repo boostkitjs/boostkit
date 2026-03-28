@@ -166,21 +166,23 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
   const [actionLoading, setActionLoading] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ActionMeta | null>(null)
 
-  // Clear selection when records change (e.g. page navigation, search)
-  const prevRecordIdsRef = useRef<string>('')
-  useEffect(() => {
-    const key = records.map(r => String(r.id)).join(',')
-    if (key !== prevRecordIdsRef.current) {
-      prevRecordIdsRef.current = key
-      setSelectedIds(new Set())
-    }
-  }, [records])
+  // Clear selection when search, filters, or scope changes (not page changes)
+  function clearSelection() { setSelectedIds(new Set()) }
 
+  // Toggle all on the *current page* only
   function toggleSelectAll() {
-    if (selectedIds.size === records.length) {
-      setSelectedIds(new Set())
+    const pageIds = new Set(records.map(r => String(r.id)))
+    const allOnPageSelected = records.length > 0 && records.every(r => selectedIds.has(String(r.id)))
+    if (allOnPageSelected) {
+      // Deselect current page records, keep others
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        for (const id of pageIds) next.delete(id)
+        return next
+      })
     } else {
-      setSelectedIds(new Set(records.map(r => String(r.id))))
+      // Add current page records to selection
+      setSelectedIds(prev => new Set([...prev, ...pageIds]))
     }
   }
 
@@ -354,6 +356,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
     setSearch(value)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
+      clearSelection()
       void fetchData({ page: 1, search: value })
       setCurrentPage(1)
       saveRememberState(buildState({ search: value, page: 1 }))
@@ -404,6 +407,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
   }
 
   function handleScopeChange(index: number) {
+    clearSelection()
     setActiveScope(index)
     setCurrentPage(1)
     void fetchData({ page: 1, scope: index })
@@ -412,6 +416,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
 
   // ── Record click URL ──
   function handleFilterChange(filterName: string, value: string) {
+    clearSelection()
     const newFilters = { ...activeFilters }
     if (value) newFilters[filterName] = value
     else delete newFilters[filterName]
@@ -422,6 +427,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
   }
 
   function clearFilters() {
+    clearSelection()
     setActiveFilters({})
     setCurrentPage(1)
     void fetchData({ page: 1, filters: {} })
@@ -1356,8 +1362,10 @@ function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, 
   onToggleAll?:  () => void
   onToggleRecord?: (id: string) => void
 }) {
-  const allSelected = selectable && selectedIds && records.length > 0 && selectedIds.size === records.length
-  const someSelected = selectable && selectedIds && selectedIds.size > 0 && selectedIds.size < records.length
+  // Check selection state for current page records
+  const pageSelectedCount = selectable && selectedIds ? records.filter(r => selectedIds.has(String(r.id))).length : 0
+  const allSelected = selectable && records.length > 0 && pageSelectedCount === records.length
+  const someSelected = selectable && pageSelectedCount > 0 && pageSelectedCount < records.length
   const table = (
     <div className="rounded-xl border overflow-hidden">
       <div className="overflow-x-auto">
