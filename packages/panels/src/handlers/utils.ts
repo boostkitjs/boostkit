@@ -36,61 +36,158 @@ export function buildContext(req: AppRequest): PanelContext {
   }
 }
 
+// ─── Shared field coercion core ──────────────────────────────
+
+interface CoerceOptions {
+  /** Handle relation fields (belongsTo/belongsToMany). Only for resource payloads. */
+  relations?: boolean
+  /** Create vs update mode — affects belongsToMany connect vs set. */
+  mode?: 'create' | 'update'
+  /** Stringify tags arrays (Prisma stores as JSON string). Otherwise keep as array. */
+  stringifyTags?: boolean
+}
+
+/**
+ * Coerce a single field value to the correct JS type.
+ */
+function coerceFieldValue(
+  val: unknown,
+  type: string,
+  opts: CoerceOptions = {},
+): unknown {
+  if (type === 'boolean' || type === 'toggle') {
+    return val === true || val === 'true' || val === '1' || val === 1
+  }
+  if (type === 'number') {
+    return (val === '' || val === null || val === undefined) ? null : Number(val)
+  }
+  if (type === 'date' || type === 'datetime') {
+    if (val === '' || val === null || val === undefined) return null
+    const d = new Date(String(val))
+    return isNaN(d.getTime()) ? null : d
+  }
+  if (type === 'tags') {
+    if (opts.stringifyTags) {
+      return Array.isArray(val) ? JSON.stringify(val) : (val ?? '[]')
+    }
+    return Array.isArray(val) ? val : (val ?? [])
+  }
+  if (type === 'content' || type === 'richcontent') {
+    if (val === '' || val === null || val === undefined) return null
+    if (typeof val === 'string') {
+      try { return JSON.parse(val) } catch { return null }
+    }
+    return val // already an object — pass through
+  }
+  if (opts.relations && type === 'belongsTo') {
+    return (val === '' || val === null || val === undefined) ? null : String(val)
+  }
+  if (opts.relations && type === 'belongsToMany') {
+    const ids     = Array.isArray(val) ? (val as string[]) : []
+    const records = ids.map((id) => ({ id: String(id) }))
+    return opts.mode === 'create' ? { connect: records } : { set: records }
+  }
+  return val
+}
+
+/**
+ * Coerce all field values in a payload using a flat Field[] list.
+ */
+function coerceFields(
+  fields: Field[],
+  body: Record<string, unknown>,
+  opts: CoerceOptions = {},
+): Record<string, unknown> {
+  const result = { ...body }
+  for (const field of fields) {
+    const name = field.getName()
+    if (!(name in result)) continue
+    result[name] = coerceFieldValue(result[name], field.getType(), opts)
+  }
+  return result
+}
+
+// ─── Shared field validation core ────────────────────────────
+
+interface ValidateOptions {
+  /** Mode for visibility checks (resource forms). */
+  mode?: 'create' | 'update'
+  /** Skip required validation (draft saves). */
+  skipRequired?: boolean
+  /** Only validate fields present in the payload (partial updates). */
+  partialUpdate?: boolean
+  /** Skip relation field validation. */
+  skipRelations?: boolean
+}
+
+/**
+ * Validate a payload against a flat Field[] list.
+ * Returns { fieldName: ['error'] } or null if valid.
+ */
+async function validateFieldList(
+  fields: Field[],
+  body: Record<string, unknown>,
+  opts: ValidateOptions = {},
+): Promise<Record<string, string[]> | null> {
+  const errors: Record<string, string[]> = {}
+
+  for (const field of fields) {
+    if (field.isReadonly()) continue
+    if (opts.skipRelations && (field.getType() === 'belongsTo' || field.getType() === 'belongsToMany')) continue
+    if (opts.mode === 'create' && field.isHiddenFrom('create')) continue
+    if (opts.mode === 'update' && field.isHiddenFrom('edit')) continue
+
+    const name  = field.getName()
+
+    // Partial updates: skip fields not in payload
+    if (opts.partialUpdate && !(name in body)) continue
+
+    const value = body[name]
+
+    // Required check
+    if (!opts.skipRequired && field.isRequired() && (value === undefined || value === null || value === '')) {
+      errors[name] = [`${field.getLabel() || name} is required.`]
+    }
+  }
+
+  // Custom validators — skip entirely when skipRequired (draft mode)
+  if (opts.skipRequired) return Object.keys(errors).length > 0 ? errors : null
+
+  for (const field of fields) {
+    if (!field.hasValidate()) continue
+    if (field.isReadonly()) continue
+    const name = field.getName()
+
+    if (opts.partialUpdate && !(name in body)) continue
+
+    const value = body[name]
+    const result = await field.runValidate(value, body)
+    if (result !== true) {
+      if (errors[name]) {
+        errors[name]!.push(result)
+      } else {
+        errors[name] = [result]
+      }
+    }
+  }
+
+  return Object.keys(errors).length > 0 ? errors : null
+}
+
+// ─── Public API (delegates to shared core) ───────────────────
+
 /**
  * Coerce raw form values to the correct JS types before hitting the ORM.
- * - boolean / toggle  -> true | false
- * - number            -> number | null
- * - date / datetime   -> Date | null  (empty string -> null)
- * Empty strings for optional fields are left as-is (ORM handles them).
  */
 export function coercePayload(
   resource: Resource,
   body: Record<string, unknown>,
   mode: 'create' | 'update' = 'update',
 ): Record<string, unknown> {
-  const result = { ...body }
   const formFields = flattenFields(resource._resolveForm().getFields() as FieldOrGrouping[])
-  for (const field of formFields) {
-    const name = field.getName()
-    if (!(name in result)) continue
-    const val  = result[name]
-    const type = field.getType()
-    if (type === 'boolean' || type === 'toggle') {
-      result[name] = val === true || val === 'true' || val === '1' || val === 1
-    } else if (type === 'number') {
-      result[name] = (val === '' || val === null || val === undefined) ? null : Number(val)
-    } else if (type === 'date' || type === 'datetime') {
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else {
-        const d = new Date(String(val))
-        result[name] = isNaN(d.getTime()) ? null : d
-      }
-    } else if (type === 'tags') {
-      // UI submits an array; store as JSON string
-      result[name] = Array.isArray(val) ? JSON.stringify(val) : (val ?? '[]')
-    } else if (type === 'content' || type === 'richcontent') {
-      // Prisma Json? field: pass object as-is, parse JSON strings, empty -> null
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else if (typeof val === 'string') {
-        try { result[name] = JSON.parse(val) } catch { result[name] = null }
-      }
-      // else: already an object — pass through
-    } else if (type === 'belongsTo') {
-      result[name] = (val === '' || val === null || val === undefined) ? null : String(val)
-    } else if (type === 'belongsToMany') {
-      // Prisma implicit M2M: connect on create, set (replace) on update
-      const ids     = Array.isArray(val) ? (val as string[]) : []
-      const records = ids.map((id) => ({ id: String(id) }))
-      result[name]  = mode === 'create' ? { connect: records } : { set: records }
-    }
-  }
+  const result = coerceFields(formFields, body, { relations: true, mode, stringifyTags: true })
 
-  // Strip fields that shouldn't be sent to the ORM:
-  // - Fields not defined in the form (e.g. updatedAt, id, deletedAt)
-  // - Readonly fields (e.g. createdAt)
-  // - Fields hidden from the current mode
+  // Strip fields that shouldn't be sent to the ORM
   const writableFieldNames = new Set<string>()
   for (const field of formFields) {
     if (field.isReadonly()) continue
@@ -107,42 +204,14 @@ export function coercePayload(
 }
 
 /**
- * Coerce global payload values — same logic as resource coercion
- * but without relation handling (globals store JSON, no FK relations).
+ * Coerce global payload values — same as resource coercion but without relations.
  */
 export function coerceGlobalPayload(
   global: Global,
   body: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = { ...body }
   const globalForm = (global as unknown as { _resolveForm(): { getFields(): FieldOrGrouping[] } })._resolveForm()
-  for (const field of flattenFields(globalForm.getFields())) {
-    const name = field.getName()
-    if (!(name in result)) continue
-    const val  = result[name]
-    const type = field.getType()
-    if (type === 'boolean' || type === 'toggle') {
-      result[name] = val === true || val === 'true' || val === '1' || val === 1
-    } else if (type === 'number') {
-      result[name] = (val === '' || val === null || val === undefined) ? null : Number(val)
-    } else if (type === 'date' || type === 'datetime') {
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else {
-        const d = new Date(String(val))
-        result[name] = isNaN(d.getTime()) ? null : d
-      }
-    } else if (type === 'tags') {
-      result[name] = Array.isArray(val) ? val : (val ?? [])
-    } else if (type === 'content' || type === 'richcontent') {
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else if (typeof val === 'string') {
-        try { result[name] = JSON.parse(val) } catch { result[name] = null }
-      }
-    }
-  }
-  return result
+  return coerceFields(flattenFields(globalForm.getFields()), body)
 }
 
 export async function validatePayload(
@@ -151,54 +220,13 @@ export async function validatePayload(
   mode: 'create' | 'update',
 ): Promise<Record<string, string[]> | null> {
   const fields = flattenFields(resource._resolveForm().getFields() as FieldOrGrouping[])
-  const errors: Record<string, string[]> = {}
-
-  // Skip required-field validation for draft saves
   const isDraft = body['draftStatus'] === 'draft'
-
-  for (const field of fields) {
-    if (field.isReadonly()) continue
-    if (field.getType() === 'belongsTo' || field.getType() === 'belongsToMany') continue
-    if (mode === 'create' && field.isHiddenFrom('create')) continue
-    if (mode === 'update' && field.isHiddenFrom('edit')) continue
-
-    const name  = field.getName()
-
-    // On update, skip validation for fields not present in the payload
-    // (supports partial/inline updates where only one field is sent)
-    if (mode === 'update' && !(name in body)) continue
-
-    const value = body[name]
-
-    // Drafts skip required validation — user can save incomplete records
-    if (!isDraft && field.isRequired() && (value === undefined || value === null || value === '')) {
-      errors[name] = [`${field.getLabel()} is required.`]
-    }
-  }
-
-  // Per-field custom validators — skip entirely for drafts
-  if (isDraft) return Object.keys(errors).length > 0 ? errors : null
-
-  for (const field of fields) {
-    if (!field.hasValidate()) continue
-    if (field.isReadonly()) continue
-    const name = field.getName()
-
-    // On update, skip validation for fields not in the payload
-    if (mode === 'update' && !(name in body)) continue
-
-    const value = body[name]
-    const result = await field.runValidate(value, body)
-    if (result !== true) {
-      if (errors[name]) {
-        errors[name] = [...(errors[name] ?? []), result]
-      } else {
-        errors[name] = [result]
-      }
-    }
-  }
-
-  return Object.keys(errors).length > 0 ? errors : null
+  return validateFieldList(fields, body, {
+    mode,
+    skipRequired: isDraft,
+    partialUpdate: mode === 'update',
+    skipRelations: true,
+  })
 }
 
 /**
@@ -208,34 +236,7 @@ export function coerceFormPayload(
   fields: Field[],
   body: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = { ...body }
-  for (const field of fields) {
-    const name = field.getName()
-    if (!(name in result)) continue
-    const val  = result[name]
-    const type = field.getType()
-    if (type === 'boolean' || type === 'toggle') {
-      result[name] = val === true || val === 'true' || val === '1' || val === 1
-    } else if (type === 'number') {
-      result[name] = (val === '' || val === null || val === undefined) ? null : Number(val)
-    } else if (type === 'date' || type === 'datetime') {
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else {
-        const d = new Date(String(val))
-        result[name] = isNaN(d.getTime()) ? null : d
-      }
-    } else if (type === 'tags') {
-      result[name] = Array.isArray(val) ? val : (val ?? [])
-    } else if (type === 'content' || type === 'richcontent') {
-      if (val === '' || val === null || val === undefined) {
-        result[name] = null
-      } else if (typeof val === 'string') {
-        try { result[name] = JSON.parse(val) } catch { result[name] = null }
-      }
-    }
-  }
-  return result
+  return coerceFields(fields, body)
 }
 
 /**
@@ -246,36 +247,7 @@ export async function validateFormPayload(
   fields: Field[],
   body: Record<string, unknown>,
 ): Promise<Record<string, string[]> | null> {
-  const errors: Record<string, string[]> = {}
-
-  for (const field of fields) {
-    if (field.isReadonly()) continue
-    const name  = field.getName()
-    const value = body[name]
-
-    // Required check
-    if (field.isRequired() && (value === undefined || value === null || value === '')) {
-      errors[name] = [`${field.getLabel() || name} is required.`]
-    }
-  }
-
-  // Custom validators
-  for (const field of fields) {
-    if (!field.hasValidate()) continue
-    if (field.isReadonly()) continue
-    const name  = field.getName()
-    const value = body[name]
-    const result = await field.runValidate(value, body)
-    if (result !== true) {
-      if (errors[name]) {
-        errors[name]!.push(result)
-      } else {
-        errors[name] = [result]
-      }
-    }
-  }
-
-  return Object.keys(errors).length > 0 ? errors : null
+  return validateFieldList(fields, body)
 }
 
 export function applyTransforms(resource: Resource, records: unknown[]): unknown[] {
