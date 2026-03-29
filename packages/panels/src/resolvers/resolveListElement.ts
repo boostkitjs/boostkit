@@ -70,6 +70,9 @@ export interface DataViewElementMeta {
   resource?:         string
   // Custom render results (per record, SSR-resolved)
   renderedRecords?:  unknown[][]
+  // Animations
+  autoAnimate?:      boolean | { duration?: number }
+  animateScopes?:    boolean | { highlight?: boolean; content?: boolean }
 }
 
 // ─── Registry for lazy/poll List instances ───────────────────
@@ -283,6 +286,10 @@ export async function resolveDataView(
 
   // Custom render results
   if (renderedRecords)         meta.renderedRecords = renderedRecords
+
+  // Animations
+  if (config.autoAnimate)      meta.autoAnimate     = config.autoAnimate
+  if (config.animateScopes)    meta.animateScopes   = config.animateScopes
 
   return meta as unknown as PanelSchemaElementMeta
 }

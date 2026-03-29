@@ -68,7 +68,7 @@ export function SchemaSection({ section, panelPath, pathSegment, i18n, urlSearch
                 )
               }
               if (el.type === 'tabs') {
-                const tabsEl = el as { type: 'tabs'; id?: string; tabs: TabItem[]; modelBacked?: boolean; persist?: 'localStorage' | 'url' | 'session' | false; activeTab?: number }
+                const tabsEl = el as { type: 'tabs'; id?: string; tabs: TabItem[]; modelBacked?: boolean; persist?: 'localStorage' | 'url' | 'session' | false; activeTab?: number; animate?: boolean | { highlight?: boolean; content?: boolean } }
                 return (
                   <SchemaTabs
                     key={`st-${tabsEl.id ?? i}`}
@@ -81,6 +81,7 @@ export function SchemaSection({ section, panelPath, pathSegment, i18n, urlSearch
                     modelBacked={!!tabsEl.modelBacked}
                     persist={tabsEl.persist}
                     activeTab={tabsEl.activeTab}
+                    animate={tabsEl.animate}
                     renderDashboard={renderDashboard}
                   />
                 )
