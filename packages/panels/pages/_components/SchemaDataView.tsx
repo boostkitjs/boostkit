@@ -10,6 +10,7 @@ import { TableEditCell } from './TableEditCell.js'
 import { ConfirmDialog } from './ConfirmDialog.js'
 import { Checkbox } from '@/components/ui/checkbox.js'
 import { Tabs as ScopeTabs, TabsList as ScopeTabsList, TabsTab as ScopeTabsTab, TabsPanels as ScopeTabsPanels, TabsPanel as ScopeTabsPanel } from '@/components/animate-ui/components/base/tabs.js'
+import { Tabs as ScopeTabsPrimitive } from '@/components/animate-ui/primitives/base/tabs.js'
 
 // auto-animate: client-only lazy hook (SSR-safe)
 function useAutoAnimate(): [RefCallback<HTMLElement>] {
@@ -360,41 +361,41 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         </div>
       )}
 
-      {/* Scope pills */}
-      {scopePresets && scopePresets.length > 0 && scopeHighlightAnimated && (
-        <ScopeTabs
-          value={String(activeScope)}
-          onValueChange={(v) => handleScopeChange(Number(v))}
-        >
-          <ScopeTabsList className="mb-2">
-            {scopePresets.map((scope, i) => (
-              <ScopeTabsTab key={i} value={String(i)}>
-                {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
-                {scope.label}
-              </ScopeTabsTab>
-            ))}
-          </ScopeTabsList>
-        </ScopeTabs>
-      )}
-      {scopePresets && scopePresets.length > 0 && !scopeHighlightAnimated && (
-        <div className="flex items-center gap-1 mb-2">
-          {scopePresets.map((scope, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleScopeChange(i)}
-              className={[
-                'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
-                activeScope === i
-                  ? 'bg-muted text-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              ].join(' ')}
-            >
-              {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
-              {scope.label}
-            </button>
-          ))}
-        </div>
+      {/* Scope pills — animated highlight or plain buttons */}
+      {scopePresets && scopePresets.length > 0 && (
+        scopeHighlightAnimated ? (
+          <ScopeTabs value={String(activeScope)} onValueChange={(v) => handleScopeChange(Number(v))}>
+            <ScopeTabsList className="mb-2">
+              {scopePresets.map((scope, i) => (
+                <ScopeTabsTab key={i} value={String(i)}>
+                  {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
+                  {scope.label}
+                </ScopeTabsTab>
+              ))}
+            </ScopeTabsList>
+          </ScopeTabs>
+        ) : (
+          <ScopeTabsPrimitive value={String(activeScope)} onValueChange={(v) => handleScopeChange(Number(v))}>
+            <div className="flex items-center gap-1 mb-2">
+              {scopePresets.map((scope, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleScopeChange(i)}
+                  className={[
+                    'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
+                    activeScope === i
+                      ? 'bg-muted text-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ].join(' ')}
+                >
+                  {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
+                  {scope.label}
+                </button>
+              ))}
+            </div>
+          </ScopeTabsPrimitive>
+        )
       )}
 
       {/* Toolbar (shared across scopes — not animated) */}
