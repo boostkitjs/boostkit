@@ -1,15 +1,11 @@
 'use client'
 
-import { SchemaElementRenderer } from './SchemaElementRenderer.js'
 import { DashboardGrid }  from './DashboardGrid.js'
 import { StandaloneWidget } from './StandaloneWidget.js'
-import { SchemaForm }   from './SchemaForm.js'
-import { SchemaDialog } from './SchemaDialog.js'
-import { SchemaTabs } from './SchemaTabs.js'
-import { SchemaSection } from './SchemaSection.js'
-import type { PanelSchemaElementMeta, FormElementMeta, DialogElementMeta, WidgetMeta } from '@boostkit/panels'
+import type { WidgetMeta } from '@boostkit/panels'
 import type { WidgetWithSchema } from './WidgetCard.js'
-import type { SchemaElement, TabItem, DashboardEl, DashboardLayoutItem, I18nExtended } from './schema-types.js'
+import type { SchemaElement, DashboardEl, DashboardLayoutItem, I18nExtended } from './schema-types.js'
+import { renderSchemaElement, type RenderContext } from './renderSchemaElement.js'
 
 // ── Dashboard section — handles top-level dashboard widgets ──
 
@@ -68,7 +64,7 @@ export function SchemaPageContent({ elements, panelPath, pathSegment, i18n, urlS
     }
   }
 
-  function renderDashboard(el: DashboardEl, idx: number) {
+  const renderDashboard = (el: DashboardEl, idx: number) => {
     return (
       <DashboardSection
         key={`dash-${el.id ?? idx}`}
@@ -79,6 +75,8 @@ export function SchemaPageContent({ elements, panelPath, pathSegment, i18n, urlS
       />
     )
   }
+
+  const renderCtx = { panelPath, pathSegment, i18n, urlSearch, renderDashboard }
 
   return (
     <>
@@ -107,79 +105,19 @@ export function SchemaPageContent({ elements, panelPath, pathSegment, i18n, urlS
         const el = group.items[0]
         if (!el) return null
 
-        // Schema-level Section (collapsible card with schema elements inside)
+        // Schema-level Section — only render if it has child elements
         if (el.type === 'section') {
-          const sectionEl = el as { type: 'section'; title: string; description?: string; collapsible: boolean; collapsed: boolean; columns: number; elements?: SchemaElement[] }
-          if (sectionEl.elements?.length) {
-            return (
-              <SchemaSection
-                key={`section-${gi}`}
-                section={sectionEl}
-                panelPath={panelPath}
-                pathSegment={pathSegment}
-                i18n={i18n}
-                urlSearch={urlSearch}
-                renderDashboard={renderDashboard}
-              />
-            )
-          }
+          const sectionEl = el as { type: 'section'; elements?: SchemaElement[] }
+          if (!sectionEl.elements?.length) return null
         }
 
-        // Schema-level Tabs
+        // Schema-level Tabs — only render if model-backed or has tab content
         if (el.type === 'tabs') {
-          const tabsEl = el as { type: 'tabs'; id?: string; tabs: TabItem[]; modelBacked?: boolean; persist?: 'localStorage' | 'url' | 'session' | false; activeTab?: number; animate?: boolean | { highlight?: boolean; content?: boolean } }
-          const isModelBacked = !!tabsEl.modelBacked
-          if (isModelBacked || tabsEl.tabs?.some((t: TabItem) => (t.elements?.length ?? 0) > 0)) {
-            return (
-              <SchemaTabs
-                key={`tabs-${gi}`}
-                id={tabsEl.id}
-                tabs={tabsEl.tabs}
-                urlSearch={urlSearch}
-                panelPath={panelPath}
-                pathSegment={pathSegment}
-                i18n={i18n}
-                modelBacked={isModelBacked}
-                persist={tabsEl.persist}
-                activeTab={tabsEl.activeTab}
-                animate={tabsEl.animate}
-                renderDashboard={renderDashboard}
-              />
-            )
-          }
+          const tabsEl = el as { type: 'tabs'; modelBacked?: boolean; tabs?: { elements?: unknown[] }[] }
+          if (!tabsEl.modelBacked && !tabsEl.tabs?.some(t => (t.elements?.length ?? 0) > 0)) return null
         }
 
-        if (el.type === 'form') {
-          return (
-            <SchemaForm
-              key={`form-${(el as { id?: string }).id ?? gi}`}
-              form={el as FormElementMeta}
-              panelPath={panelPath}
-              i18n={i18n}
-            />
-          )
-        }
-
-        if (el.type === 'dialog') {
-          return (
-            <SchemaDialog
-              key={`dialog-${(el as { id?: string }).id ?? gi}`}
-              dialog={el as DialogElementMeta}
-              panelPath={panelPath}
-              pathSegment={pathSegment}
-              i18n={i18n}
-            />
-          )
-        }
-
-        if (el.type === 'dashboard') {
-          const dashEl = el as DashboardEl
-          return renderDashboard(dashEl, gi)
-        }
-
-        return (
-          <SchemaElementRenderer key={gi} element={el as PanelSchemaElementMeta} panelPath={panelPath} i18n={i18n} />
-        )
+        return renderSchemaElement(el, gi, renderCtx, 'p')
       })}
     </>
   )

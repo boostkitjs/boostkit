@@ -1,14 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { SchemaElementRenderer } from './SchemaElementRenderer.js'
-import { StandaloneWidget } from './StandaloneWidget.js'
-import { SchemaForm } from './SchemaForm.js'
-import { SchemaDialog } from './SchemaDialog.js'
-import type { PanelSchemaElementMeta, FormElementMeta, DialogElementMeta } from '@boostkit/panels'
-import type { WidgetWithSchema } from './WidgetCard.js'
 import { slugify } from '../_lib/persist.js'
 import type { SchemaElement, TabItem, DashboardEl, I18nExtended } from './schema-types.js'
+import { renderSchemaElement, type RenderContext } from './renderSchemaElement.js'
 import { Tabs, TabsList, TabsTab, TabsPanels, TabsPanel } from '@/components/animate-ui/components/base/tabs.js'
 
 // Lazy import to avoid circular dependency — DashboardSection is only used inside tab content
@@ -138,36 +133,12 @@ export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, 
     ? tabs[activeIdx]!.elements!
     : fetchedElements[activeIdx] ?? []
 
+  const renderCtx: RenderContext = { panelPath, pathSegment, i18n, renderDashboard }
+
   function renderTabElements(tabElements: SchemaElement[], tabIdx: number) {
-    return tabElements.map((el: SchemaElement, i: number) => {
-      if (el.type === 'widget') {
-        return (
-          <StandaloneWidget
-            key={`${tabIdx}-tw-${i}`}
-            widget={el as unknown as WidgetWithSchema}
-            panelPath={panelPath}
-            pathSegment={pathSegment}
-            i18n={i18n}
-          />
-        )
-      }
-      if (el.type === 'form') {
-        return (
-          <SchemaForm key={`${tabIdx}-tf-${(el as { id?: string }).id ?? i}`} form={el as FormElementMeta} panelPath={panelPath} i18n={i18n} />
-        )
-      }
-      if (el.type === 'dialog') {
-        return (
-          <SchemaDialog key={`${tabIdx}-td-${(el as { id?: string }).id ?? i}`} dialog={el as DialogElementMeta} panelPath={panelPath} pathSegment={pathSegment} i18n={i18n} />
-        )
-      }
-      if (el.type === 'dashboard' && renderDashboard) {
-        return renderDashboard(el as DashboardEl, i)
-      }
-      return (
-        <SchemaElementRenderer key={`${tabIdx}-${i}`} element={el as PanelSchemaElementMeta} panelPath={panelPath} i18n={i18n} />
-      )
-    })
+    return tabElements.map((el: SchemaElement, i: number) =>
+      renderSchemaElement(el, i, renderCtx, `${tabIdx}`)
+    )
   }
 
   const highlightEnabled = animate === true || (typeof animate === 'object' && animate.highlight !== false)
