@@ -5,6 +5,7 @@ import { slugify } from '../_lib/persist.js'
 import type { SchemaElement, TabItem, DashboardEl, I18nExtended } from './schema-types.js'
 import { renderSchemaElement, type RenderContext } from './renderSchemaElement.js'
 import { Tabs, TabsList, TabsTab, TabsPanels, TabsPanel } from '@/components/animate-ui/components/base/tabs.js'
+import { Tabs as TabsPrimitive } from '@/components/animate-ui/primitives/base/tabs.js'
 
 // Lazy import to avoid circular dependency — DashboardSection is only used inside tab content
 let DashboardSectionComp: React.ComponentType<{ dashboard: DashboardEl; pathSegment: string; panelPath: string; i18n: I18nExtended }> | null = null
@@ -129,10 +130,6 @@ export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, 
     }
   }
 
-  const activeElements = tabs[activeIdx]?.elements?.length
-    ? tabs[activeIdx]!.elements!
-    : fetchedElements[activeIdx] ?? []
-
   const renderCtx: RenderContext = { panelPath, pathSegment, i18n, renderDashboard }
 
   function renderTabElements(tabElements: SchemaElement[], tabIdx: number) {
@@ -141,104 +138,99 @@ export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, 
     )
   }
 
+  // ── Animation flags ──
   const highlightEnabled = animate === true || (typeof animate === 'object' && animate.highlight !== false)
   const contentEnabled = animate === true || (typeof animate === 'object' && animate.content === true)
 
-  // Animated tabs (highlight + optional content animation)
-  if (highlightEnabled) {
-    return (
-      <Tabs
-        value={activeSlug}
-        onValueChange={(v) => {
-          const tab = tabs.find(t => slugify(t.label) === v)
-          if (tab) void switchTab(tab.label)
-        }}
-      >
+  // ── Unified render ──
+  // Always use <Tabs> primitive for value management.
+  // Swap tab trigger components based on highlight flag.
+  const TabsWrapper = highlightEnabled ? Tabs : TabsPrimitive
+  const wrapperClassName = highlightEnabled ? undefined : 'flex flex-col gap-2'
+
+  return (
+    <TabsWrapper
+      value={activeSlug}
+      onValueChange={(v) => {
+        const tab = tabs.find(t => slugify(t.label) === v)
+        if (tab) void switchTab(tab.label)
+      }}
+      className={wrapperClassName}
+    >
+      {/* Tab triggers */}
+      {highlightEnabled ? (
         <TabsList>
           {tabs.map((tab) => (
             <TabsTab key={slugify(tab.label)} value={slugify(tab.label)}>
               {tab.label}
-              {tab.badge != null && (
-                <span className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">{tab.badge}</span>
-              )}
+              <TabBadge badge={tab.badge} />
             </TabsTab>
           ))}
         </TabsList>
-        {loading && activeElements.length === 0 && (
-          <div className="space-y-4">
-            <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
-            <div className="h-24 rounded-xl bg-muted/30 animate-pulse" />
-          </div>
-        )}
-        {contentEnabled ? (
-          <TabsPanels>
-            {tabs.map((tab, tabIdx) => {
-              const tabElements = tab.elements?.length
-                ? tab.elements
-                : fetchedElements[tabIdx] ?? []
-              return (
-                <TabsPanel key={slugify(tab.label)} value={slugify(tab.label)} className="flex flex-col gap-6">
-                  {renderTabElements(tabElements, tabIdx)}
-                </TabsPanel>
-              )
-            })}
-          </TabsPanels>
-        ) : (
-          tabs.map((tab, tabIdx) => {
-            const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
-            const isActive = tabIdx === activeIdx
+      ) : (
+        <div className="flex items-center gap-1 mb-2">
+          {tabs.map((tab, idx) => {
+            const isActive = idx === activeIdx
             return (
-              <div key={tabIdx} className={isActive ? 'flex flex-col gap-6' : 'hidden'}>
-                {renderTabElements(tabElements, tabIdx)}
-              </div>
+              <button
+                key={idx}
+                type="button"
+                onClick={() => void switchTab(tab.label)}
+                className={[
+                  'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
+                  isActive
+                    ? 'bg-muted text-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                ].join(' ')}
+              >
+                {tab.label}
+                <TabBadge badge={tab.badge} active={isActive} plain />
+              </button>
             )
-          })
-        )}
-      </Tabs>
-    )
-  }
+          })}
+        </div>
+      )}
 
-  // Plain tabs — no animation
-  return (
-    <div>
-      <div className="flex items-center gap-1 mb-4">
-        {tabs.map((tab, idx) => {
-          const isActive = idx === activeIdx
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => void switchTab(tab.label)}
-              className={[
-                'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
-                isActive
-                  ? 'bg-muted text-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              ].join(' ')}
-            >
-              {tab.label}
-              {tab.badge != null && (
-                <span className={`ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium ${isActive ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground'}`}>{tab.badge}</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      {loading && activeElements.length === 0 && (
+      {/* Loading skeleton */}
+      {loading && !tabs[activeIdx]?.elements?.length && !fetchedElements[activeIdx] && (
         <div className="space-y-4">
           <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
           <div className="h-24 rounded-xl bg-muted/30 animate-pulse" />
         </div>
       )}
-      {tabs.map((tab, tabIdx) => {
-        const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
-        const isActive = tabIdx === activeIdx
-        return (
-          <div key={tabIdx} className={isActive ? 'flex flex-col gap-6' : 'hidden'}>
-            {renderTabElements(tabElements, tabIdx)}
-          </div>
-        )
-      })}
-    </div>
+
+      {/* Tab content */}
+      {contentEnabled ? (
+        <TabsPanels>
+          {tabs.map((tab, tabIdx) => {
+            const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
+            return (
+              <TabsPanel key={slugify(tab.label)} value={slugify(tab.label)} className="flex flex-col gap-6">
+                {renderTabElements(tabElements, tabIdx)}
+              </TabsPanel>
+            )
+          })}
+        </TabsPanels>
+      ) : (
+        tabs.map((tab, tabIdx) => {
+          const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
+          const isActive = tabIdx === activeIdx
+          return (
+            <div key={tabIdx} className={isActive ? 'flex flex-col gap-6' : 'hidden'}>
+              {renderTabElements(tabElements, tabIdx)}
+            </div>
+          )
+        })
+      )}
+    </TabsWrapper>
   )
+}
+
+/** Shared badge rendering for tab triggers. */
+function TabBadge({ badge, active, plain }: { badge?: string | number | null; active?: boolean; plain?: boolean }) {
+  if (badge == null) return null
+  const className = plain
+    ? `ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium ${active ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground'}`
+    : 'ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground'
+  return <span className={className}>{badge}</span>
 }
