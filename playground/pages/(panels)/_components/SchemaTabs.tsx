@@ -24,11 +24,13 @@ export interface SchemaTabsProps {
   modelBacked?: boolean
   persist?: 'localStorage' | 'url' | 'session' | false
   activeTab?: number
+  /** Animation config: true = both, { highlight?, content? } for granular control */
+  animate?: boolean | { highlight?: boolean; content?: boolean }
   /** Optional render function for dashboard elements inside tabs */
   renderDashboard?: (el: DashboardEl, idx: number) => React.ReactNode
 }
 
-export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, modelBacked, persist, activeTab: ssrActiveTab, renderDashboard }: SchemaTabsProps) {
+export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, modelBacked, persist, activeTab: ssrActiveTab, animate, renderDashboard }: SchemaTabsProps) {
   const tabsId = id
   const defaultSlug = slugify(tabs[0]?.label ?? '')
 
@@ -168,42 +170,104 @@ export function SchemaTabs({ id, tabs, urlSearch, panelPath, pathSegment, i18n, 
     })
   }
 
+  const highlightEnabled = animate === true || (typeof animate === 'object' && animate.highlight !== false)
+  const contentEnabled = animate === true || (typeof animate === 'object' && animate.content === true)
+
+  // Animated tabs (highlight + optional content animation)
+  if (highlightEnabled) {
+    return (
+      <Tabs
+        value={activeSlug}
+        onValueChange={(v) => {
+          const tab = tabs.find(t => slugify(t.label) === v)
+          if (tab) void switchTab(tab.label)
+        }}
+      >
+        <TabsList>
+          {tabs.map((tab) => (
+            <TabsTab key={slugify(tab.label)} value={slugify(tab.label)}>
+              {tab.label}
+              {tab.badge != null && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">{tab.badge}</span>
+              )}
+            </TabsTab>
+          ))}
+        </TabsList>
+        {loading && activeElements.length === 0 && (
+          <div className="space-y-4">
+            <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted/30 animate-pulse" />
+          </div>
+        )}
+        {contentEnabled ? (
+          <TabsPanels>
+            {tabs.map((tab, tabIdx) => {
+              const tabElements = tab.elements?.length
+                ? tab.elements
+                : fetchedElements[tabIdx] ?? []
+              return (
+                <TabsPanel key={slugify(tab.label)} value={slugify(tab.label)} className="flex flex-col gap-6">
+                  {renderTabElements(tabElements, tabIdx)}
+                </TabsPanel>
+              )
+            })}
+          </TabsPanels>
+        ) : (
+          tabs.map((tab, tabIdx) => {
+            const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
+            const isActive = tabIdx === activeIdx
+            return (
+              <div key={tabIdx} className={isActive ? 'flex flex-col gap-6' : 'hidden'}>
+                {renderTabElements(tabElements, tabIdx)}
+              </div>
+            )
+          })
+        )}
+      </Tabs>
+    )
+  }
+
+  // Plain tabs — no animation
   return (
-    <Tabs
-      value={activeSlug}
-      onValueChange={(v) => {
-        const tab = tabs.find(t => slugify(t.label) === v)
-        if (tab) void switchTab(tab.label)
-      }}
-    >
-      <TabsList>
-        {tabs.map((tab) => (
-          <TabsTab key={slugify(tab.label)} value={slugify(tab.label)}>
-            {tab.label}
-            {tab.badge != null && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">{tab.badge}</span>
-            )}
-          </TabsTab>
-        ))}
-      </TabsList>
+    <div>
+      <div className="flex items-center gap-1 mb-4">
+        {tabs.map((tab, idx) => {
+          const isActive = idx === activeIdx
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => void switchTab(tab.label)}
+              className={[
+                'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
+                isActive
+                  ? 'bg-muted text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              ].join(' ')}
+            >
+              {tab.label}
+              {tab.badge != null && (
+                <span className={`ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium ${isActive ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground'}`}>{tab.badge}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
       {loading && activeElements.length === 0 && (
         <div className="space-y-4">
           <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
           <div className="h-24 rounded-xl bg-muted/30 animate-pulse" />
         </div>
       )}
-      <TabsPanels>
-        {tabs.map((tab, tabIdx) => {
-          const tabElements = tab.elements?.length
-            ? tab.elements
-            : fetchedElements[tabIdx] ?? []
-          return (
-            <TabsPanel key={slugify(tab.label)} value={slugify(tab.label)} className="flex flex-col gap-6">
-              {renderTabElements(tabElements, tabIdx)}
-            </TabsPanel>
-          )
-        })}
-      </TabsPanels>
-    </Tabs>
+      {tabs.map((tab, tabIdx) => {
+        const tabElements = tab.elements?.length ? tab.elements : fetchedElements[tabIdx] ?? []
+        const isActive = tabIdx === activeIdx
+        return (
+          <div key={tabIdx} className={isActive ? 'flex flex-col gap-6' : 'hidden'}>
+            {renderTabElements(tabElements, tabIdx)}
+          </div>
+        )
+      })}
+    </div>
   )
 }

@@ -41,6 +41,8 @@ export interface TabsMeta {
   persist?:   TabsPersistMode
   /** SSR-resolved active tab index (for session/url modes). */
   activeTab?: number
+  /** Animation config: true = both highlight + content, or { highlight?, content? } */
+  animate?:  boolean | { highlight?: boolean; content?: boolean }
 }
 
 // ─── Tab — first-class schema tab ───────────────────────────
@@ -180,6 +182,9 @@ export class Tabs {
   // ── Task 16: Lazy / poll ───────────────────────────────────
   private _lazy = false
   private _pollInterval?: number
+
+  // ── Animation ────────────────────────────────────────────
+  private _animate: boolean | { highlight?: boolean; content?: boolean } = false
 
   static make(id?: string, tabs?: Tab[]): Tabs {
     const instance = new Tabs()
@@ -345,6 +350,12 @@ export class Tabs {
   /** Re-fetch tab data every N milliseconds. */
   poll(ms: number): this { this._pollInterval = ms; return this }
 
+  /** Enable animated tab transitions. Pass `true` for both highlight + content, or configure individually. */
+  animate(value: boolean | { highlight?: boolean; content?: boolean } = true): this {
+    this._animate = value
+    return this
+  }
+
   isLazy(): boolean { return this._lazy }
   getPollInterval(): number | undefined { return this._pollInterval }
 
@@ -388,6 +399,7 @@ export class Tabs {
     if (this._pollInterval !== undefined) meta.pollInterval = this._pollInterval
     if (this.isModelBacked()) meta.modelBacked = true
     if (this._persist !== false) meta.persist = this._persist
+    if (this._animate !== false) meta.animate = this._animate
     return meta
   }
 }

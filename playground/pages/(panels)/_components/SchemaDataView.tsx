@@ -1,12 +1,28 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type RefCallback } from 'react'
 import type { PanelI18n, PanelColumnMeta } from '@boostkit/panels'
 import { ResourceIcon } from './ResourceIcon.js'
 import { TableEditCell } from './TableEditCell.js'
 import { ConfirmDialog } from './ConfirmDialog.js'
 import { Checkbox } from '@/components/ui/checkbox.js'
 import { Tabs as ScopeTabs, TabsList as ScopeTabsList, TabsTab as ScopeTabsTab, TabsPanels as ScopeTabsPanels, TabsPanel as ScopeTabsPanel } from '@/components/animate-ui/components/base/tabs.js'
+
+// auto-animate: client-only lazy hook (SSR-safe)
+function useAutoAnimate(): [RefCallback<HTMLElement>] {
+  const parentRef = useRef<HTMLElement | null>(null)
+  const initialized = useRef(false)
+  const ref: RefCallback<HTMLElement> = (el) => {
+    parentRef.current = el
+    if (el && !initialized.current && typeof window !== 'undefined') {
+      initialized.current = true
+      import('@formkit/auto-animate').then(({ default: autoAnimate }) => {
+        if (parentRef.current) autoAnimate(parentRef.current)
+      }).catch(() => {})
+    }
+  }
+  return [ref]
+}
 
 
 // ─── Action types ────────────────────────────────────────────
@@ -107,6 +123,8 @@ interface DataViewElement {
   resource?:         string
   renderedRecords?:  unknown[][]
   softDeletes?:      boolean
+  autoAnimate?:      boolean | { duration?: number }
+  animateScopes?:    boolean | { highlight?: boolean; content?: boolean }
 }
 
 /** Resource-context props — enables resource API mode. */
@@ -134,6 +152,11 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
   } = element
   const sortableOptions = element.sortableOptions
   const scopePresets = element.scopes
+
+  // Animation flags
+  const animateScopes = element.animateScopes
+  const scopeHighlightAnimated = animateScopes === true || (typeof animateScopes === 'object' && animateScopes.highlight !== false)
+  const scopeContentAnimated = animateScopes === true || (typeof animateScopes === 'object' && animateScopes.content === true)
 
   // Auto-detect resource mode from element.resource or explicit prop
   const resourceSlug = resource?.resourceSlug ?? (element.resource || undefined)
@@ -594,7 +617,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
       )}
 
       {/* Scope pills */}
-      {scopePresets && scopePresets.length > 0 && (
+      {scopePresets && scopePresets.length > 0 && scopeHighlightAnimated && (
         <ScopeTabs
           value={String(activeScope)}
           onValueChange={(v) => handleScopeChange(Number(v))}
@@ -608,6 +631,26 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
             ))}
           </ScopeTabsList>
         </ScopeTabs>
+      )}
+      {scopePresets && scopePresets.length > 0 && !scopeHighlightAnimated && (
+        <div className="flex items-center gap-1 mb-2">
+          {scopePresets.map((scope, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleScopeChange(i)}
+              className={[
+                'inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors',
+                activeScope === i
+                  ? 'bg-muted text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              ].join(' ')}
+            >
+              {scope.icon && <span className="mr-1.5"><ResourceIcon icon={scope.icon} /></span>}
+              {scope.label}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Toolbar (shared across scopes — not animated) */}
@@ -834,8 +877,8 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         </div>
       )}
 
-      {/* Data content — animated when scopes exist */}
-      {scopePresets && scopePresets.length > 0 ? (
+      {/* Data content — animated when scopes + animateScopes enabled */}
+      {scopePresets && scopePresets.length > 0 && scopeContentAnimated ? (
         <ScopeTabs value={String(activeScope)} className="gap-0">
           <ScopeTabsPanels>
             {scopePresets.map((_, i) => (
@@ -870,7 +913,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
         const isReorderable = !!element.reorderable && !groupBy
 
         if (viewType === 'table' && viewFields) {
-          return <TableView records={records} fields={viewFields} getHref={getRecordHref} getEditHref={getEditHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder} selectable={bulkActions.length > 0} selectedIds={selectedIds} onToggleAll={toggleSelectAll} onToggleRecord={toggleSelectRecord} />
+          return <TableView records={records} fields={viewFields} getHref={getRecordHref} getEditHref={getEditHref} sortField={sortField} sortDir={sortDir} onSort={handleSortChange} saveEndpoint={saveEndpoint} panelPath={panelPath} i18n={i18n} onSaved={handleEditSaved} reorderable={isReorderable} onReorder={handleReorder} selectable={bulkActions.length > 0} selectedIds={selectedIds} onToggleAll={toggleSelectAll} onToggleRecord={toggleSelectRecord} enableAutoAnimate={!!element.autoAnimate} />
         }
         if (viewType === 'tree' && element.folderField) {
           return (
@@ -947,6 +990,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
             i18n={i18n}
             onSaved={handleEditSaved}
             reorderable={isReorderable}
+            enableAutoAnimate={!!element.autoAnimate}
           />
         ) : (
           <ListView
@@ -963,6 +1007,7 @@ export function SchemaDataView({ element, panelPath, i18n, resource }: Props) {
             i18n={i18n}
             onSaved={handleEditSaved}
             reorderable={isReorderable}
+            enableAutoAnimate={!!element.autoAnimate}
           />
         )
 
@@ -1190,7 +1235,7 @@ function FieldValue({ field, record, saveEndpoint, panelPath, i18n, onSaved }: {
 
 // ─── ListView ───────────────────────────────────────────────
 
-function ListView({ groups, fields, titleField, descriptionField, imageField, iconField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved, onFolderNavigate, reorderable }: {
+function ListView({ groups, fields, titleField, descriptionField, imageField, iconField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved, onFolderNavigate, reorderable, enableAutoAnimate }: {
   groups:           { label: string; records: Record<string, unknown>[] }[]
   fields?:          DataFieldMeta[]
   titleField:       string
@@ -1205,9 +1250,11 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ic
   onSaved?:         (record: Record<string, unknown>, field: string, value: unknown) => void
   onFolderNavigate?: (folderId: string | null) => void
   reorderable?:     boolean
+  enableAutoAnimate?: boolean
 }) {
+  const [animateRef] = useAutoAnimate()
   return (
-    <div className="rounded-xl border overflow-hidden divide-y">
+    <div ref={enableAutoAnimate ? animateRef : undefined} className="rounded-xl border overflow-hidden divide-y">
       {groups.map((group, gi) => (
         <div key={gi}>
           {groupBy && group.label && (
@@ -1272,7 +1319,7 @@ function ListView({ groups, fields, titleField, descriptionField, imageField, ic
 
 // ─── GridView ───────────────────────────────────────────────
 
-function GridView({ groups, fields, titleField, descriptionField, imageField, iconField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved, onFolderNavigate, reorderable }: {
+function GridView({ groups, fields, titleField, descriptionField, imageField, iconField, getHref, groupBy, saveEndpoint, panelPath, i18n, onSaved, onFolderNavigate, reorderable, enableAutoAnimate }: {
   groups:           { label: string; records: Record<string, unknown>[] }[]
   fields?:          DataFieldMeta[]
   titleField:       string
@@ -1287,7 +1334,9 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
   onSaved?:         (record: Record<string, unknown>, field: string, value: unknown) => void
   onFolderNavigate?: (folderId: string | null) => void
   reorderable?:     boolean
+  enableAutoAnimate?: boolean
 }) {
+  const [animateRef] = useAutoAnimate()
   return (
     <div>
       {groups.map((group, gi) => (
@@ -1297,7 +1346,7 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
               {group.label}
             </div>
           )}
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div ref={enableAutoAnimate ? animateRef : undefined} className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {group.records.map((record) => {
               const href = onFolderNavigate ? undefined : getHref(record)
               const isFolder = !!onFolderNavigate
@@ -1356,7 +1405,7 @@ function GridView({ groups, fields, titleField, descriptionField, imageField, ic
 
 // ─── TableView ──────────────────────────────────────────────
 
-function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, onReorder, selectable, selectedIds, onToggleAll, onToggleRecord }: {
+function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, onSort, saveEndpoint, panelPath, i18n, onSaved, reorderable, onReorder, selectable, selectedIds, onToggleAll, onToggleRecord, enableAutoAnimate }: {
   records:       Record<string, unknown>[]
   fields:        DataFieldMeta[]
   getHref:       (r: Record<string, unknown>) => string | undefined
@@ -1375,11 +1424,13 @@ function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, 
   selectedIds?:  Set<string>
   onToggleAll?:  () => void
   onToggleRecord?: (id: string) => void
+  enableAutoAnimate?: boolean
 }) {
   // Check selection state for current page records
   const pageSelectedCount = selectable && selectedIds ? records.filter(r => selectedIds.has(String(r.id))).length : 0
   const allSelected = selectable && records.length > 0 && pageSelectedCount === records.length
   const someSelected = selectable && pageSelectedCount > 0 && pageSelectedCount < records.length
+  const [animateRef] = useAutoAnimate()
   const table = (
     <div className="rounded-xl border overflow-hidden">
       <div className="overflow-x-auto">
@@ -1421,7 +1472,7 @@ function TableView({ records, fields, getHref, getEditHref, sortField, sortDir, 
               <th className="w-8" />
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={enableAutoAnimate ? animateRef : undefined}>
             {records.map((record) => {
               const rid = String(record.id)
               const isSelected = selectable && selectedIds?.has(rid)

@@ -127,7 +127,7 @@ export function SchemaPageContent({ elements, panelPath, pathSegment, i18n, urlS
 
         // Schema-level Tabs
         if (el.type === 'tabs') {
-          const tabsEl = el as { type: 'tabs'; id?: string; tabs: TabItem[]; modelBacked?: boolean; persist?: 'localStorage' | 'url' | 'session' | false; activeTab?: number }
+          const tabsEl = el as { type: 'tabs'; id?: string; tabs: TabItem[]; modelBacked?: boolean; persist?: 'localStorage' | 'url' | 'session' | false; activeTab?: number; animate?: boolean | { highlight?: boolean; content?: boolean } }
           const isModelBacked = !!tabsEl.modelBacked
           if (isModelBacked || tabsEl.tabs?.some((t: TabItem) => (t.elements?.length ?? 0) > 0)) {
             return (
@@ -142,6 +142,7 @@ export function SchemaPageContent({ elements, panelPath, pathSegment, i18n, urlS
                 modelBacked={isModelBacked}
                 persist={tabsEl.persist}
                 activeTab={tabsEl.activeTab}
+                animate={tabsEl.animate}
                 renderDashboard={renderDashboard}
               />
             )

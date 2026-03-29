@@ -82,6 +82,8 @@ export interface ListConfig {
   reorderField:      string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSave?:           ((record: Record<string, unknown>, field: string, value: unknown, ctx: any) => Promise<void> | void) | undefined
+  autoAnimate?:      boolean | { duration?: number }
+  animateScopes?:    boolean | { highlight?: boolean; content?: boolean }
 }
 
 // ─── Legacy ListElementMeta (kept for backward compat) ──
@@ -146,6 +148,8 @@ export class List {
   protected _onSaveFn?:        (record: Record<string, unknown>, field: string, value: unknown, ctx: any) => Promise<void> | void
   protected _sortableOptions?: { field: string; label: string }[]
   protected _scopes?:          ScopePreset[]
+  protected _autoAnimate:      boolean | { duration?: number } = false
+  protected _animateScopes:    boolean | { highlight?: boolean; content?: boolean } = false
 
   // ── Legacy fields (backward compat with old List API) ──
   protected _items:            ListItem[] = []
@@ -298,6 +302,18 @@ export class List {
    */
   scopes(presets: ScopePreset[]): this {
     this._scopes = presets
+    return this
+  }
+
+  /** Enable auto-animate on list/table rows (add, remove, reorder transitions). */
+  autoAnimate(value: boolean | { duration?: number } = true): this {
+    this._autoAnimate = value
+    return this
+  }
+
+  /** Enable animated scope transitions. Pass `true` for both highlight + content, or configure individually. */
+  animateScopes(value: boolean | { highlight?: boolean; content?: boolean } = true): this {
+    this._animateScopes = value
     return this
   }
 
@@ -546,6 +562,8 @@ export class List {
       reorderable:     this._reorderable,
       reorderField:    this._reorderField,
       onSave:          this._onSaveFn,
+      autoAnimate:     this._autoAnimate,
+      animateScopes:   this._animateScopes,
     }
   }
 
@@ -591,6 +609,8 @@ export class List {
     if (this._defaultView)     target._defaultView     = this._defaultView
     if (this._renderFn)        target._renderFn        = this._renderFn
     if (this._views.length)    target._views           = [...this._views]
+    target._autoAnimate    = this._autoAnimate
+    target._animateScopes  = this._animateScopes
     if (this._scope)           target._scope           = this._scope
   }
 
