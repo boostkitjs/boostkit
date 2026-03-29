@@ -570,49 +570,18 @@ export class List {
 
   // ── Clone helper (used by Table._cloneWithScope) ──
 
-  /** @internal — Copy all List fields to target. */
+  /**
+   * @internal — Copy all List fields to target.
+   * Iterates own `_`-prefixed properties, shallow-cloning arrays to avoid shared references.
+   * New fields added to List are automatically included — no manual update needed.
+   */
   _cloneBase(target: List): void {
-    target._resourceClass   = this._resourceClass
-    target._model           = this._model
-    if (this._rows) target._rows = this._rows
-    target._limit           = this._limit
-    target._sortDir         = this._sortDir
-    target._searchable      = this._searchable
-    target._perPage         = this._perPage
-    target._lazy            = this._lazy
-    target._live            = this._live
-    target._remember        = this._remember
-    target._filters         = this._filters
-    target._actions         = this._actions
-    target._softDeletes     = this._softDeletes
-    if (this._sortBy)          target._sortBy          = this._sortBy
-    if (this._description)     target._description     = this._description
-    if (this._emptyMessage)    target._emptyMessage    = this._emptyMessage
-    if (this._href)            target._href            = this._href
-    if (this._searchColumns)   target._searchColumns   = [...this._searchColumns]
-    if (this._paginationType)  target._paginationType  = this._paginationType
-    if (this._pollInterval)    target._pollInterval    = this._pollInterval
-    if (this._titleField)      target._titleField      = this._titleField
-    if (this._descriptionField) target._descriptionField = this._descriptionField
-    if (this._imageField)      target._imageField      = this._imageField
-    if (this._emptyState)      target._emptyState      = this._emptyState
-    if (this._creatableUrl)    target._creatableUrl    = this._creatableUrl
-    if (this._groupBy)         target._groupBy         = this._groupBy
-    if (this._folderField)     target._folderField     = this._folderField
-    if (this._iconField)       target._iconField       = this._iconField
-    if (this._sortableOptions) target._sortableOptions = [...this._sortableOptions]
-    if (this._scopes)          target._scopes          = [...this._scopes]
-    target._reorderable  = this._reorderable
-    target._reorderField = this._reorderField
-    if (this._onSaveFn)        target._onSaveFn        = this._onSaveFn
-    if (this._onRecordClick)   target._onRecordClick   = this._onRecordClick
-    if (this._exportable)      target._exportable      = this._exportable
-    if (this._defaultView)     target._defaultView     = this._defaultView
-    if (this._renderFn)        target._renderFn        = this._renderFn
-    if (this._views.length)    target._views           = [...this._views]
-    target._autoAnimate    = this._autoAnimate
-    target._animateScopes  = this._animateScopes
-    if (this._scope)           target._scope           = this._scope
+    for (const key of Object.keys(this) as (keyof this)[]) {
+      if (typeof key !== 'string' || !key.startsWith('_')) continue
+      const val = this[key]
+      // Shallow-clone arrays to prevent shared mutation
+      ;(target as unknown as Record<string, unknown>)[key] = Array.isArray(val) ? [...val] : val
+    }
   }
 
   // ── Legacy toMeta (for backward compat with existing list resolver) ──
