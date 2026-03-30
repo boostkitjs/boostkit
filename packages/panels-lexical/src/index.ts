@@ -1,5 +1,5 @@
 export { LexicalEditor } from './LexicalEditor.js'
-export type { Props as LexicalEditorProps } from './LexicalEditor.js'
+export type { Props as LexicalEditorProps, LexicalEditorHandle } from './LexicalEditor.js'
 
 export { CollaborativePlainText } from './CollaborativePlainText.js'
 

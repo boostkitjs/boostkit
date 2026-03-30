@@ -1,11 +1,28 @@
 'use client'
 
-import { useState, useEffect, type ComponentType } from 'react'
+import { useState, useEffect, useRef, type ComponentType } from 'react'
 import { getField } from '@boostkit/panels'
 import type { FieldInputProps } from './types.js'
 
+/** Global registry of editor refs for version restore. Keyed by field name. */
+const editorRefs = new Map<string, { current: { setContent(json: unknown): void } | null }>()
+
+/** Get the editor ref for a richcontent field (used by version restore). */
+export function getRichContentRef(fieldName: string) {
+  return editorRefs.get(fieldName)?.current ?? null
+}
+
 export function RichContentInput({ field, value, onChange, disabled = false, userName, userColor, wsPath, docName }: FieldInputProps) {
   const isDisabled = disabled || field.readonly
+
+  // Editor ref for imperative control (version restore)
+  const editorRef = useRef<{ setContent(json: unknown): void } | null>(null)
+
+  // Register/unregister in global registry
+  useEffect(() => {
+    editorRefs.set(field.name, editorRef)
+    return () => { editorRefs.delete(field.name) }
+  }, [field.name])
 
   // Always start null to avoid SSR/client hydration mismatch — editor registers async on client
   const [RichEditor, setRichEditor] = useState<ComponentType<Record<string, unknown>> | null>(null)
@@ -39,6 +56,7 @@ export function RichContentInput({ field, value, onChange, disabled = false, use
         {...(field.extra?.['slashCommand'] !== undefined ? { slashCommand: field.extra['slashCommand'] } : {})}
         {...(userName !== undefined ? { userName } : {})}
         {...(userColor !== undefined ? { userColor } : {})}
+        editorRef={editorRef}
       />
     )
   }
