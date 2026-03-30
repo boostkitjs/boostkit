@@ -1,10 +1,30 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getField } from '@boostkit/panels'
 import type { FieldInputProps } from './types.js'
 import { INPUT_CLS } from './types.js'
+import { getCollabTextRef } from './TextInput.js'
+
+// Re-export for convenience — textarea collab fields use the same registry
+export { getCollabTextRef }
+
+/** Global registry for textarea collab refs */
+const collabTextareaRefs = new Map<string, { current: { setContent(text: string): void } | null }>()
+
+export function getCollabTextareaRef(fieldName: string) {
+  return collabTextareaRefs.get(fieldName)?.current ?? null
+}
 
 export function TextareaInput({ field, value, onChange, disabled = false, userName, userColor, wsPath, docName }: FieldInputProps) {
   const isDisabled = disabled || field.readonly
+
+  const editorRef = useRef<{ setContent(text: string): void } | null>(null)
+
+  useEffect(() => {
+    if (field.yjs) {
+      collabTextareaRefs.set(field.name, editorRef)
+      return () => { collabTextareaRefs.delete(field.name) }
+    }
+  }, [field.name, field.yjs])
 
   // Collaborative textarea — only render after client mount to avoid hydration mismatch
   const [mounted, setMounted] = useState(false)
@@ -27,6 +47,7 @@ export function TextareaInput({ field, value, onChange, disabled = false, userNa
           required={field.required}
           {...(userName !== undefined ? { userName } : {})}
           {...(userColor !== undefined ? { userColor } : {})}
+          editorRef={editorRef}
         />
       )
     }

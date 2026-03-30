@@ -28,6 +28,12 @@ import { SlashMenuOption } from './lexical/SlashCommandPlugin.js'
 import type { BlockMeta } from '@boostkit/panels'
 import { useYjsCollab } from './hooks/useYjsCollab.js'
 
+/** Imperative handle for controlling the editor from parent */
+export interface LexicalEditorHandle {
+  /** Replace editor content with the given Lexical JSON state. Works in collab mode — propagates to Y.Doc. */
+  setContent: (json: unknown) => void
+}
+
 export interface Props {
   value:         unknown       // Lexical JSON state or null
   onChange:      (json: unknown) => void
@@ -46,6 +52,8 @@ export interface Props {
   /** Stable user identity — passed to CollaborationPlugin so Lexical cursors match input/textarea cursors. */
   userName?:     string
   userColor?:    string
+  /** Ref for imperative editor control (e.g. version restore) */
+  editorRef?:    React.MutableRefObject<LexicalEditorHandle | null>
 }
 
 const EDITOR_NODES = [
@@ -84,7 +92,7 @@ export function LexicalEditor({
   value, onChange, placeholder, disabled,
   wsPath, docName, fragmentName = 'richcontent',
   blocks, toolbar: toolbarInput, slashCommand,
-  userName, userColor,
+  userName, userColor, editorRef,
 }: Props) {
   const anchorRef = useRef<HTMLDivElement>(null)
   const cursorsContainerRef = useRef<HTMLDivElement>(null)
@@ -223,6 +231,7 @@ export function LexicalEditor({
         )}
 
         <OnChangePlugin onChange={onChange} />
+        {editorRef && <EditorRefPlugin editorRef={editorRef} />}
         {collabActive && providerSynced && <SeedPlugin value={value} yjsRef={collabRef} />}
 
         <DragHandleLoader anchorRef={anchorRef} />
@@ -335,6 +344,41 @@ function SeedPlugin({ value, yjsRef }: { value: unknown; yjsRef: React.RefObject
       console.error('[LexicalEditor] SeedPlugin failed:', e)
     }
   }, [editor, value, yjsRef])
+
+  return null
+}
+
+// ── EditorRefPlugin ────────────────────────────────────────
+// Exposes an imperative handle so the parent can set editor content.
+// In collab mode, editor.update() propagates changes through the
+// CollaborationPlugin binding to the Y.Doc and all connected clients.
+
+function EditorRefPlugin({ editorRef }: { editorRef: React.MutableRefObject<LexicalEditorHandle | null> }) {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    editorRef.current = {
+      setContent(json: unknown) {
+        try {
+          const serialized = typeof json === 'string' ? JSON.parse(json) : json
+          const children = (serialized as { root?: { children?: unknown[] } })?.root?.children
+          if (Array.isArray(children) && children.length > 0) {
+            editor.update(() => {
+              const root = $getRoot()
+              root.clear()
+              for (const child of children) {
+                const node = $parseSerializedNode(child as SerializedLexicalNode)
+                root.append(node)
+              }
+            })
+          }
+        } catch (e) {
+          console.error('[EditorRefPlugin] setContent failed:', e)
+        }
+      },
+    }
+    return () => { editorRef.current = null }
+  }, [editor, editorRef])
 
   return null
 }

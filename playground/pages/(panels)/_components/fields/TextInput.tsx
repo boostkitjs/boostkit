@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getField } from '@boostkit/panels'
 import type { FieldInputProps } from './types.js'
 import { INPUT_CLS } from './types.js'
@@ -16,11 +16,17 @@ function formatDateValue(v: unknown, fieldType: string): string {
   const d = new Date(v as string)
   if (isNaN(d.getTime())) return String(v)
   if (fieldType === 'datetime') {
-    // datetime-local expects "YYYY-MM-DDTHH:mm"
     return d.toISOString().slice(0, 16)
   }
-  // date expects "YYYY-MM-DD"
   return d.toISOString().slice(0, 10)
+}
+
+/** Global registry of collaborative text editor refs for version restore. */
+const collabTextRefs = new Map<string, { current: { setContent(text: string): void } | null }>()
+
+/** Get the editor ref for a collaborative text field (used by version restore). */
+export function getCollabTextRef(fieldName: string) {
+  return collabTextRefs.get(fieldName)?.current ?? null
 }
 
 export function TextInput({ field, value, onChange, disabled = false, userName, userColor, wsPath, docName }: FieldInputProps) {
@@ -30,6 +36,16 @@ export function TextInput({ field, value, onChange, disabled = false, userName, 
   const inputValue = (field.type === 'date' || field.type === 'datetime')
     ? formatDateValue(value, field.type)
     : (value as string) ?? ''
+
+  // Editor ref for imperative control (version restore)
+  const editorRef = useRef<{ setContent(text: string): void } | null>(null)
+
+  useEffect(() => {
+    if (field.yjs) {
+      collabTextRefs.set(field.name, editorRef)
+      return () => { collabTextRefs.delete(field.name) }
+    }
+  }, [field.name, field.yjs])
 
   // Collaborative text — only render after client mount to avoid hydration mismatch
   const [mounted, setMounted] = useState(false)
@@ -41,7 +57,7 @@ export function TextInput({ field, value, onChange, disabled = false, userName, 
       return (
         <CollabText
           value={(value as string) ?? ''}
-          onChange={(v) => onChange(v)}
+          onChange={(v: unknown) => onChange(v)}
           wsPath={wsPath}
           docName={docName}
           fieldName={field.name}
@@ -51,6 +67,7 @@ export function TextInput({ field, value, onChange, disabled = false, userName, 
           required={field.required}
           {...(userName !== undefined ? { userName } : {})}
           {...(userColor !== undefined ? { userColor } : {})}
+          editorRef={editorRef}
         />
       )
     }
@@ -61,7 +78,7 @@ export function TextInput({ field, value, onChange, disabled = false, userName, 
       type={inputType}
       name={field.name}
       value={inputValue}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(field.type === 'number' ? e.target.valueAsNumber : e.target.value)}
       required={field.required}
       readOnly={field.readonly}
       disabled={isDisabled}

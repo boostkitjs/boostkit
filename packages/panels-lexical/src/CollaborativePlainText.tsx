@@ -23,6 +23,8 @@ interface Props {
   className?:  string
   /** If true, renders as a multi-line textarea. If false (default), single-line input. */
   multiline?:  boolean
+  /** Ref for imperative control (e.g. version restore) */
+  editorRef?:  React.MutableRefObject<{ setContent(text: string): void } | null>
 }
 
 const THEME = {
@@ -39,7 +41,7 @@ const THEME = {
 export function CollaborativePlainText({
   value, onChange, wsPath, docName, fieldName,
   userName, userColor, placeholder, disabled, required,
-  className, multiline = false,
+  className, multiline = false, editorRef,
 }: Props) {
   const cursorsContainerRef = useRef<HTMLDivElement>(null)
   const fragmentName = `text:${fieldName}`
@@ -104,6 +106,7 @@ export function CollaborativePlainText({
         <OnChangePlugin onChange={onChange} />
         {!multiline && <BlockEnterPlugin />}
         {providerSynced && <SeedPlugin value={value} yjsRef={collabRef} />}
+        {editorRef && <PlainTextEditorRefPlugin editorRef={editorRef} />}
       </div>
     </LexicalComposer>
   )
@@ -178,6 +181,30 @@ function SeedPlugin({ value, yjsRef }: { value: string; yjsRef: React.RefObject<
       root.append(p)
     })
   }, [editor, value, yjsRef])
+
+  return null
+}
+
+// ── PlainTextEditorRefPlugin ──────────────────────────────
+// Exposes imperative setContent for version restore.
+
+function PlainTextEditorRefPlugin({ editorRef }: { editorRef: React.MutableRefObject<{ setContent(text: string): void } | null> }) {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    editorRef.current = {
+      setContent(text: string) {
+        editor.update(() => {
+          const root = $getRoot()
+          root.clear()
+          const p = $createParagraphNode()
+          p.append($createTextNode(text))
+          root.append(p)
+        })
+      },
+    }
+    return () => { editorRef.current = null }
+  }, [editor, editorRef])
 
   return null
 }

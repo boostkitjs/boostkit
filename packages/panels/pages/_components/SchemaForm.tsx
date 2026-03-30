@@ -45,27 +45,7 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
   const isStandalone = (form as SchemaFormMeta & { standalone?: boolean }).standalone === true
   const rawFormYjs = form as SchemaFormMeta & { yjs?: boolean; wsLivePath?: string | null; docName?: string | null; liveProviders?: string[] }
 
-  // After version restore, skip collab on first load so editors render from DB values.
-  // The Yjs rooms were cleared — collab would show empty content. On first user edit,
-  // collab re-activates and the new content propagates to the fresh rooms.
-  const [collabSuppressed, setCollabSuppressed] = useState(() => {
-    if (typeof sessionStorage === 'undefined') return false
-    const key = `bk:skip-collab:${resourceSlug}:${recordId}`
-    const skip = sessionStorage.getItem(key) === '1'
-    if (skip) sessionStorage.removeItem(key)
-    return skip
-  })
-
-  // Re-enable collab after a short delay (let editors mount with DB values first)
-  useEffect(() => {
-    if (!collabSuppressed) return
-    const timer = setTimeout(() => setCollabSuppressed(false), 2000)
-    return () => clearTimeout(timer)
-  }, [collabSuppressed])
-
-  const formYjs = collabSuppressed
-    ? { ...rawFormYjs, yjs: false, wsLivePath: null, docName: null }
-    : rawFormYjs
+  const formYjs = rawFormYjs
 
   // Build a map of field persist modes for quick lookup
   const fieldPersistModes = new Map<string, string>()
@@ -355,9 +335,6 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
   const effectiveBackUrl = backUrl ?? cancelUrl ?? panelPath
 
   const [saving, setSaving] = useState(false)
-  const [formKey, setFormKey] = useState(0)
-  const isRestorePreview = formKey !== 0
-  const [activeVersionId, setActiveVersionId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
   // ── Edit-mode save handler ──────────────────────────────
@@ -401,33 +378,9 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
       else if (draftableEnabled && publishAction === 'unpublish') toast.success((i18n as Record<string, string>).unpublishedToast ?? 'Unpublished.')
       else toast.success((i18n as Record<string, string>).savedToast ?? 'Saved.')
 
-      // After save: disconnect Yjs providers. The Y.Doc rooms retain their content —
-      // they already match the DB after save. No clearing needed for normal saves.
-      // Full room clearing (_sync-live) is only used for version restore and the Re-sync action.
+      // Disconnect Yjs providers before navigating away.
+      // Y.Doc rooms retain their content — they match the DB after save.
       if (formYjs.yjs && resourceSlug && recordId) {
-        if (isRestorePreview) {
-          // Version restore: clear all Y.Doc rooms so they start fresh.
-          // Server rooms cleared via _sync-live, local IndexedDB cleared here.
-          await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}/_sync-live`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-          if (formYjs.docName && typeof indexedDB !== 'undefined') {
-            try {
-              const dbs = await indexedDB.databases()
-              for (const db of dbs) {
-                if (db.name?.startsWith(formYjs.docName)) {
-                  indexedDB.deleteDatabase(db.name)
-                }
-              }
-            } catch {
-              indexedDB.deleteDatabase(formYjs.docName)
-            }
-          }
-          // Signal the next edit page load to skip collab on first render,
-          // allowing editors to load from DB values directly.
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem(`bk:skip-collab:${resourceSlug}:${recordId}`, '1')
-          }
-        }
-        // Disconnect providers (they'll reconnect on next edit page load)
         collabRef.current?.provider?.destroy()
         collabRef.current?.idb?.destroy()
       }
@@ -444,29 +397,52 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
   }
 
   // ── Version restore ──────────────────────────────────────
-  async function restoreVersion(versionId: string) {
-    if (!isEditMode) return
-    try {
-      const res = await fetch(`/${pathSegment}/api/${resourceSlug}/${recordId}/_versions/${versionId}`)
-      if (res.ok) {
-        const body = await res.json() as { data: { fields: Record<string, unknown> } }
-        const merged = { ...values, ...body.data.fields }
-        setValues(merged)
-        valuesRef.current = merged
-        setFormKey(k => k + 1)
-        setActiveVersionId(versionId)
-        const { toast } = await import('sonner')
-        toast.success((i18n as Record<string, string>).restoredToast ?? 'Version restored.')
+  /** Restore a single field from a version — updates the live form value.
+   * For richcontent fields, writes directly to the editor via imperative ref,
+   * which propagates through the CollaborationPlugin to all connected users. */
+  function restoreField(name: string, value: unknown) {
+    handleChange(name, value)
+
+    // Sync to Y.Map for all collab fields
+    if (collabRef.current?.fieldsMap) {
+      collabRef.current.suppress.add(name)
+      collabRef.current.fieldsMap.set(name, value)
+      setTimeout(() => collabRef.current?.suppress.delete(name), 50)
+    }
+
+    // For collaborative text/richcontent fields: use the editor's imperative ref
+    // to set content. This writes to the Lexical editor, which syncs to Y.Doc
+    // via CollaborationPlugin and propagates to all connected users.
+    const field = form.fields.find(f => (f as FieldMeta).name === name) as FieldMeta | undefined
+    if (field?.yjs && TEXT_TYPES.has(field.type)) {
+      if (field.type === 'richcontent' || field.type === 'content') {
+        import('./fields/RichContentInput.js').then(({ getRichContentRef }) => {
+          const ref = getRichContentRef(name)
+          if (ref) ref.setContent(value)
+        }).catch(() => {})
+      } else {
+        // text, textarea, email — use collab text ref
+        import('./fields/TextInput.js').then(({ getCollabTextRef }) => {
+          const ref = getCollabTextRef(name)
+          if (ref) {
+            ref.setContent(String(value ?? ''))
+          } else {
+            // Try textarea registry
+            import('./fields/TextareaInput.js').then(({ getCollabTextareaRef }) => {
+              const ref2 = getCollabTextareaRef(name)
+              if (ref2) ref2.setContent(String(value ?? ''))
+            }).catch(() => {})
+          }
+        }).catch(() => {})
       }
-    } catch {
-      const { toast } = await import('sonner')
-      toast.error((i18n as Record<string, string>).restoreError ?? 'Failed to restore.')
     }
   }
 
-  function rejoinLive() {
-    setFormKey(0)
-    setActiveVersionId(null)
+  /** Restore all changed fields from a version */
+  function restoreAllFields(fieldValues: Record<string, unknown>) {
+    for (const [name, value] of Object.entries(fieldValues)) {
+      restoreField(name, value)
+    }
   }
 
   // ── Autosave ──────────────────────────────────────────────
@@ -477,7 +453,7 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     values,
     initialValues: (form as { initialValues?: Record<string, unknown> }).initialValues ?? {},
     saving,
-    isRestorePreview,
+    isRestorePreview: false,
     yjs: !!formYjs.yjs,
     syncAllFieldsToDoc: formYjs.yjs && collabRef.current?.fieldsMap ? (vals) => {
       const doc = collabRef.current
@@ -598,8 +574,8 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     uploadBase: panelPath.replace(/\/$/, '') + '/api',
     i18n: i18n as PanelI18n & Record<string, string>,
     mode,
-    ...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: isRestorePreview ? null : formYjs.wsLivePath } : {}),
-    ...(formYjs.yjs && formYjs.docName ? { docName: isRestorePreview ? null : formYjs.docName } : {}),
+    ...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: formYjs.wsLivePath } : {}),
+    ...(formYjs.yjs && formYjs.docName ? { docName: formYjs.docName } : {}),
     ...(userName ? { userName } : {}),
     ...(userColor ? { userColor } : {}),
   }
@@ -647,11 +623,11 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
         <div className={versionedEnabled && showHistory ? 'flex-1 max-w-2xl' : ''}>
           {isStandalone ? (
             <div className="flex flex-col gap-4">
-              <SchemaRenderer key={formKey} {...rendererProps} />
+              <SchemaRenderer key="form" {...rendererProps} />
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <SchemaRenderer key={formKey} {...rendererProps} />
+              <SchemaRenderer key="form" {...rendererProps} />
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
               {/* Edit mode: FormActions (save/publish/unpublish/cancel) */}
@@ -689,11 +665,11 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
             pathSegment={pathSegment}
             slug={resourceSlug!}
             id={recordId!}
-            onRestore={restoreVersion}
-            onRejoinLive={rejoinLive}
+            values={values}
+            fields={form.fields as FieldMeta[]}
+            onRestoreField={restoreField}
+            onRestoreAll={restoreAllFields}
             i18n={i18n as PanelI18n & Record<string, string>}
-            activeVersionId={activeVersionId}
-            isRestorePreview={isRestorePreview}
           />
         )}
       </div>
