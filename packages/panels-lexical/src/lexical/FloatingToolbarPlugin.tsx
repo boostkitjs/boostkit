@@ -14,9 +14,11 @@ import { hasTool } from '../toolbar.js'
 
 interface FloatingToolbarProps {
   config?: ToolbarConfig | undefined
+  /** Callback to enter link edit mode (shared with FloatingLinkEditorPlugin) */
+  onInsertLink?: () => void
 }
 
-export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
+export function FloatingToolbarPlugin({ config, onInsertLink }: FloatingToolbarProps = {}) {
   const [editor] = useLexicalComposerContext()
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [isVisible, setIsVisible] = useState(false)
@@ -85,7 +87,7 @@ export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [isVisible])
 
-  // Auto-track scroll/resize to keep toolbar positioned
+  // Auto-track scroll/resize
   useEffect(() => {
     if (!isVisible) {
       cleanupRef.current?.()
@@ -97,7 +99,6 @@ export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
     const rootEl = editor.getRootElement()
     if (!toolbar || !rootEl) return
 
-    // Use the editor root as the reference for autoUpdate's scroll ancestor detection
     cleanupRef.current = autoUpdate(rootEl, toolbar, positionToolbar)
 
     return () => {
@@ -119,29 +120,16 @@ export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
     )
   }, [editor, updateToolbar])
 
-  const [linkMode, setLinkMode] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const linkInputRef = useRef<HTMLInputElement>(null)
-
-  const toggleLink = useCallback(() => {
+  const handleInsertLink = useCallback(() => {
     if (isLink) {
+      // Already a link — remove it
       editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
-      setLinkMode(false)
     } else {
-      setLinkMode(true)
-      setLinkUrl('')
-      requestAnimationFrame(() => linkInputRef.current?.focus())
+      // Create placeholder link, then signal edit mode
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, 'https://')
+      onInsertLink?.()
     }
-  }, [editor, isLink])
-
-  const submitLink = useCallback(() => {
-    if (linkUrl.trim()) {
-      const url = linkUrl.trim().startsWith('http') ? linkUrl.trim() : `https://${linkUrl.trim()}`
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url)
-    }
-    setLinkMode(false)
-    setLinkUrl('')
-  }, [editor, linkUrl])
+  }, [editor, isLink, onInsertLink])
 
   if (!isVisible) return null
 
@@ -156,7 +144,7 @@ export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
 
   const extraBtns = [
     has('code') && <ToolbarBtn key="code" active={isCode} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')} label="<>" title="Code" className="font-mono text-xs" />,
-    has('link') && <ToolbarBtn key="link" active={isLink || linkMode} onClick={toggleLink} label="🔗" title="Link" />,
+    has('link') && <ToolbarBtn key="link" active={isLink} onClick={handleInsertLink} label="🔗" title="Link" />,
   ].filter(Boolean)
 
   return createPortal(
@@ -164,30 +152,9 @@ export function FloatingToolbarPlugin({ config }: FloatingToolbarProps = {}) {
       ref={toolbarRef}
       className="fixed z-50 flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg p-1"
     >
-      {linkMode ? (
-        <form
-          className="flex items-center gap-1"
-          onSubmit={(e) => { e.preventDefault(); submitLink() }}
-        >
-          <input
-            ref={linkInputRef}
-            type="text"
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="Paste URL…"
-            className="h-6 w-40 rounded border border-border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring"
-            onKeyDown={(e) => { if (e.key === 'Escape') { setLinkMode(false); setLinkUrl('') } }}
-          />
-          <button type="submit" className="px-1.5 py-0.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90">↵</button>
-          <button type="button" onClick={() => { setLinkMode(false); setLinkUrl('') }} className="px-1 py-0.5 rounded text-xs text-muted-foreground hover:bg-accent/50">✕</button>
-        </form>
-      ) : (
-        <>
-          {formatBtns}
-          {formatBtns.length > 0 && extraBtns.length > 0 && <div className="w-px h-5 bg-border mx-0.5" />}
-          {extraBtns}
-        </>
-      )}
+      {formatBtns}
+      {formatBtns.length > 0 && extraBtns.length > 0 && <div className="w-px h-5 bg-border mx-0.5" />}
+      {extraBtns}
     </div>,
     document.body,
   )

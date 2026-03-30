@@ -5,6 +5,7 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin'
 import { CollaborationPlugin } from '@lexical/react/LexicalCollaborationPlugin'
 import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
@@ -17,6 +18,7 @@ import { useEffect } from 'react'
 import { SlashCommandPlugin } from './lexical/SlashCommandPlugin.js'
 import { FloatingToolbarPlugin } from './lexical/FloatingToolbarPlugin.js'
 import { FixedToolbarPlugin } from './lexical/FixedToolbarPlugin.js'
+import { FloatingLinkEditorPlugin } from './lexical/FloatingLinkEditorPlugin.js'
 import { resolveToolbar, type ToolbarProfile, type ToolbarTool, type ToolbarConfig } from './toolbar.js'
 import { DraggableBlockPlugin_EXPERIMENTAL } from '@lexical/react/LexicalDraggableBlockPlugin'
 import { $getRoot, $getSelection, $isRangeSelection, $parseSerializedNode, type LexicalEditor as LexicalEditorType, type SerializedLexicalNode } from 'lexical'
@@ -89,6 +91,7 @@ export function LexicalEditor({
 
   // ── Toolbar config ──
   const toolbarConfig = useMemo(() => resolveToolbar(toolbarInput), [toolbarInput])
+  const [isLinkEditMode, setIsLinkEditMode] = useState(false)
   const showSlashCommand = slashCommand !== false
   const slashToolFilter = Array.isArray(slashCommand) ? slashCommand : (slashCommand === false ? [] : undefined)
 
@@ -153,7 +156,7 @@ export function LexicalEditor({
       <div className="lexical-editor rounded-lg border border-input bg-background relative">
         {/* Fixed toolbar — pinned above editor content */}
         {toolbarConfig.fixed && toolbarConfig.tools.length > 0 && (
-          <FixedToolbarPlugin config={toolbarConfig} />
+          <FixedToolbarPlugin config={toolbarConfig} onInsertLink={() => setIsLinkEditMode(true)} />
         )}
         <div ref={anchorRef} className="relative">
         <div ref={cursorsContainerRef} className="cursors-container" />
@@ -171,16 +174,18 @@ export function LexicalEditor({
           ErrorBoundary={LexicalErrorBoundary}
         />
         <ListPlugin />
+        <LinkPlugin />
         {showSlashCommand && (
           <SlashCommandPlugin
             extraItems={blockSlashItems}
-            toolFilter={slashToolFilter ?? toolbarConfig.tools}
+            toolFilter={slashToolFilter}
           />
         )}
         {/* Floating toolbar — only when not using fixed toolbar and profile has tools */}
         {!toolbarConfig.fixed && toolbarConfig.tools.length > 0 && (
-          <FloatingToolbarPlugin config={toolbarConfig} />
+          <FloatingToolbarPlugin config={toolbarConfig} onInsertLink={() => setIsLinkEditMode(true)} />
         )}
+        <FloatingLinkEditorPlugin isEditMode={isLinkEditMode} setIsEditMode={setIsLinkEditMode} />
 
         {collabActive ? (
           <CollaborationPlugin
