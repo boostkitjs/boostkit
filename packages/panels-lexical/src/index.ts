@@ -8,6 +8,7 @@ export { BlockRegistryContext, BlockNodeComponent } from './lexical/BlockNodeCom
 export { SlashCommandPlugin, SlashMenuOption } from './lexical/SlashCommandPlugin.js'
 export { FloatingToolbarPlugin } from './lexical/FloatingToolbarPlugin.js'
 export { FixedToolbarPlugin } from './lexical/FixedToolbarPlugin.js'
+export { FloatingLinkEditorPlugin } from './lexical/FloatingLinkEditorPlugin.js'
 export { resolveToolbar, hasTool, hasHeadingTool } from './toolbar.js'
 export type { ToolbarTool, ToolbarProfile, ToolbarConfig } from './toolbar.js'
 

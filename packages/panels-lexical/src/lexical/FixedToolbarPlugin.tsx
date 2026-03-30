@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import {
   $getSelection, $isRangeSelection, $isElementNode,
@@ -28,9 +28,10 @@ function getSelectedElement(selection: ReturnType<typeof $getSelection>) {
 
 interface Props {
   config: ToolbarConfig
+  onInsertLink?: () => void
 }
 
-export function FixedToolbarPlugin({ config }: Props) {
+export function FixedToolbarPlugin({ config, onInsertLink }: Props) {
   const [editor] = useLexicalComposerContext()
   const [isBold, setIsBold] = useState(false)
   const [isItalic, setIsItalic] = useState(false)
@@ -103,30 +104,14 @@ export function FixedToolbarPlugin({ config }: Props) {
     })
   }, [editor, blockType])
 
-  const [linkMode, setLinkMode] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const linkInputRef = useRef<HTMLInputElement>(null)
-
-  const toggleLink = useCallback(() => {
+  const handleInsertLink = useCallback(() => {
     if (isLink) {
       editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
-      setLinkMode(false)
     } else {
-      setLinkMode(true)
-      setLinkUrl('')
-      requestAnimationFrame(() => linkInputRef.current?.focus())
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, 'https://')
+      onInsertLink?.()
     }
-  }, [editor, isLink])
-
-  const submitLink = useCallback((e?: FormEvent) => {
-    e?.preventDefault()
-    if (linkUrl.trim()) {
-      const url = linkUrl.trim().startsWith('http') ? linkUrl.trim() : `https://${linkUrl.trim()}`
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url)
-    }
-    setLinkMode(false)
-    setLinkUrl('')
-  }, [editor, linkUrl])
+  }, [editor, isLink, onInsertLink])
 
   const has = (tool: ToolbarTool) => hasTool(config, tool)
 
@@ -180,22 +165,7 @@ export function FixedToolbarPlugin({ config }: Props) {
       {(has('bold') || has('italic') || has('underline') || has('strikethrough')) && (has('code') || has('link')) && <Separator />}
 
       {has('code') && <ToolbarBtn active={isCode} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')} label="<>" title="Inline Code" className="font-mono text-xs" />}
-      {has('link') && <ToolbarBtn active={isLink || linkMode} onClick={toggleLink} label="🔗" title="Link" />}
-      {linkMode && (
-        <form className="flex items-center gap-1 ml-1" onSubmit={submitLink}>
-          <input
-            ref={linkInputRef}
-            type="text"
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="Paste URL…"
-            className="h-6 w-40 rounded border border-border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring"
-            onKeyDown={(e) => { if (e.key === 'Escape') { setLinkMode(false); setLinkUrl('') } }}
-          />
-          <button type="submit" className="px-1.5 py-0.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90">↵</button>
-          <button type="button" onClick={() => { setLinkMode(false); setLinkUrl('') }} className="px-1 py-0.5 rounded text-xs text-muted-foreground hover:bg-accent/50">✕</button>
-        </form>
-      )}
+      {has('link') && <ToolbarBtn active={isLink} onClick={handleInsertLink} label="🔗" title="Link" />}
 
       {/* Alignment */}
       {has('align') && (
