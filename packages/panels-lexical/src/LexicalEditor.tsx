@@ -21,7 +21,8 @@ import { FixedToolbarPlugin } from './lexical/FixedToolbarPlugin.js'
 import { FloatingLinkEditorPlugin } from './lexical/FloatingLinkEditorPlugin.js'
 import { resolveToolbar, type ToolbarProfile, type ToolbarTool, type ToolbarConfig } from './toolbar.js'
 import { DraggableBlockPlugin_EXPERIMENTAL } from '@lexical/react/LexicalDraggableBlockPlugin'
-import { $getRoot, $getSelection, $isRangeSelection, $parseSerializedNode, type LexicalEditor as LexicalEditorType, type SerializedLexicalNode } from 'lexical'
+import { InsertParagraphAtEndPlugin } from './lexical/InsertParagraphAtEndPlugin.js'
+import { $getRoot, $getSelection, $isRangeSelection, $isDecoratorNode, $createParagraphNode, $parseSerializedNode, type LexicalEditor as LexicalEditorType, type SerializedLexicalNode } from 'lexical'
 import { BlockNode, $createBlockNode } from './lexical/BlockNode.js'
 import { BlockRegistryContext } from './lexical/BlockNodeComponent.js'
 import { SlashMenuOption } from './lexical/SlashCommandPlugin.js'
@@ -231,11 +232,13 @@ export function LexicalEditor({
         )}
 
         <OnChangePlugin onChange={onChange} />
+        <EnsureBlockParagraphsPlugin />
         {editorRef && <EditorRefPlugin editorRef={editorRef} />}
         {collabActive && providerSynced && <SeedPlugin value={value} yjsRef={collabRef} />}
 
         <DragHandleLoader anchorRef={anchorRef} />
         </div>
+        <InsertParagraphAtEndPlugin />
       </div>
       <style>{dragHandleStyles}</style>
     </LexicalComposer>
@@ -390,6 +393,33 @@ function EditorRefPlugin({ editorRef }: { editorRef: React.MutableRefObject<Lexi
     }
     return () => { editorRef.current = null }
   }, [editor, editorRef])
+
+  return null
+}
+
+// ── EnsureTrailingParagraphPlugin ─────────────────────────
+// Ensures decorator nodes (blocks) always have a paragraph after them
+// so the cursor has somewhere to go. Without this, deleting the trailing
+// paragraph also deletes the block.
+
+/** Ensures a trailing paragraph exists after the last decorator node (block)
+ * so the cursor has somewhere to go. */
+function EnsureBlockParagraphsPlugin() {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const root = $getRoot()
+        const lastChild = root.getLastChild()
+        if (lastChild && $isDecoratorNode(lastChild)) {
+          editor.update(() => {
+            $getRoot().append($createParagraphNode())
+          })
+        }
+      })
+    })
+  }, [editor])
 
   return null
 }
