@@ -9,6 +9,7 @@ import { makeCommandCmd } from './make/command.js'
 import { makeEvent } from './make/event.js'
 import { makeListener } from './make/listener.js'
 import { makeMail } from './make/mail.js'
+import { makeAgent } from './make/agent.js'
 
 export function makeCommand(program: Command): void {
   makeController(program)
@@ -21,4 +22,5 @@ export function makeCommand(program: Command): void {
   makeEvent(program)
   makeListener(program)
   makeMail(program)
+  makeAgent(program)
 }
