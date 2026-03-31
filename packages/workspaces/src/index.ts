@@ -10,6 +10,16 @@ export { WorkspaceResource } from './resources/WorkspaceResource.js'
 export { Canvas, type CanvasElementMeta } from './canvas/Canvas.js'
 export { CanvasField } from './canvas/CanvasField.js'
 
+// Chat schema element + field
+export { Chat, type ChatElementMeta } from './chat/Chat.js'
+export { ChatField } from './chat/ChatField.js'
+
+// Orchestrator
+export { Orchestrator, type OrchestratorOptions, type OrchestratorResponse, type OrchestratorStreamResponse } from './orchestrator/Orchestrator.js'
+export { buildDepartmentAgent } from './orchestrator/buildDepartmentAgent.js'
+export { createDepartmentTool } from './orchestrator/DepartmentTool.js'
+export { broadcastMiddleware } from './orchestrator/OrchestratorMiddleware.js'
+
 // Node types
 export type {
   CanvasNodeType,

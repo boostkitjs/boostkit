@@ -149,3 +149,109 @@ describe('fractional-index', () => {
     assert.ok(mid < indices[2]!, `Expected "${mid}" < "${indices[2]}"`)
   })
 })
+
+// ─── Orchestrator ─────────────────────────────────────────
+
+import { Orchestrator } from './orchestrator/Orchestrator.js'
+import { buildDepartmentAgent } from './orchestrator/buildDepartmentAgent.js'
+import { createDepartmentTool } from './orchestrator/DepartmentTool.js'
+import { broadcastMiddleware } from './orchestrator/OrchestratorMiddleware.js'
+import type { DepartmentNode, AgentNode, CanvasNode as CanvasNodeType } from './canvas/CanvasNode.js'
+
+describe('buildDepartmentAgent', () => {
+  it('returns null for unknown department', () => {
+    const nodes = new Map<string, CanvasNodeType>()
+    assert.strictEqual(buildDepartmentAgent('nonexistent', nodes), null)
+  })
+
+  it('builds agent from department node', () => {
+    const nodes = new Map<string, CanvasNodeType>()
+    const dept: DepartmentNode = {
+      id: 'dept-1', type: 'department', parentId: 'root', index: 'a0',
+      x: 0, y: 0, z: 0, width: 200, height: 150,
+      props: { name: 'Sales', color: '#3b82f6', instructions: 'You handle sales inquiries.' },
+      version: 1, updatedBy: '', updatedAt: 0,
+    }
+    nodes.set('dept-1', dept)
+
+    const agentObj = buildDepartmentAgent('dept-1', nodes)
+    assert.ok(agentObj)
+    assert.strictEqual(agentObj.instructions(), 'You handle sales inquiries.')
+  })
+})
+
+describe('createDepartmentTool', () => {
+  it('creates a tool with department info in description', () => {
+    const nodes = new Map<string, CanvasNodeType>()
+    nodes.set('dept-1', {
+      id: 'dept-1', type: 'department', parentId: 'root', index: 'a0',
+      x: 0, y: 0, z: 0, width: 200, height: 150,
+      props: { name: 'Sales', color: '#3b82f6' },
+      version: 1, updatedBy: '', updatedAt: 0,
+    } as DepartmentNode)
+
+    const tool = createDepartmentTool(nodes)
+    assert.strictEqual(tool.definition.name, 'invoke_department')
+    assert.ok(tool.definition.description.includes('Sales'))
+  })
+})
+
+describe('Orchestrator', () => {
+  it('constructs with options', () => {
+    const nodes = new Map<string, CanvasNodeType>()
+    const orchestrator = new Orchestrator({ name: 'Test', nodes })
+    assert.ok(orchestrator)
+    assert.ok(orchestrator.getConversations())
+  })
+})
+
+describe('broadcastMiddleware', () => {
+  it('returns an AiMiddleware with correct name', () => {
+    const mw = broadcastMiddleware('private-test')
+    assert.strictEqual(mw.name, 'broadcast')
+    assert.ok(typeof mw.onChunk === 'function')
+    assert.ok(typeof mw.onFinish === 'function')
+    assert.ok(typeof mw.onError === 'function')
+  })
+})
+
+// ─── Chat ─────────────────────────────────────────────────
+
+import { Chat } from './chat/Chat.js'
+import { ChatField } from './chat/ChatField.js'
+
+describe('Chat', () => {
+  it('creates with make()', () => {
+    const c = Chat.make('workspace-chat')
+    assert.strictEqual(c.getId(), 'workspace-chat')
+    assert.strictEqual(c.getType(), 'chat')
+  })
+
+  it('fluent API sets flags', () => {
+    const c = Chat.make('test').collaborative().persist().height(500)
+    assert.strictEqual(c.isCollaborative(), true)
+    assert.strictEqual(c.isPersist(), true)
+    assert.strictEqual(c.getHeight(), 500)
+  })
+
+  it('toMeta() serializes correctly', () => {
+    const meta = Chat.make('ws-chat').collaborative().persist().toMeta()
+    assert.strictEqual(meta.type, 'chat')
+    assert.strictEqual(meta.id, 'ws-chat')
+    assert.strictEqual(meta.collaborative, true)
+    assert.strictEqual(meta.persist, true)
+    assert.strictEqual(meta.height, null)
+  })
+})
+
+describe('ChatField', () => {
+  it('creates with make()', () => {
+    const f = ChatField.make('chat')
+    assert.strictEqual(f.getType(), 'chat')
+  })
+
+  it('height() sets height', () => {
+    const f = ChatField.make('chat').height(600)
+    assert.strictEqual(f.getHeight(), 600)
+  })
+})
