@@ -841,7 +841,13 @@ importers:
       yjs:
         specifier: '>=13'
         version: 13.6.29
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
+      '@boostkit/broadcast':
+        specifier: workspace:*
+        version: link:../broadcast
       '@boostkit/router':
         specifier: workspace:*
         version: link:../router

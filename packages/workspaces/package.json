@@ -28,10 +28,12 @@
   "dependencies": {
     "@boostkit/core": "workspace:*",
     "@boostkit/ai": "workspace:*",
-    "@boostkit/panels": "workspace:*"
+    "@boostkit/panels": "workspace:*",
+    "zod": "^3.23.0"
   },
   "peerDependencies": {
     "@boostkit/router": "workspace:*",
+    "@boostkit/broadcast": "workspace:*",
     "react": ">=18",
     "react-dom": ">=18",
     "three": ">=0.160.0",
@@ -43,6 +45,7 @@
   },
   "peerDependenciesMeta": {
     "@boostkit/router": { "optional": true },
+    "@boostkit/broadcast": { "optional": true },
     "three": { "optional": true },
     "@react-three/fiber": { "optional": true },
     "@react-three/drei": { "optional": true },
@@ -52,6 +55,7 @@
   },
   "devDependencies": {
     "@boostkit/router": "workspace:*",
+    "@boostkit/broadcast": "workspace:*",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "react": "^19.0.0",
