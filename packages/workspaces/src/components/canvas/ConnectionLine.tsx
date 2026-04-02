@@ -16,6 +16,33 @@ const LINE_Y = 1.0
 const LINE_WIDTH = 1.5
 const LINE_HEIGHT = 0.3
 
+/** Pick the L-bend corner that follows the handle exit direction cleanly */
+function smartCorner(
+  fp: { x: number; z: number },
+  tp: { x: number; z: number },
+  fromHandle: string,
+): [number, number, number] {
+  const isHorizontalHandle = fromHandle === 'left' || fromHandle === 'right'
+
+  if (isHorizontalHandle) {
+    // Check if horizontal-first would backtrack
+    const goingRight = fromHandle === 'right'
+    const targetIsRight = tp.x > fp.x
+    if (goingRight === targetIsRight) {
+      return [tp.x, LINE_Y, fp.z] // horizontal first
+    }
+    return [fp.x, LINE_Y, tp.z] // flip to vertical first
+  }
+
+  // Vertical handle (top/bottom)
+  const goingDown = fromHandle === 'bottom'
+  const targetIsBelow = tp.z > fp.z
+  if (goingDown === targetIsBelow) {
+    return [fp.x, LINE_Y, tp.z] // vertical first
+  }
+  return [tp.x, LINE_Y, fp.z] // flip to horizontal first
+}
+
 /** Flat box segment on the floor */
 function FloorSegment({
   from, to, color,
@@ -63,10 +90,8 @@ export function ConnectionLine({ node, nodes, selected, onSelect, dragOverride }
 
     const from = [fp.x, LINE_Y, fp.z] as [number, number, number]
     const to = [tp.x, LINE_Y, tp.z] as [number, number, number]
-    // L-bend direction: exit horizontal from left/right handles, vertical from top/bottom
-    const corner = (fromHandle === 'left' || fromHandle === 'right')
-      ? [tp.x, LINE_Y, fp.z] as [number, number, number]   // horizontal first
-      : [fp.x, LINE_Y, tp.z] as [number, number, number]   // vertical first
+    // Smart L-routing: pick the bend direction that gives the cleanest path
+    const corner = smartCorner(fp, tp, fromHandle)
     const mid = [(fp.x + tp.x) / 2, LINE_Y + 1, (fp.z + tp.z) / 2] as [number, number, number]
 
     return { from, corner, to, mid }
@@ -106,9 +131,7 @@ export function ConnectionPreview({
 }) {
   const from = [fromX, LINE_Y, fromZ] as [number, number, number]
   const to = [toX, LINE_Y, toZ] as [number, number, number]
-  const corner = (fromHandle === 'left' || fromHandle === 'right')
-    ? [toX, LINE_Y, fromZ] as [number, number, number]
-    : [fromX, LINE_Y, toZ] as [number, number, number]
+  const corner = smartCorner({ x: fromX, z: fromZ }, { x: toX, z: toZ }, fromHandle)
   return (
     <>
       <FloorSegment from={from} to={corner} color={color} />
