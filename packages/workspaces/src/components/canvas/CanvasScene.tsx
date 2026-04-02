@@ -255,7 +255,20 @@ export function CanvasScene({
     const handlePointerMove = (e: PointerEvent) => {
       if (!connectingRef.current) return
       const hit = raycastGround(e)
-      if (hit) setCursorPos({ x: hit.x, z: hit.z })
+      if (!hit) return
+
+      // Check if cursor is near a target node — snap to its closest handle
+      const nearNodeId = findNearestNode(hit.x, hit.z)
+      if (nearNodeId && nearNodeId !== connectSourceRef.current) {
+        const nearNode = store.nodes.get(nearNodeId)
+        if (nearNode) {
+          const handle = findClosestHandle(nearNode, hit.x, hit.z)
+          const hp = getHandleWorldPos(nearNode, handle)
+          setCursorPos({ x: hp.x, z: hp.z })
+          return
+        }
+      }
+      setCursorPos({ x: hit.x, z: hit.z })
     }
 
     const handlePointerUp = (e: PointerEvent) => {
