@@ -13,10 +13,11 @@ interface AgentNodeProps {
   onDragStart: () => void
   onDragEnd: (id: string, x: number, y: number) => void
   editable: boolean
+  activeTool: string
 }
 
 /** 3D box representing an AI agent with status LED */
-export function AgentNode({ node, selected, onSelect, onDragStart, onDragEnd, editable }: AgentNodeProps) {
+export function AgentNode({ node, selected, onSelect, onDragStart, onDragEnd, editable, activeTool }: AgentNodeProps) {
   const groupRef = useRef<Group>(null)
   const dragging = useRef(false)
   const dragOffset = useRef({ x: 0, z: 0 })
@@ -67,7 +68,7 @@ export function AgentNode({ node, selected, onSelect, onDragStart, onDragEnd, ed
   const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     onSelect(node.id)
-    if (!editable) return
+    if (!editable || activeTool === 'connect' || activeTool === 'delete') return
     // Raycast to y=0 ground plane for consistent offset with drag move
     const ray = e.ray ?? raycaster.ray
     const t = -ray.origin.y / ray.direction.y
@@ -77,7 +78,7 @@ export function AgentNode({ node, selected, onSelect, onDragStart, onDragEnd, ed
     dragOffset.current = { x: groundX - node.x, z: groundZ - node.y }
     gl.domElement.style.cursor = 'grabbing'
     onDragStart()
-  }, [editable, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
+  }, [editable, activeTool, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
 
   return (
     <group ref={groupRef} position={[node.x, 0, node.y]}>

@@ -13,10 +13,11 @@ interface KBNodeProps {
   onDragStart: () => void
   onDragEnd: (id: string, x: number, y: number) => void
   editable: boolean
+  activeTool: string
 }
 
 /** Cylinder representing a knowledge base */
-export function KBNode({ node, selected, onSelect, onDragStart, onDragEnd, editable }: KBNodeProps) {
+export function KBNode({ node, selected, onSelect, onDragStart, onDragEnd, editable, activeTool }: KBNodeProps) {
   const groupRef = useRef<Group>(null)
   const dragging = useRef(false)
   const dragOffset = useRef({ x: 0, z: 0 })
@@ -67,7 +68,7 @@ export function KBNode({ node, selected, onSelect, onDragStart, onDragEnd, edita
   const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     onSelect(node.id)
-    if (!editable) return
+    if (!editable || activeTool === 'connect' || activeTool === 'delete') return
     const ray = e.ray ?? raycaster.ray
     const t = -ray.origin.y / ray.direction.y
     const groundX = ray.origin.x + ray.direction.x * t
@@ -76,7 +77,7 @@ export function KBNode({ node, selected, onSelect, onDragStart, onDragEnd, edita
     dragOffset.current = { x: groundX - node.x, z: groundZ - node.y }
     gl.domElement.style.cursor = 'grabbing'
     onDragStart()
-  }, [editable, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
+  }, [editable, activeTool, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
 
   return (
     <group ref={groupRef} position={[node.x, 0, node.y]}>
