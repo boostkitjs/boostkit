@@ -68,7 +68,6 @@ export function ConnectionLine({ node, nodes, selected, onSelect }: ConnectionLi
         <Html
           position={geometry.mid}
           center
-          distanceFactor={300}
           style={{ pointerEvents: 'none' }}
         >
           <div style={{

@@ -13,10 +13,11 @@ interface DepartmentZoneProps {
   onDragStart: () => void
   onDragEnd: (id: string, x: number, y: number) => void
   editable: boolean
+  activeTool: string
 }
 
 /** Translucent colored platform representing a department */
-export function DepartmentZone({ node, selected, onSelect, onDragStart, onDragEnd, editable }: DepartmentZoneProps) {
+export function DepartmentZone({ node, selected, onSelect, onDragStart, onDragEnd, editable, activeTool }: DepartmentZoneProps) {
   const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
   const dragging = useRef(false)
@@ -76,7 +77,7 @@ export function DepartmentZone({ node, selected, onSelect, onDragStart, onDragEn
   const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     onSelect(node.id)
-    if (!editable) return
+    if (!editable || activeTool === 'connect' || activeTool === 'delete') return
     const ray = e.ray ?? raycaster.ray
     const t = -ray.origin.y / ray.direction.y
     const groundX = ray.origin.x + ray.direction.x * t
@@ -85,7 +86,7 @@ export function DepartmentZone({ node, selected, onSelect, onDragStart, onDragEn
     dragOffset.current = { x: groundX - node.x, z: groundZ - node.y }
     gl.domElement.style.cursor = 'grabbing'
     onDragStart()
-  }, [editable, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
+  }, [editable, activeTool, node.id, node.x, node.y, onSelect, onDragStart, gl, raycaster])
 
   return (
     <group ref={groupRef} position={[node.x, 0, node.y]}>

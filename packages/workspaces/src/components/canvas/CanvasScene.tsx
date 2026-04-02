@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MapControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
-import { Vector3 } from 'three'
+import { Vector3, MOUSE } from 'three'
 import type { OrthographicCamera } from 'three'
 import type { CanvasNode, DepartmentNode, AgentNode, KnowledgeBaseNode, ConnectionNode } from '../../canvas/CanvasNode.js'
 import type { CanvasStoreReturn } from '../../canvas/useCanvasStore.js'
@@ -47,6 +47,10 @@ export function CanvasScene({
 }: CanvasSceneProps) {
   const { camera, gl, raycaster } = useThree()
   const controlsRef = useRef<any>(null)
+
+  // Connection tool state
+  const [connectSourceId, setConnectSourceId] = useState<string | null>(null)
+  const [cursorPos, setCursorPos] = useState<{ x: number; z: number } | null>(null)
 
   // Department paint-to-draw state
   const [drawingDept, setDrawingDept] = useState<{ startX: number; startZ: number; endX: number; endZ: number } | null>(null)
@@ -199,6 +203,13 @@ export function CanvasScene({
 
     e.stopPropagation()
 
+    // Cancel connection on background click
+    if (connectSourceId) {
+      setConnectSourceId(null)
+      setCursorPos(null)
+      return
+    }
+
     const nodeType = toolToNodeType(activeTool)
     if (nodeType && editable) {
       const defaultProps = getDefaultProps(nodeType)
@@ -208,9 +219,9 @@ export function CanvasScene({
 
     // Select tool — deselect
     onSelectNode(null)
-  }, [activeTool, editable, store, onSelectNode])
+  }, [activeTool, editable, store, onSelectNode, connectSourceId])
 
-  // Update awareness cursor position
+  // Update awareness cursor position + connection preview
   const handlePointerMove = useCallback((e: any) => {
     if (store.awareness) {
       store.awareness.setLocalStateField('cursor', {
@@ -218,7 +229,11 @@ export function CanvasScene({
         y: e.point.z,
       })
     }
-  }, [store.awareness])
+    // Track cursor for connection preview line
+    if (connectSourceId) {
+      setCursorPos({ x: e.point.x, z: e.point.z })
+    }
+  }, [store.awareness, connectSourceId])
 
   // Handle delete key
   useEffect(() => {
@@ -255,10 +270,24 @@ export function CanvasScene({
   const handleSelect = useCallback((id: string) => {
     if (activeTool === 'delete' && editable) {
       store.deleteNode(id)
+    } else if (activeTool === 'connect' && editable) {
+      if (!connectSourceId) {
+        // First click — set source
+        setConnectSourceId(id)
+      } else if (connectSourceId !== id) {
+        // Second click — create connection
+        store.addNode('connection', 'root', {
+          fromId: connectSourceId,
+          toId: id,
+          label: '',
+          style: 'solid',
+        })
+        setConnectSourceId(null)
+      }
     } else {
       onSelectNode(id)
     }
-  }, [activeTool, editable, store, onSelectNode])
+  }, [activeTool, editable, store, onSelectNode, connectSourceId])
 
   // Categorize nodes
   const departments: DepartmentNode[] = []
@@ -285,13 +314,15 @@ export function CanvasScene({
 
   return (
     <>
-      {/* MapControls: right-drag = pan, pinch/ctrl+scroll = zoom */}
+      {/* MapControls: pinch/ctrl+scroll = zoom, right-drag = pan.
+          Left button removed entirely so it doesn't track gestures that corrupt internal state. */}
       <MapControls
         ref={controlsRef}
         enableRotate={false}
         enableZoom={true}
         enablePan={true}
         screenSpacePanning={true}
+        mouseButtons={{ MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN }}
         minZoom={0.3}
         maxZoom={5}
         onChange={handleControlsChange}
@@ -335,6 +366,7 @@ export function CanvasScene({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           editable={editable}
+          activeTool={activeTool}
         />
       ))}
 
@@ -348,6 +380,7 @@ export function CanvasScene({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           editable={editable}
+          activeTool={activeTool}
         />
       ))}
 
@@ -361,6 +394,7 @@ export function CanvasScene({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           editable={editable}
+          activeTool={activeTool}
         />
       ))}
 
@@ -374,6 +408,22 @@ export function CanvasScene({
           onSelect={handleSelect}
         />
       ))}
+
+      {/* Connection preview line (from source to cursor) */}
+      {connectSourceId && cursorPos && (() => {
+        const sourceNode = store.nodes.get(connectSourceId)
+        if (!sourceNode) return null
+        const sy = sourceNode.type === 'department' ? 2 : 10
+        const from = new Float32Array([sourceNode.x, sy, sourceNode.y, cursorPos.x, 5, cursorPos.z])
+        return (
+          <line>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" count={2} array={from} itemSize={3} />
+            </bufferGeometry>
+            <lineBasicMaterial color="#6366f1" linewidth={2} transparent opacity={0.6} />
+          </line>
+        )
+      })()}
 
       {/* Presence cursors */}
       <PresenceCursors awareness={store.awareness} />
