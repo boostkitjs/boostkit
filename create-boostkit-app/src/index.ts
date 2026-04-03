@@ -76,6 +76,7 @@ async function main(): Promise<void> {
       { value: 'scheduler',     label: 'Scheduler',        hint: 'cron-like task scheduling' },
       { value: 'broadcast',     label: 'WebSocket',        hint: 'real-time channels' },
       { value: 'live',          label: 'Real-time Collab',  hint: 'Yjs CRDT sync' },
+      { value: 'ai',            label: 'AI',               hint: 'LLM providers (Anthropic, OpenAI, Google, Ollama)' },
       { value: 'panels',        label: 'Admin Panel',      hint: 'auto-generated CRUD admin' },
     ],
     initialValues: ['auth', 'cache'],
@@ -94,7 +95,31 @@ async function main(): Promise<void> {
     scheduler:     selectedPackages.includes('scheduler'),
     broadcast:     selectedPackages.includes('broadcast'),
     live:          selectedPackages.includes('live'),
+    ai:            selectedPackages.includes('ai'),
     panels:        selectedPackages.includes('panels'),
+  }
+
+  // ── Panel plugins (conditional sub-prompts) ────────────
+
+  let withMedia = false
+  let withWorkspaces = false
+
+  if (packages.panels && packages.storage) {
+    const mediaAnswer = await confirm({
+      message:      'Add media library plugin? (file browser, uploads, image conversions)',
+      initialValue: true,
+    })
+    if (isCancel(mediaAnswer)) { cancel('Cancelled.'); process.exit(0) }
+    withMedia = mediaAnswer as boolean
+  }
+
+  if (packages.panels && packages.ai) {
+    const workspacesAnswer = await confirm({
+      message:      'Add AI workspaces plugin? (visual agent canvas, chat, orchestrator)',
+      initialValue: false,
+    })
+    if (isCancel(workspacesAnswer)) { cancel('Cancelled.'); process.exit(0) }
+    withWorkspaces = workspacesAnswer as boolean
   }
 
   // ── Todo module ────────────────────────────────────────
@@ -188,7 +213,7 @@ async function main(): Promise<void> {
   const s = spinner()
   s.start('Scaffolding project files...')
 
-  const templates = getTemplates({ name, db, orm, withTodo, authSecret, frameworks, primary, tailwind, shadcn, pm, packages })
+  const templates = getTemplates({ name, db, orm, withTodo, withMedia, withWorkspaces, authSecret, frameworks, primary, tailwind, shadcn, pm, packages })
 
   for (const [filePath, content] of Object.entries(templates)) {
     const abs = path.join(target, filePath)
@@ -234,12 +259,21 @@ async function main(): Promise<void> {
       `  ${pmExec(pm, 'prisma db push')}`,
     ] : []),
     ...(!install && packages.auth ? [`  ${pmRun(pm, 'artisan')} vendor:publish --tag=auth-pages-${primary}`] : []),
+    ...(packages.panels ? [`  ${pmRun(pm, 'artisan')} vendor:publish --tag=panels-pages --force`] : []),
+    ...(withMedia ? [`  ${pmRun(pm, 'artisan')} vendor:publish --tag=media-pages --force`] : []),
     `  ${pmRun(pm, 'dev')}`,
   ]
+
+  const hints: string[] = []
+  if (packages.panels) hints.push('  Admin panel: /admin')
+  if (packages.ai)     hints.push('  AI chat:     /ai-chat  (set ANTHROPIC_API_KEY in .env)')
+  if (withMedia)       hints.push('  Media:       /admin -> Media')
+  const hintsStr = hints.length > 0 ? '\n\n' + hints.join('\n') : ''
 
   outro(
     `Done! Get started:\n\n` +
     nextSteps.join('\n') +
+    hintsStr +
     `\n\n  Docs: https://github.com/boostkitjs/boostkit`
   )
 }

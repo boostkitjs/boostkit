@@ -13,6 +13,8 @@ export interface TemplateContext {
   tailwind:   boolean
   shadcn:     boolean
   pm:         PackageManager
+  withMedia:      boolean
+  withWorkspaces: boolean
   packages: {
     auth:          boolean
     cache:         boolean
@@ -23,6 +25,7 @@ export interface TemplateContext {
     scheduler:     boolean
     broadcast:     boolean
     live:          boolean
+    ai:            boolean
     panels:        boolean
   }
 }
@@ -113,6 +116,8 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   if (ctx.packages.mail)         files['config/mail.ts']     = configMail()
   if (ctx.packages.cache)        files['config/cache.ts']    = configCache()
   if (ctx.packages.storage)      files['config/storage.ts']  = configStorage()
+  if (ctx.packages.ai)           files['config/ai.ts']       = configAi()
+  if (ctx.withMedia)             files['config/media.ts']    = configMedia()
 
   files['config/index.ts']    = configIndex(ctx)
   files['env.d.ts']           = envDts()
@@ -120,6 +125,13 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   if (ctx.packages.auth && ctx.orm) files['app/Models/User.ts'] = userModel()
   files['app/Providers/AppServiceProvider.ts']  = appServiceProvider()
   files['app/Middleware/RequestIdMiddleware.ts'] = requestIdMiddleware()
+
+  // Admin panel
+  if (ctx.packages.panels) {
+    files['app/Panels/AdminPanel.ts'] = adminPanel(ctx)
+    if (ctx.packages.auth && ctx.orm) files['app/Panels/Resources/UserResource.ts'] = userResource()
+    if (ctx.withTodo)                 files['app/Panels/Resources/TodoResource.ts'] = todoResource()
+  }
 
   files['routes/api.ts']     = routesApi(ctx)
   files['routes/web.ts']     = routesWeb()
@@ -142,6 +154,11 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
     files['pages/todos/+config.ts']                  = todoPageConfig(ctx)
     files['pages/todos/+data.ts']                    = todoPageData()
     files[`pages/todos/+Page${ext}`]                 = todoPage(ctx)
+  }
+
+  if (ctx.packages.ai) {
+    files['pages/ai-chat/+config.ts']        = aiChatPageConfig(ctx)
+    files[`pages/ai-chat/+Page${ext}`]       = aiChatPage(ctx)
   }
 
   for (const fw of ctx.frameworks.filter(f => f !== ctx.primary)) {
@@ -250,9 +267,17 @@ function packageJson(ctx: TemplateContext): string {
   if (ctx.packages.scheduler)     deps['@boostkit/schedule']     = 'latest'
   if (ctx.packages.broadcast)     deps['@boostkit/broadcast']    = 'latest'
   if (ctx.packages.live)          deps['@boostkit/live']         = 'latest'
+  if (ctx.packages.ai)          deps['@boostkit/ai']           = 'latest'
   if (ctx.packages.panels) {
     deps['@boostkit/panels']         = 'latest'
     deps['@boostkit/panels-lexical'] = 'latest'
+  }
+  if (ctx.withMedia) {
+    deps['@boostkit/media'] = 'latest'
+    deps['@boostkit/image'] = 'latest'
+  }
+  if (ctx.withWorkspaces) {
+    deps['@boostkit/workspaces'] = 'latest'
   }
 
   const devDeps: Record<string, string> = {
@@ -439,6 +464,15 @@ function dotenv(ctx: TemplateContext): string {
     lines.push(`AUTH_SECRET=${ctx.authSecret}`)
   }
 
+  if (ctx.packages.ai) {
+    lines.push('')
+    lines.push('AI_MODEL=anthropic/claude-sonnet-4-5')
+    lines.push('ANTHROPIC_API_KEY=')
+    lines.push('# OPENAI_API_KEY=')
+    lines.push('# GOOGLE_AI_API_KEY=')
+    lines.push('# OLLAMA_BASE_URL=http://localhost:11434')
+  }
+
   return lines.join('\n') + '\n'
 }
 
@@ -464,6 +498,15 @@ function dotenvExample(ctx: TemplateContext): string {
   if (ctx.packages.auth) {
     lines.push('')
     lines.push('AUTH_SECRET=please-set-a-real-32-char-secret-here')
+  }
+
+  if (ctx.packages.ai) {
+    lines.push('')
+    lines.push('AI_MODEL=anthropic/claude-sonnet-4-5')
+    lines.push('ANTHROPIC_API_KEY=')
+    lines.push('# OPENAI_API_KEY=')
+    lines.push('# GOOGLE_AI_API_KEY=')
+    lines.push('# OLLAMA_BASE_URL=http://localhost:11434')
   }
 
   return lines.join('\n') + '\n'
@@ -805,11 +848,22 @@ function bootstrapProviders(ctx: TemplateContext): string {
     imports.push("import { scheduler } from '@boostkit/schedule'")
     providers.push('scheduler(),')
   }
+  if (ctx.packages.ai) {
+    imports.push("import { ai } from '@boostkit/ai'")
+    providers.push('ai(configs.ai),')
+  }
+
+  if (ctx.packages.panels) {
+    imports.push("import { panels } from '@boostkit/panels'")
+    imports.push("import { adminPanel } from '../app/Panels/AdminPanel.js'")
+    providers.push('panels([adminPanel]),')
+  }
 
   imports.push("import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'")
   providers.push('AppServiceProvider,')
 
-  if (ctx.withTodo) {
+  if (ctx.withTodo && !ctx.packages.panels) {
+    // When panels is selected, todos are managed via TodoResource in AdminPanel
     imports.push("import { TodoServiceProvider } from '../app/Modules/Todo/TodoServiceProvider.js'")
     providers.push('TodoServiceProvider,')
   }
@@ -1039,6 +1093,14 @@ function configIndex(ctx: TemplateContext): string {
     imports.push("import storage  from './storage.js'")
     keys.push('storage')
   }
+  if (ctx.packages.ai) {
+    imports.push("import ai       from './ai.js'")
+    keys.push('ai')
+  }
+  if (ctx.withMedia) {
+    imports.push("import media    from './media.js'")
+    keys.push('media')
+  }
 
   return `${imports.join('\n')}
 
@@ -1076,6 +1138,57 @@ export default {
   },
   redis: { prefix: 'session:', url: Env.get('REDIS_URL', '') },
 } satisfies SessionConfig
+`
+}
+
+function configAi(): string {
+  return `import { Env } from '@boostkit/support'
+import type { AiConfig } from '@boostkit/ai'
+
+export default {
+  default: Env.get('AI_MODEL', 'anthropic/claude-sonnet-4-5'),
+
+  providers: {
+    anthropic: {
+      driver: 'anthropic',
+      apiKey: Env.get('ANTHROPIC_API_KEY', ''),
+    },
+
+    openai: {
+      driver: 'openai',
+      apiKey: Env.get('OPENAI_API_KEY', ''),
+    },
+
+    google: {
+      driver: 'google',
+      apiKey: Env.get('GOOGLE_AI_API_KEY', ''),
+    },
+
+    ollama: {
+      driver:  'ollama',
+      baseUrl: Env.get('OLLAMA_BASE_URL', 'http://localhost:11434'),
+    },
+  },
+} satisfies AiConfig
+`
+}
+
+function configMedia(): string {
+  return `import type { MediaPluginConfig } from '@boostkit/media/server'
+
+export default {
+  libraries: {
+    default: {
+      disk:      'public',
+      directory: 'media',
+      accept:    ['image/*', 'application/pdf'],
+      conversions: [
+        { name: 'thumb',   width: 200, height: 200, crop: true, format: 'webp' },
+        { name: 'preview', width: 800, format: 'webp' },
+      ],
+    },
+  },
+} satisfies MediaPluginConfig
 `
 }
 
@@ -1136,6 +1249,121 @@ export class RequestIdMiddleware extends Middleware {
 `
 }
 
+// ─── admin panel ──────────────────────────────────────────
+
+function adminPanel(ctx: TemplateContext): string {
+  const imports: string[] = [
+    "import { Panel } from '@boostkit/panels'",
+    "import { panelsLexical } from '@boostkit/panels-lexical'",
+  ]
+  const plugins: string[] = ['panelsLexical()']
+  const resources: string[] = []
+
+  if (ctx.withMedia) {
+    imports.push("import { media } from '@boostkit/media/server'")
+    imports.push("import configs from '../../config/index.js'")
+    plugins.push('media(configs.media)')
+  }
+  if (ctx.withWorkspaces) {
+    imports.push("import { workspaces } from '@boostkit/workspaces'")
+    plugins.push('workspaces()')
+  }
+  if (ctx.packages.auth && ctx.orm) {
+    imports.push("import { UserResource } from './Resources/UserResource.js'")
+    resources.push('UserResource')
+  }
+  if (ctx.withTodo) {
+    imports.push("import { TodoResource } from './Resources/TodoResource.js'")
+    resources.push('TodoResource')
+  }
+
+  const useLines = plugins.map(p => `  .use(${p})`).join('\n')
+  const resArray = resources.length > 0
+    ? `  .resources([${resources.join(', ')}])`
+    : `  .resources([])`
+
+  return `${imports.join('\n')}
+
+export const adminPanel = Panel.make('admin')
+  .path('/admin')
+${useLines}
+${resArray}
+`
+}
+
+function userResource(): string {
+  return `import { Resource } from '@boostkit/panels'
+import { TextField, EmailField, DateField, BooleanField } from '@boostkit/panels'
+
+export class UserResource extends Resource {
+  static model = 'user'
+  static label = 'Users'
+  static icon  = 'Users'
+
+  table(table: any) {
+    return table.columns([
+      TextField.make('name').sortable().searchable(),
+      EmailField.make('email').sortable().searchable(),
+      BooleanField.make('emailVerified').label('Verified'),
+      DateField.make('createdAt').label('Joined').sortable(),
+    ])
+  }
+
+  form(form: any) {
+    return form.schema([
+      TextField.make('name').required(),
+      EmailField.make('email').required(),
+    ])
+  }
+
+  detail(_record: any) {
+    return [
+      TextField.make('name'),
+      EmailField.make('email'),
+      BooleanField.make('emailVerified').label('Verified'),
+      DateField.make('createdAt').label('Joined'),
+    ]
+  }
+}
+`
+}
+
+function todoResource(): string {
+  return `import { Resource } from '@boostkit/panels'
+import { TextField, BooleanField, DateField } from '@boostkit/panels'
+
+export class TodoResource extends Resource {
+  static model = 'todo'
+  static label = 'Todos'
+  static icon  = 'CheckSquare'
+
+  table(table: any) {
+    return table.columns([
+      TextField.make('title').sortable().searchable(),
+      BooleanField.make('completed').sortable(),
+      DateField.make('createdAt').label('Created').sortable(),
+    ])
+  }
+
+  form(form: any) {
+    return form.schema([
+      TextField.make('title').required(),
+      BooleanField.make('completed'),
+    ])
+  }
+
+  detail(_record: any) {
+    return [
+      TextField.make('title'),
+      BooleanField.make('completed'),
+      DateField.make('createdAt').label('Created'),
+      DateField.make('updatedAt').label('Updated'),
+    ]
+  }
+}
+`
+}
+
 // ─── routes ────────────────────────────────────────────────
 
 function routesApi(ctx: TemplateContext): string {
@@ -1144,12 +1372,17 @@ function routesApi(ctx: TemplateContext): string {
   ]
   const lines: string[] = []
 
-  if (ctx.packages.auth) {
+  if (ctx.packages.auth || ctx.packages.ai) {
     imports.push("import { app } from '@boostkit/core'")
+  }
+  if (ctx.packages.auth) {
     imports.push("import type { BetterAuthInstance } from '@boostkit/auth'")
     imports.push("import { RateLimit } from '@boostkit/middleware'")
     lines.push('')
     lines.push("const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.')")
+  }
+  if (ctx.packages.ai) {
+    imports.push("import { AI } from '@boostkit/ai'")
   }
 
   lines.push('')
@@ -1180,6 +1413,17 @@ router.all('/api/auth/*', (req) => {
   const honoCtx = req.raw as { req: { raw: Request } }
   return auth.handler(honoCtx.req.raw)
 }, [authLimit])`)
+  }
+
+  if (ctx.packages.ai) {
+    lines.push('')
+    lines.push(`// POST /api/ai/chat — simple AI chat endpoint
+router.post('/api/ai/chat', async (req, res) => {
+  const { messages } = req.body as { messages: { role: string; content: string }[] }
+  const lastMessage  = messages.at(-1)?.content ?? ''
+  const response     = await AI.agent('You are a helpful assistant.').prompt(lastMessage)
+  res.json({ message: response.text })
+})`)
   }
 
   lines.push('')
@@ -1323,6 +1567,10 @@ function pagesIndexPageReact(ctx: TemplateContext): string {
     ? `          <a href="/register" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">Register</a>
           <a href="/login" className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">Login</a>`
     : ''
+  const extraLinks: string[] = []
+  if (ctx.packages.ai) extraLinks.push('        <a href="/ai-chat" className="underline hover:text-foreground">AI Chat</a>')
+  if (ctx.packages.panels) extraLinks.push('        <a href="/admin" className="underline hover:text-foreground">Admin Panel</a>')
+  const extraLinksStr = extraLinks.length > 0 ? '\n' + extraLinks.join('\n') : ''
 
   return `${cssImport}import { useState } from 'react'
 import { useData } from 'vike-react/useData'
@@ -1368,9 +1616,10 @@ ${authLinks}
         </div>
       )}
 
-      <div className="mt-4 flex gap-3 text-xs text-muted-foreground">
+      <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
         <a href="/api/health" className="underline hover:text-foreground">API Health</a>
         <a href="/api/me" className="underline hover:text-foreground">Session Info</a>
+\${extraLinksStr}
       </div>
     </div>
   )
@@ -1386,6 +1635,10 @@ function pagesIndexPageVue(ctx: TemplateContext): string {
   const authLinks = ctx.packages.auth
     ? `\n      <a href="/register" class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">Register</a>\n      <a href="/login" class="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">Login</a>`
     : ''
+  const vueExtraLinks: string[] = []
+  if (ctx.packages.ai) vueExtraLinks.push('      <a href="/ai-chat" class="underline hover:text-foreground">AI Chat</a>')
+  if (ctx.packages.panels) vueExtraLinks.push('      <a href="/admin" class="underline hover:text-foreground">Admin Panel</a>')
+  const vueExtraStr = vueExtraLinks.length > 0 ? '\n' + vueExtraLinks.join('\n') : ''
 
   return `<script setup lang="ts">
 ${cssImport}import { ref } from 'vue'
@@ -1423,9 +1676,9 @@ async function signOut() {
     <div v-else class="flex gap-2">${todosLink}${authLinks}
     </div>
 
-    <div class="mt-4 flex gap-3 text-xs text-muted-foreground">
+    <div class="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
       <a href="/api/health" class="underline hover:text-foreground">API Health</a>
-      <a href="/api/me" class="underline hover:text-foreground">Session Info</a>
+      <a href="/api/me" class="underline hover:text-foreground">Session Info</a>${vueExtraStr}
     </div>
   </div>
 </template>
@@ -1440,6 +1693,10 @@ function pagesIndexPageSolid(ctx: TemplateContext): string {
   const authLinks = ctx.packages.auth
     ? `\n        <a href="/register" class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">Register</a>\n        <a href="/login" class="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">Login</a>`
     : ''
+  const solidExtraLinks: string[] = []
+  if (ctx.packages.ai) solidExtraLinks.push('        <a href="/ai-chat" class="underline hover:text-foreground">AI Chat</a>')
+  if (ctx.packages.panels) solidExtraLinks.push('        <a href="/admin" class="underline hover:text-foreground">Admin Panel</a>')
+  const solidExtraStr = solidExtraLinks.length > 0 ? '\n' + solidExtraLinks.join('\n') : ''
 
   return `${cssImport}import { createSignal } from 'solid-js'
 import { useData } from 'vike-solid/useData'
@@ -1482,9 +1739,9 @@ export default function Page() {
         </div>
       )}
 
-      <div class="mt-4 flex gap-3 text-xs text-muted-foreground">
+      <div class="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
         <a href="/api/health" class="underline hover:text-foreground">API Health</a>
-        <a href="/api/me" class="underline hover:text-foreground">Session Info</a>
+        <a href="/api/me" class="underline hover:text-foreground">Session Info</a>\${solidExtraStr}
       </div>
     </div>
   )
@@ -2070,6 +2327,324 @@ export default function Page() {
       <a href="/" class="text-sm text-muted-foreground underline hover:text-foreground">
         ← Back to home
       </a>
+    </div>
+  )
+}
+`
+}
+
+// ─── AI chat page ─────────────────────────────────────────
+
+function aiChatPageConfig(ctx: TemplateContext): string {
+  switch (ctx.primary) {
+    case 'vue':
+      return `import type { Config } from 'vike/types'
+import vikeVue from 'vike-vue/config'
+
+export default {
+  extends: vikeVue,
+} as unknown as Config
+`
+    case 'solid':
+      return `import type { Config } from 'vike/types'
+import vikeSolid from 'vike-solid/config'
+
+export default {
+  extends: vikeSolid,
+} as unknown as Config
+`
+    default:
+      return `import type { Config } from 'vike/types'
+import vikeReact from 'vike-react/config'
+
+export default {
+  extends: vikeReact,
+} as unknown as Config
+`
+  }
+}
+
+function aiChatPage(ctx: TemplateContext): string {
+  switch (ctx.primary) {
+    case 'vue':   return aiChatPageVue(ctx)
+    case 'solid': return aiChatPageSolid(ctx)
+    default:      return aiChatPageReact(ctx)
+  }
+}
+
+function aiChatPageReact(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n` : ''
+  return `${cssImport}import { useState, useRef, useEffect } from 'react'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export default function Page() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight)
+  }, [messages])
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+
+    const userMsg: Message = { role: 'user', content: input }
+    setMessages(prev => [...prev, userMsg])
+    setInput('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ messages: [...messages, userMsg] }),
+      })
+      const json = await res.json() as { message: string }
+      setMessages(prev => [...prev, { role: 'assistant', content: json.message }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Check your AI_PROVIDER and API key in .env.' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-svh flex-col items-center p-4">
+      <div className="flex w-full max-w-2xl flex-1 flex-col">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">AI Chat</h1>
+          <a href="/" className="text-sm text-muted-foreground underline hover:text-foreground">← Home</a>
+        </div>
+
+        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto rounded-lg border p-4" style={{ maxHeight: 'calc(100svh - 180px)' }}>
+          {messages.length === 0 && (
+            <p className="py-12 text-center text-sm text-muted-foreground">Send a message to start chatting.</p>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
+              <div className={\`max-w-[80%] rounded-lg px-3 py-2 text-sm \${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground'
+              }\`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Thinking...</div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={send} className="mt-3 flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Type a message..."
+            disabled={loading}
+            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+`
+}
+
+function aiChatPageVue(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n` : ''
+  return `<script setup lang="ts">
+${cssImport}import { ref, nextTick } from 'vue'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const messages  = ref<Message[]>([])
+const input     = ref('')
+const loading   = ref(false)
+const scrollEl  = ref<HTMLDivElement>()
+
+async function send(e: Event) {
+  e.preventDefault()
+  if (!input.value.trim() || loading.value) return
+
+  const userMsg: Message = { role: 'user', content: input.value }
+  messages.value.push(userMsg)
+  input.value = ''
+  loading.value = true
+
+  try {
+    const res = await fetch('/api/ai/chat', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ messages: messages.value }),
+    })
+    const json = await res.json() as { message: string }
+    messages.value.push({ role: 'assistant', content: json.message })
+  } catch {
+    messages.value.push({ role: 'assistant', content: 'Something went wrong. Check your AI_PROVIDER and API key in .env.' })
+  } finally {
+    loading.value = false
+    await nextTick()
+    scrollEl.value?.scrollTo(0, scrollEl.value.scrollHeight)
+  }
+}
+</script>
+
+<template>
+  <div class="flex min-h-svh flex-col items-center p-4">
+    <div class="flex w-full max-w-2xl flex-1 flex-col">
+      <div class="mb-4 flex items-center justify-between">
+        <h1 class="text-2xl font-bold">AI Chat</h1>
+        <a href="/" class="text-sm text-muted-foreground underline hover:text-foreground">← Home</a>
+      </div>
+
+      <div ref="scrollEl" class="flex-1 space-y-3 overflow-y-auto rounded-lg border p-4" :style="{ maxHeight: 'calc(100svh - 180px)' }">
+        <p v-if="messages.length === 0" class="py-12 text-center text-sm text-muted-foreground">Send a message to start chatting.</p>
+        <div v-for="(msg, i) in messages" :key="i" :class="['flex', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+          <div :class="['max-w-[80%] rounded-lg px-3 py-2 text-sm', msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground']">
+            {{ msg.content }}
+          </div>
+        </div>
+        <div v-if="loading" class="flex justify-start">
+          <div class="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Thinking...</div>
+        </div>
+      </div>
+
+      <form @submit="send" class="mt-3 flex gap-2">
+        <input
+          v-model="input"
+          placeholder="Type a message..."
+          :disabled="loading"
+          class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          :disabled="loading"
+          class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+</template>
+`
+}
+
+function aiChatPageSolid(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n` : ''
+  return `${cssImport}import { createSignal, For, Show, onCleanup } from 'solid-js'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export default function Page() {
+  const [messages, setMessages] = createSignal<Message[]>([])
+  const [input, setInput]       = createSignal('')
+  const [loading, setLoading]   = createSignal(false)
+  let scrollEl: HTMLDivElement | undefined
+
+  function scrollToBottom() {
+    setTimeout(() => scrollEl?.scrollTo(0, scrollEl.scrollHeight), 0)
+  }
+
+  async function send(e: Event) {
+    e.preventDefault()
+    if (!input().trim() || loading()) return
+
+    const userMsg: Message = { role: 'user', content: input() }
+    setMessages(prev => [...prev, userMsg])
+    setInput('')
+    setLoading(true)
+    scrollToBottom()
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ messages: [...messages()] }),
+      })
+      const json = await res.json() as { message: string }
+      setMessages(prev => [...prev, { role: 'assistant', content: json.message }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Check your AI_PROVIDER and API key in .env.' }])
+    } finally {
+      setLoading(false)
+      scrollToBottom()
+    }
+  }
+
+  return (
+    <div class="flex min-h-svh flex-col items-center p-4">
+      <div class="flex w-full max-w-2xl flex-1 flex-col">
+        <div class="mb-4 flex items-center justify-between">
+          <h1 class="text-2xl font-bold">AI Chat</h1>
+          <a href="/" class="text-sm text-muted-foreground underline hover:text-foreground">← Home</a>
+        </div>
+
+        <div ref={scrollEl} class="flex-1 space-y-3 overflow-y-auto rounded-lg border p-4" style={{ "max-height": 'calc(100svh - 180px)' }}>
+          <Show when={messages().length === 0}>
+            <p class="py-12 text-center text-sm text-muted-foreground">Send a message to start chatting.</p>
+          </Show>
+          <For each={messages()}>
+            {(msg) => (
+              <div class={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
+                <div class={\`max-w-[80%] rounded-lg px-3 py-2 text-sm \${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-foreground'
+                }\`}>
+                  {msg.content}
+                </div>
+              </div>
+            )}
+          </For>
+          <Show when={loading()}>
+            <div class="flex justify-start">
+              <div class="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Thinking...</div>
+            </div>
+          </Show>
+        </div>
+
+        <form onSubmit={send} class="mt-3 flex gap-2">
+          <input
+            value={input()}
+            onInput={e => setInput(e.currentTarget.value)}
+            placeholder="Type a message..."
+            disabled={loading()}
+            class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={loading()}
+            class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Send
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
