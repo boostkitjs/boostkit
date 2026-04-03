@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ResourceAgentMeta } from '@boostkit/panels'
-import { AgentOutput, useAgentRun, type AgentStatus } from './AgentOutput.js'
+import { AgentOutput, useAgentRun, type AgentStatus, type OnFieldUpdate } from './AgentOutput.js'
 
 interface Props {
   agents:       ResourceAgentMeta[]
@@ -9,10 +9,11 @@ interface Props {
   apiBase:      string
   open:         boolean
   onClose:      () => void
+  onFieldUpdate?: OnFieldUpdate
 }
 
-export function AgentSidebar({ agents, recordId, resourceSlug, apiBase, open, onClose }: Props) {
-  const { entries, status, run, reset } = useAgentRun(apiBase, resourceSlug)
+export function AgentSidebar({ agents, recordId, resourceSlug, apiBase, open, onClose, onFieldUpdate }: Props) {
+  const { entries, status, run, reset } = useAgentRun(apiBase, resourceSlug, onFieldUpdate)
   const [activeAgent, setActiveAgent] = useState<string | null>(null)
   const [input, setInput] = useState('')
 

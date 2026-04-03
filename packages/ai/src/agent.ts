@@ -360,6 +360,8 @@ function runAgentLoopStreaming(a: Agent, input: string): AgentStreamResponse {
             const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
             toolResults.push({ toolCallId: tc.id, result })
             messages.push({ role: 'tool', content: resultStr, toolCallId: tc.id })
+            // Yield the finalized tool call so SSE consumers can react to it
+            yield { type: 'tool-call' as const, toolCall: tc }
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err)
             toolResults.push({ toolCallId: tc.id, result: `Error: ${msg}` })

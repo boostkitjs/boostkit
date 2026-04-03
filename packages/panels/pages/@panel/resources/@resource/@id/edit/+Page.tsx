@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useData }   from 'vike-react/useData'
 import { useConfig } from 'vike-react/useConfig'
 import { SchemaForm }  from '../../../../../_components/SchemaForm.js'
@@ -20,6 +20,12 @@ export default function EditPage() {
   const agents = resourceMeta.agents ?? []
   const hasAgents = agents.length > 0
   const [agentSidebarOpen, setAgentSidebarOpen] = useState(false)
+
+  // Agent field updates — append to trigger typing animation in SchemaForm
+  const [agentFieldUpdates, setAgentFieldUpdates] = useState<Array<{ field: string; value: string }>>([])
+  const handleFieldUpdate = useCallback((field: string, value: string) => {
+    setAgentFieldUpdates(prev => [...prev, { field, value }])
+  }, [])
 
   // Back navigation
   const defaultBack = `/${pathSegment}/resources/${slug}`
@@ -54,6 +60,7 @@ export default function EditPage() {
             recordId={id}
             resourceSlug={slug}
             backUrl={backHref}
+            agentFieldUpdates={agentFieldUpdates}
           />
         </div>
       </div>
@@ -66,6 +73,7 @@ export default function EditPage() {
           apiBase={`/${pathSegment}/api`}
           open={agentSidebarOpen}
           onClose={() => setAgentSidebarOpen(false)}
+          onFieldUpdate={handleFieldUpdate}
         />
       )}
     </div>
