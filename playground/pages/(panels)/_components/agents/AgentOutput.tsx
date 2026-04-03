@@ -18,10 +18,15 @@ type OutputEntry =
 
 export type AgentStatus = 'idle' | 'running' | 'complete' | 'error'
 
-export function useAgentRun(apiBase: string, resourceSlug: string) {
+/** Called when the agent updates a field — the value should be animated into the form. */
+export type OnFieldUpdate = (field: string, value: string) => void
+
+export function useAgentRun(apiBase: string, resourceSlug: string, onFieldUpdate?: OnFieldUpdate) {
   const [entries, setEntries] = useState<OutputEntry[]>([])
   const [status, setStatus]   = useState<AgentStatus>('idle')
   const abortRef = useRef<AbortController | null>(null)
+  const onFieldUpdateRef = useRef(onFieldUpdate)
+  onFieldUpdateRef.current = onFieldUpdate
 
   function run(agentSlug: string, recordId: string, input?: string) {
     abortRef.current?.abort()
@@ -74,9 +79,15 @@ export function useAgentRun(apiBase: string, resourceSlug: string) {
                     return [...prev, { type: 'text', text: (data as TextEvent).text }]
                   })
                   break
-                case 'tool_call':
-                  setEntries(prev => [...prev, { type: 'tool_call', ...(data as ToolEvent) }])
+                case 'tool_call': {
+                  const toolData = data as ToolEvent
+                  setEntries(prev => [...prev, { type: 'tool_call', ...toolData }])
+                  // Notify parent to animate the field update
+                  if (toolData.tool === 'update_field' && toolData.input?.field && toolData.input?.value != null) {
+                    onFieldUpdateRef.current?.(toolData.input.field as string, toolData.input.value as string)
+                  }
                   break
+                }
                 case 'complete':
                   setEntries(prev => [...prev, { type: 'complete', data: data as CompleteEvent }])
                   setStatus('complete')
@@ -121,7 +132,11 @@ export function AgentOutput({ entries, status }: AgentOutputProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Scroll within the sidebar container only — not the whole page
+    const el = bottomRef.current
+    if (el?.parentElement) {
+      el.parentElement.scrollTop = el.parentElement.scrollHeight
+    }
   }, [entries.length])
 
   if (entries.length === 0 && status === 'idle') return null

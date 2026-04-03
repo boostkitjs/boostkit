@@ -35,12 +35,14 @@ interface SchemaFormProps {
   resourceSlug?: string
   /** Back navigation URL after save. */
   backUrl?: string
+  /** Agent field updates — each entry triggers a typing animation. Append to trigger new animations. */
+  agentFieldUpdates?: Array<{ field: string; value: string }>
 }
 
 // Text-based field types that get per-field Y.Doc (not shared Y.Map)
 const TEXT_TYPES = new Set(['text', 'textarea', 'email', 'richcontent', 'content'])
 
-export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submitMethod, prefill, mode = 'create', cancelUrl, recordId, resourceSlug, backUrl }: SchemaFormProps) {
+export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submitMethod, prefill, mode = 'create', cancelUrl, recordId, resourceSlug, backUrl, agentFieldUpdates }: SchemaFormProps) {
   const pathSegment = panelPath.replace(/^\//, '')
   const isStandalone = (form as SchemaFormMeta & { standalone?: boolean }).standalone === true
   const rawFormYjs = form as SchemaFormMeta & { yjs?: boolean; wsLivePath?: string | null; docName?: string | null; liveProviders?: string[] }
@@ -132,29 +134,26 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     const needsIndexeddb = formYjs.liveProviders?.includes('indexeddb') ?? false
     if (!needsWebsocket && !needsIndexeddb) return
 
-    // Flatten Section/Tabs to find all collaborative fields
+    // Flatten Section/Tabs to find all collaborative non-text fields
     const mapFields: string[] = []
-    const textFieldNames: string[] = []
-    function collectCollabFields(items: unknown[]) {
+    function collectMapFields(items: unknown[]) {
       for (const item of items) {
         const f = item as FieldMeta & { type: string; fields?: unknown[] }
         if (f.type === 'section' || f.type === 'tabs') {
-          if (f.fields) collectCollabFields(f.fields)
+          if (f.fields) collectMapFields(f.fields)
           if (f.type === 'tabs' && (f as any).tabs) {
             for (const tab of (f as any).tabs) {
-              if (tab.fields) collectCollabFields(tab.fields)
+              if (tab.fields) collectMapFields(tab.fields)
             }
           }
         } else if (f.name && f.yjs && !TEXT_TYPES.has(f.type)) {
           mapFields.push(f.name)
-        } else if (f.name && f.yjs && TEXT_TYPES.has(f.type)) {
-          textFieldNames.push(f.name)
         }
       }
     }
-    collectCollabFields(form.fields)
+    collectMapFields(form.fields)
     // Even if no map fields, still set up WebSocket for connection status tracking
-    if (mapFields.length === 0 && textFieldNames.length === 0 && !needsWebsocket) return
+    if (mapFields.length === 0 && !needsWebsocket) return
 
     let destroyed = false
 
@@ -167,19 +166,14 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
       const suppress = new Set<string>()
 
       const mapFieldSet = new Set(mapFields)
-      const textFieldSet = new Set(textFieldNames)
       fieldsMap.observe((event: unknown) => {
         const mapEvent = event as { keysChanged: Set<string> }
         mapEvent.keysChanged.forEach((key: string) => {
           if (suppress.has(key)) return
+          // Skip agent lock flags
+          if (key.startsWith('__agent:')) return
           if (mapFieldSet.has(key)) {
-            // Non-text collaborative field — update React state directly
             setValues(prev => ({ ...prev, [key]: fieldsMap.get(key) }))
-          } else if (textFieldSet.has(key)) {
-            // Text-type collaborative field — updated by AI agent via Y.Map.
-            // Animate the text appearing with a typing effect.
-            const val = fieldsMap.get(key)
-            void updateTextFieldAnimated(key, val)
           }
         })
       })
@@ -409,70 +403,73 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
 
   // ── Update collaborative text field via imperative ref ────
 
-  /** Active typing animations — cancel previous when a new value arrives for the same field. */
-  const typingTimersRef = useRef<Map<string, number>>(new Map())
-
-  /** Resolve the imperative editor ref for a text-type field. */
-  async function getTextRef(name: string): Promise<{ setContent(text: string): void } | null> {
+  /** Push a value into a collaborative text/richcontent editor via imperative ref.
+   * Used by version restore and as fallback for non-streaming agent updates via Y.Map. */
+  async function updateTextFieldRef(name: string, value: unknown) {
     const field = form.fields.find(f => (f as FieldMeta).name === name) as FieldMeta | undefined
-    if (!field?.yjs || !TEXT_TYPES.has(field.type)) return null
+    if (!field?.yjs || !TEXT_TYPES.has(field.type)) return
 
     if (field.type === 'richcontent' || field.type === 'content') {
-      const { getRichContentRef } = await import('./fields/RichContentInput.js')
-      return getRichContentRef(name) ?? null
+      import('./fields/RichContentInput.js').then(({ getRichContentRef }) => {
+        const ref = getRichContentRef(name)
+        if (ref) ref.setContent(value)
+      }).catch(() => {})
+    } else {
+      import('./fields/TextInput.js').then(({ getCollabTextRef }) => {
+        const ref = getCollabTextRef(name)
+        if (ref) {
+          ref.setContent(String(value ?? ''))
+        } else {
+          import('./fields/TextareaInput.js').then(({ getCollabTextareaRef }) => {
+            const ref2 = getCollabTextareaRef(name)
+            if (ref2) ref2.setContent(String(value ?? ''))
+          }).catch(() => {})
+        }
+      }).catch(() => {})
     }
-
-    try {
-      const { getCollabTextRef } = await import('./fields/TextInput.js')
-      const ref = getCollabTextRef(name)
-      if (ref) return ref
-    } catch { /* not available */ }
-
-    try {
-      const { getCollabTextareaRef } = await import('./fields/TextareaInput.js')
-      return getCollabTextareaRef(name) ?? null
-    } catch { /* not available */ }
-
-    return null
   }
 
-  /** Set a text field value instantly (used by version restore). */
-  async function updateTextFieldRef(name: string, value: unknown) {
-    // Cancel any running typing animation for this field
-    const timer = typingTimersRef.current.get(name)
-    if (timer) { clearInterval(timer); typingTimersRef.current.delete(name) }
+  // ── Agent field updates (typing animation) ──────────────
+  const agentTimersRef = useRef<Map<string, number>>(new Map())
+  const processedCountRef = useRef(0)
 
-    const ref = await getTextRef(name)
-    if (ref) ref.setContent(String(value ?? ''))
-  }
+  useEffect(() => {
+    if (!agentFieldUpdates || agentFieldUpdates.length <= processedCountRef.current) return
 
-  /** Set a text field value with a typing animation (used by AI agent updates). */
-  async function updateTextFieldAnimated(name: string, value: unknown) {
-    const text = String(value ?? '')
-    if (!text) return updateTextFieldRef(name, value)
+    // Process only new entries
+    const newUpdates = agentFieldUpdates.slice(processedCountRef.current)
+    processedCountRef.current = agentFieldUpdates.length
 
-    // Cancel any previous animation for this field
-    const prev = typingTimersRef.current.get(name)
-    if (prev) { clearInterval(prev); typingTimersRef.current.delete(name) }
+    for (const { field, value } of newUpdates) {
+      // Cancel any running animation for this field
+      const prev = agentTimersRef.current.get(field)
+      if (prev) clearInterval(prev)
 
-    const ref = await getTextRef(name)
-    if (!ref) return
-
-    // Typing animation — reveal ~3 characters per frame at 20ms intervals
-    let pos = 0
-    const charsPerTick = 3
-    ref.setContent('')
-    const timer = window.setInterval(() => {
-      pos = Math.min(pos + charsPerTick, text.length)
-      ref.setContent(text.slice(0, pos))
-      setValues(prev => ({ ...prev, [name]: text.slice(0, pos) }))
-      if (pos >= text.length) {
-        clearInterval(timer)
-        typingTimersRef.current.delete(name)
+      // Animate: progressively reveal text
+      let pos = 0
+      const chunkSize = 3
+      const tick = () => {
+        pos = Math.min(pos + chunkSize, value.length)
+        const partial = value.slice(0, pos)
+        setValues(p => ({ ...p, [field]: partial }))
+        void updateTextFieldRef(field, partial)
+        if (pos >= value.length) {
+          const t = agentTimersRef.current.get(field)
+          if (t) clearInterval(t)
+          agentTimersRef.current.delete(field)
+        }
       }
-    }, 20)
-    typingTimersRef.current.set(name, timer)
-  }
+      tick()
+      if (value.length > chunkSize) {
+        agentTimersRef.current.set(field, window.setInterval(tick, 20))
+      }
+    }
+  }, [agentFieldUpdates]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    for (const t of agentTimersRef.current.values()) clearInterval(t)
+  }, [])
 
   // ── Version restore ──────────────────────────────────────
   /** Restore a single field from a version — updates the live form value.

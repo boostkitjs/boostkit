@@ -133,6 +133,7 @@ export class ResourceAgent {
     const Live = await loadLive()
 
     const allFields = this._fields
+    const docName = `panel:${this.context.resourceSlug}:${this.context.recordId}`
 
     const updateField = toolDefinition({
       name: 'update_field',
@@ -142,8 +143,12 @@ export class ResourceAgent {
         value: z.string().describe('The new value for the field'),
       }),
     }).server(async (input: { field: string; value: string }) => {
-      const docName = `panel:${this.context.resourceSlug}:${this.context.recordId}`
+      // Set agent lock flag before writing
+      await Live.updateMap(docName, 'fields', `__agent:${input.field}`, `AI: ${this._label}`)
+      // Write the value
       await Live.updateMap(docName, 'fields', input.field, input.value)
+      // Clear lock flag
+      await Live.updateMap(docName, 'fields', `__agent:${input.field}`, null)
       return `Updated "${input.field}" successfully`
     })
 
