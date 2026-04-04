@@ -37,6 +37,15 @@ export class PanelServiceProvider extends ServiceProvider {
       tag:  'panels-pages',
     })
 
+    // Register conversation store if Prisma is available
+    try {
+      const prisma = this.app.make('prisma')
+      if (prisma) {
+        const { PrismaConversationStore } = await import('./conversation/PrismaConversationStore.js')
+        this.app.instance('ai.conversations', new PrismaConversationStore())
+      }
+    } catch { /* no prisma — conversation persistence unavailable */ }
+
     const { router } = await import('@rudderjs/router') as {
       router: {
         get(path: string, handler: (req: AppRequest, res: AppResponse) => unknown, mw?: MiddlewareHandler[]): void
