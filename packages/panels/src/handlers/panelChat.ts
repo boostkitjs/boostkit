@@ -36,9 +36,27 @@ async function loadLive() {
 
 interface ChatRequestBody {
   message:          string
+  conversationId?:  string
   history?:         Array<{ role: 'user' | 'assistant'; content: string }>
   resourceContext?: { resourceSlug: string; recordId: string }
   forceAgent?:      string
+}
+
+interface ConversationStoreLike {
+  create(title?: string, meta?: { userId?: string | undefined; resourceSlug?: string | undefined; recordId?: string | undefined }): Promise<string>
+  load(conversationId: string): Promise<Array<{ role: string; content: string; toolCallId?: string; toolCalls?: unknown[] }>>
+  append(conversationId: string, messages: Array<{ role: string; content: string; toolCallId?: string; toolCalls?: unknown[] }>): Promise<void>
+  setTitle(conversationId: string, title: string): Promise<void>
+  list(userId?: string): Promise<Array<{ id: string; title: string; createdAt: Date; updatedAt?: Date }>>
+  delete?(conversationId: string): Promise<void>
+  listForResource?(resourceSlug: string, recordId?: string, userId?: string): Promise<Array<{ id: string; title: string; createdAt: Date; updatedAt?: Date }>>
+}
+
+async function resolveConversationStore(): Promise<ConversationStoreLike | null> {
+  try {
+    const { app } = await import(/* @vite-ignore */ '@rudderjs/core') as { app(): { make(k: string): unknown } }
+    return app().make('ai.conversations') as ConversationStoreLike
+  } catch { return null }
 }
 
 // ─── SSE helpers ────────────────────────────────────────────
@@ -107,10 +125,11 @@ async function handleAiChat(
   send: SSESend,
   close: () => void,
   message: string,
-  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  history: Array<{ role: string; content: string }>,
   agents: ResourceAgent[],
   agentCtx: ResourceAgentContext,
   record: Record<string, unknown>,
+  conversationId?: string | undefined,
 ) {
   const { agent: agentFn, toolDefinition, z } = await loadAi()
 
@@ -260,14 +279,11 @@ async function handleAiChat(
 
   const tools = [runAgentTool, ...(editTextTool ? [editTextTool] : [])]
 
-  // Include conversation history in the prompt so the AI has context
-  let fullInput = message
-  if (history.length > 0) {
-    const historyText = history
-      .map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`)
-      .join('\n')
-    fullInput = `## Conversation History\n${historyText}\n\n## Current Message\n${message}`
-  }
+  // Build structured history for the agent
+  const aiHistory = history.map(h => ({
+    role: h.role as 'user' | 'assistant',
+    content: h.content,
+  }))
 
   try {
     const a = agentFn({
@@ -275,15 +291,20 @@ async function handleAiChat(
       tools,
     })
 
-    const { stream, response } = a.stream(fullInput)
+    const { stream, response } = a.stream(message, {
+      history: aiHistory.length > 0 ? aiHistory : undefined,
+    })
 
+    let assistantText = ''
     for await (const chunk of stream) {
       switch (chunk.type) {
         case 'text-delta':
-          if (chunk.text) send('text', { text: chunk.text })
+          if (chunk.text) {
+            assistantText += chunk.text
+            send('text', { text: chunk.text })
+          }
           break
         case 'tool-call':
-          // All tools are server-side now (edit_text, run_agent)
           send('tool_call', { tool: chunk.toolCall?.name, input: chunk.toolCall?.arguments })
           break
       }
@@ -291,11 +312,44 @@ async function handleAiChat(
 
     const result = await response
     send('complete', { done: true, usage: result.usage, steps: result.steps.length })
+
+    // Persist messages to conversation store
+    if (conversationId) {
+      const store = await resolveConversationStore()
+      if (store) {
+        await store.append(conversationId, [
+          { role: 'user', content: message },
+          { role: 'assistant', content: assistantText || result.text },
+        ])
+
+        // Auto-title after first exchange (fire-and-forget)
+        if (aiHistory.length === 0) {
+          generateConversationTitle(store, conversationId, message, assistantText || result.text).catch(() => {})
+        }
+      }
+    }
   } catch (err) {
     send('error', { message: err instanceof Error ? err.message : 'Chat failed.' })
   } finally {
     close()
   }
+}
+
+// ─── Auto-title generation ──────────────────────────────────
+
+async function generateConversationTitle(
+  store: ConversationStoreLike,
+  conversationId: string,
+  userMessage: string,
+  assistantMessage: string,
+) {
+  try {
+    const { agent: agentFn } = await loadAi()
+    const a = agentFn('Generate a short title (max 6 words) for this conversation. Return ONLY the title text, nothing else.')
+    const result = await a.prompt(`User: ${userMessage}\nAssistant: ${assistantMessage.slice(0, 500)}`)
+    const title = result.text.trim().replace(/^["']|["']$/g, '')
+    if (title) await store.setTitle(conversationId, title)
+  } catch { /* non-critical — title stays as default */ }
 }
 
 // ─── Main handler ───────────────────────────────────────────
@@ -316,10 +370,40 @@ async function handlePanelChat(
     return res.status(400).json({ message: 'Invalid request body.' })
   }
 
-  const { message, history = [], resourceContext, forceAgent } = body
+  const { message, conversationId: reqConvId, history = [], resourceContext, forceAgent } = body
 
   // Create SSE stream
   const { readable, send, close } = createSSEStream()
+
+  // Resolve conversation store + conversation
+  let store: ConversationStoreLike | null = null
+  try { store = await resolveConversationStore() } catch { /* no store */ }
+  let conversationId = reqConvId
+  let loadedHistory: Array<{ role: string; content: string }> = []
+
+  if (store) {
+    try {
+      if (conversationId) {
+        // Load history from DB
+        const msgs = await store.load(conversationId)
+        loadedHistory = msgs.map(m => ({ role: m.role, content: m.content }))
+      } else {
+        // Create a new conversation
+        const meta: { userId?: string | undefined; resourceSlug?: string | undefined; recordId?: string | undefined } = {}
+        if (resourceContext?.resourceSlug) meta.resourceSlug = resourceContext.resourceSlug
+        if (resourceContext?.recordId) meta.recordId = resourceContext.recordId
+        conversationId = await store.create(undefined, meta)
+      }
+      send('conversation', { conversationId, isNew: !reqConvId })
+    } catch {
+      // DB table might not exist yet — continue without persistence
+      store = null
+    }
+  }
+  if (!store && history.length > 0) {
+    // No store — use client-provided history
+    loadedHistory = history
+  }
 
   // If resource context, load the resource + record
   let agents: ResourceAgent[] = []
@@ -388,22 +472,44 @@ async function handlePanelChat(
     // Don't await — stream runs asynchronously
     handleForceAgent(send, close, targetAgent, agentCtx, message)
   } else if (agents.length > 0 && agentCtx) {
-    handleAiChat(send, close, message, history, agents, agentCtx, record)
+    handleAiChat(send, close, message, loadedHistory, agents, agentCtx, record, conversationId)
   } else {
     // No resource context — simple AI chat (no tools)
     const { agent: agentFn } = await loadAi()
+
+    // Build history for the simple chat path
+    const aiHistory = loadedHistory.map(h => ({
+      role: h.role as 'user' | 'assistant',
+      content: h.content,
+    }))
+
     const a = agentFn('You are a helpful assistant for an admin panel. Be concise.')
-    const { stream, response } = a.stream(message);
+    const { stream, response } = a.stream(message, {
+      history: aiHistory.length > 0 ? aiHistory : undefined,
+    });
 
     (async () => {
       try {
+        let assistantText = ''
         for await (const chunk of stream) {
           if (chunk.type === 'text-delta' && chunk.text) {
+            assistantText += chunk.text
             send('text', { text: chunk.text })
           }
         }
         const result = await response
         send('complete', { done: true, usage: result.usage })
+
+        // Persist messages
+        if (conversationId && store) {
+          await store.append(conversationId, [
+            { role: 'user', content: message },
+            { role: 'assistant', content: assistantText || result.text },
+          ])
+          if (aiHistory.length === 0) {
+            generateConversationTitle(store, conversationId, message, assistantText || result.text).catch(() => {})
+          }
+        }
       } catch (err) {
         send('error', { message: err instanceof Error ? err.message : 'Chat failed.' })
       } finally {
@@ -428,13 +534,64 @@ async function handlePanelChat(
 
 export function mountPanelChat(
   router: {
+    get(path: string, handler: (req: AppRequest, res: AppResponse) => unknown, mw?: MiddlewareHandler[]): void
     post(path: string, handler: (req: AppRequest, res: AppResponse) => unknown, mw?: MiddlewareHandler[]): void
+    delete(path: string, handler: (req: AppRequest, res: AppResponse) => unknown, mw?: MiddlewareHandler[]): void
   },
   panel: Panel,
   mw: MiddlewareHandler[],
 ) {
   const base = panel.getPath()
+
+  // POST — main chat endpoint (SSE stream)
   router.post(`${base}/api/_chat`, async (req, res) => {
     return handlePanelChat(req, res, panel)
+  }, mw)
+
+  // GET — list conversations
+  router.get(`${base}/api/_chat/conversations`, async (req, res) => {
+    const store = await resolveConversationStore()
+    if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
+
+    const query = (req as any).query ?? {}
+    const resourceSlug = query.resourceSlug as string | undefined
+    const recordId = query.recordId as string | undefined
+
+    let conversations
+    if (resourceSlug && store.listForResource) {
+      conversations = await store.listForResource(resourceSlug, recordId)
+    } else {
+      conversations = await store.list()
+    }
+
+    return res.json({ conversations })
+  }, mw)
+
+  // GET — load a single conversation's messages
+  router.get(`${base}/api/_chat/conversations/:id`, async (req, res) => {
+    const store = await resolveConversationStore()
+    if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
+
+    const id = (req.params as Record<string, string>).id ?? ''
+    try {
+      const messages = await store.load(id)
+      return res.json({ messages })
+    } catch {
+      return res.status(404).json({ message: 'Conversation not found.' })
+    }
+  }, mw)
+
+  // DELETE — delete a conversation
+  router.delete(`${base}/api/_chat/conversations/:id`, async (req, res) => {
+    const store = await resolveConversationStore()
+    if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
+
+    const id = (req.params as Record<string, string>).id ?? ''
+    try {
+      if (store.delete) await store.delete(id)
+      return res.json({ ok: true })
+    } catch {
+      return res.status(404).json({ message: 'Conversation not found.' })
+    }
   }, mw)
 }

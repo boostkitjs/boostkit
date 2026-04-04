@@ -25,3 +25,30 @@ model PanelDashboardLayout {
 
   @@unique([userId, panel, dashboardId])
 }
+
+model AiConversation {
+  id            String          @id @default(cuid())
+  userId        String?
+  title         String          @default("New conversation")
+  resourceSlug  String?
+  recordId      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  messages      AiChatMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([resourceSlug, recordId, updatedAt])
+}
+
+model AiChatMessage {
+  id              String          @id @default(cuid())
+  conversationId  String
+  conversation    AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            String
+  content         String
+  toolCalls       String?
+  toolCallId      String?
+  createdAt       DateTime        @default(now())
+
+  @@index([conversationId, createdAt])
+}

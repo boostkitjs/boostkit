@@ -239,12 +239,26 @@ export interface AiConfig {
   failover?: string[]
 }
 
-// ─── Conversation ─────────────────────────────────────────
+// ─── Agent Options ─────────────���──────────────────────────
+
+export interface AgentPromptOptions {
+  /** Prior conversation messages to prepend (after system prompt, before current user message) */
+  history?: AiMessage[]
+}
+
+// ─── Conversation ─────────────────��───────────────────────
+
+export interface ConversationStoreMeta {
+  userId?: string
+  resourceSlug?: string
+  recordId?: string
+}
 
 export interface ConversationStore {
-  create(title?: string): Promise<string>
+  create(title?: string, meta?: ConversationStoreMeta): Promise<string>
   load(conversationId: string): Promise<AiMessage[]>
   append(conversationId: string, messages: AiMessage[]): Promise<void>
   setTitle(conversationId: string, title: string): Promise<void>
-  list(userId?: string): Promise<{ id: string; title: string; createdAt: Date }[]>
+  list(userId?: string): Promise<{ id: string; title: string; createdAt: Date; updatedAt?: Date }[]>
+  delete?(conversationId: string): Promise<void>
 }

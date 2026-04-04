@@ -2,6 +2,7 @@
 
 // Types
 export type {
+  AgentPromptOptions,
   AiMessage,
   AiConfig,
   AiProviderConfig,
@@ -13,6 +14,7 @@ export type {
   BeforeToolCallResult,
   ClientTool,
   ConversationStore,
+  ConversationStoreMeta,
   FinishReason,
   HasMiddleware,
   HasMemory,

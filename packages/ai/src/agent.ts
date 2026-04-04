@@ -1,6 +1,7 @@
 import { AiRegistry } from './registry.js'
 import { toolToSchema } from './tool.js'
 import type {
+  AgentPromptOptions,
   AiMessage,
   AiMiddleware,
   AgentResponse,
@@ -64,13 +65,13 @@ export abstract class Agent {
   maxTokens(): number | undefined { return undefined }
 
   /** Run the agent with a prompt (non-streaming) */
-  async prompt(input: string): Promise<AgentResponse> {
-    return runAgentLoop(this, input)
+  async prompt(input: string, options?: AgentPromptOptions): Promise<AgentResponse> {
+    return runAgentLoop(this, input, options)
   }
 
   /** Run the agent with a prompt (streaming) */
-  stream(input: string): AgentStreamResponse {
-    return runAgentLoopStreaming(this, input)
+  stream(input: string, options?: AgentPromptOptions): AgentStreamResponse {
+    return runAgentLoopStreaming(this, input, options)
   }
 }
 
@@ -154,7 +155,7 @@ function addUsage(total: TokenUsage, step: TokenUsage): void {
 
 // ─── Agent Loop (non-streaming) ──────────────────────────
 
-async function runAgentLoop(a: Agent, input: string): Promise<AgentResponse> {
+async function runAgentLoop(a: Agent, input: string, options?: AgentPromptOptions): Promise<AgentResponse> {
   const modelString = a.model() ?? AiRegistry.getDefault()
   const tools = getTools(a)
   const toolSchemas = buildToolSchemas(tools)
@@ -162,6 +163,7 @@ async function runAgentLoop(a: Agent, input: string): Promise<AgentResponse> {
 
   const messages: AiMessage[] = [
     { role: 'system', content: a.instructions() },
+    ...(options?.history ?? []),
     { role: 'user', content: input },
   ]
 
@@ -256,7 +258,7 @@ async function runAgentLoop(a: Agent, input: string): Promise<AgentResponse> {
 
 // ─── Agent Loop (streaming) ──────────────────────────────
 
-function runAgentLoopStreaming(a: Agent, input: string): AgentStreamResponse {
+function runAgentLoopStreaming(a: Agent, input: string, options?: AgentPromptOptions): AgentStreamResponse {
   let resolveResponse: (r: AgentResponse) => void
   const responsePromise = new Promise<AgentResponse>((resolve) => { resolveResponse = resolve })
 
@@ -268,6 +270,7 @@ function runAgentLoopStreaming(a: Agent, input: string): AgentStreamResponse {
 
     const messages: AiMessage[] = [
       { role: 'system', content: a.instructions() },
+      ...(options?.history ?? []),
       { role: 'user', content: input },
     ]
 

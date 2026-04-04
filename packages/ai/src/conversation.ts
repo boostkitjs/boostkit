@@ -1,4 +1,4 @@
-import type { AiMessage, ConversationStore } from './types.js'
+import type { AiMessage, ConversationStore, ConversationStoreMeta } from './types.js'
 
 function generateId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
@@ -9,15 +9,20 @@ export class MemoryConversationStore implements ConversationStore {
   private readonly conversations = new Map<string, {
     title: string
     messages: AiMessage[]
+    meta?: ConversationStoreMeta | undefined
     createdAt: Date
+    updatedAt: Date
   }>()
 
-  async create(title?: string): Promise<string> {
+  async create(title?: string, meta?: ConversationStoreMeta): Promise<string> {
     const id = generateId()
+    const now = new Date()
     this.conversations.set(id, {
       title: title ?? 'New conversation',
       messages: [],
-      createdAt: new Date(),
+      meta,
+      createdAt: now,
+      updatedAt: now,
     })
     return id
   }
@@ -32,6 +37,7 @@ export class MemoryConversationStore implements ConversationStore {
     const conv = this.conversations.get(conversationId)
     if (!conv) throw new Error(`[RudderJS AI] Conversation "${conversationId}" not found.`)
     conv.messages.push(...messages)
+    conv.updatedAt = new Date()
   }
 
   async setTitle(conversationId: string, title: string): Promise<void> {
@@ -40,11 +46,18 @@ export class MemoryConversationStore implements ConversationStore {
     conv.title = title
   }
 
-  async list(_userId?: string): Promise<{ id: string; title: string; createdAt: Date }[]> {
-    return Array.from(this.conversations.entries()).map(([id, conv]) => ({
-      id,
-      title: conv.title,
-      createdAt: conv.createdAt,
-    }))
+  async list(_userId?: string): Promise<{ id: string; title: string; createdAt: Date; updatedAt?: Date }[]> {
+    return Array.from(this.conversations.entries())
+      .map(([id, conv]) => ({
+        id,
+        title: conv.title,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+      }))
+      .sort((a, b) => b.updatedAt!.getTime() - a.updatedAt!.getTime())
+  }
+
+  async delete(conversationId: string): Promise<void> {
+    this.conversations.delete(conversationId)
   }
 }
