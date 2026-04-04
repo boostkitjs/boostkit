@@ -427,6 +427,33 @@ Each collaborative field gets its own Y.Doc + WebSocket room. The form has a sep
 - Text fields: `panel:{resource}:{recordId}:text:{fieldName}`
 - Rich text fields: `panel:{resource}:{recordId}:richcontent:{fieldName}`
 
+**Server-side AI editing (Live facade):**
+- `Live.editText(docName, op, aiCursor?)` — surgical text replace/insert/delete in Y.XmlText. Walks root → Y.XmlText children (paragraphs/headings) → inner delta text runs. `aiCursor` sets visible AI selection highlight.
+- `Live.editBlock(docName, blockType, blockIndex, field, value)` — updates block data via `Y.XmlElement.setAttribute('__blockData', obj)`. Blocks are inside paragraph Y.XmlText children, not at root level.
+- `Live.readText(docName)` — extracts plain text from a Lexical Y.Doc room (for `read_record` to include collaborative richcontent/textarea field content).
+- `Live.setAiAwareness(docName, { name, color }, cursorTarget?)` — broadcasts AI cursor/selection to all clients. Uses synthetic client ID (999999999) and lib0 varint encoding matching y-protocols awareness wire format. `cursorTarget.length` creates a selection highlight instead of a cursor line.
+- `Live.clearAiAwareness(docName)` — removes AI cursor from all clients.
+- `Resource.getFieldMeta()` — extracts `{ type, yjs }` from form fields for agent routing.
+- ResourceAgent `edit_text` is a `.server()` tool: collab fields → `Live.editText/editBlock` with AI cursor; non-collab → string ops + `Live.updateMap`.
+
+**Lexical Y.Doc tree structure (verified):**
+```
+root (Y.XmlText)
+  ├── Y.XmlText (__type="heading")   ← NOT Y.XmlElement!
+  │     ├── Y.Map (__type="text")    ← TextNode metadata, offset += 1
+  │     └── "hello world"            ← actual text, offset += string.length
+  ├── Y.XmlText (__type="paragraph")
+  │     ├── Y.XmlElement (custom-block)  ← block INSIDE paragraph
+  │     │     attrs: __blockType, __blockData (raw object, NOT JSON string)
+  │     ├── Y.Map (__type="text")
+  │     └── "some text"
+  └── Y.XmlText (__type="list")
+        ├── Y.XmlText (list item)    ← nested
+        └── Y.XmlText (list item)
+```
+- `toString()` is unreliable — returns `[object Object]text`. Must walk inner delta for text search.
+- `Y.XmlText.delete(offset, len)` / `insert(offset, text)` work on flattened offset across all inner items.
+
 **Config layers:**
 - `config/live.ts` `providers: ['websocket', 'indexeddb']` — controls form-level Y.Map providers
 - `.persist(['websocket', 'indexeddb'])` or `.collaborative()` on a field — marks it as collaborative, enables per-field Y.Doc
