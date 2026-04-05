@@ -59,10 +59,15 @@ export default function LoginPage() {
             className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50">
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="text-center text-sm text-gray-500">
-            Don't have an account?{' '}
-            <a href="/register" className="underline hover:text-black">Register</a>
-          </p>
+          <div className="text-center text-sm text-gray-500 space-y-1">
+            <p>
+              <a href="/forgot-password" className="underline hover:text-black">Forgot password?</a>
+            </p>
+            <p>
+              Don't have an account?{' '}
+              <a href="/register" className="underline hover:text-black">Register</a>
+            </p>
+          </div>
         </form>
       </div>
     </div>
