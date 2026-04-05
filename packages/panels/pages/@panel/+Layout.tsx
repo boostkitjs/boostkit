@@ -6,6 +6,7 @@ import { AdminLayout }    from '../_components/AdminLayout.js'
 import { I18nProvider }   from '../_hooks/useI18n.js'
 import { AiChatProvider } from '../_components/agents/AiChatContext.js'
 import type { PanelNavigationMeta } from '@rudderjs/panels'
+import { generateThemeCSS } from '../../src/theme/generate-css.js'
 // Auto-discover plugin registrations (fields, lazy elements, etc.)
 // Plugins publish _register-{name}.ts files that call registerField/registerLazyElement.
 import.meta.glob('../_register-*.ts', { eager: true })
@@ -104,8 +105,12 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
     )
   }
 
+  // SSR: inject theme CSS inline to prevent FOUC
+  const themeCss = data.panelMeta.theme ? generateThemeCSS(data.panelMeta.theme) : null
+
   return (
     <PanelErrorBoundary>
+      {themeCss && <style dangerouslySetInnerHTML={{ __html: themeCss }} />}
       <AiChatProvider panelPath={data.panelMeta.path}>
         <I18nProvider locale={data.panelMeta.locale}>
           <AdminLayout panelMeta={data.panelMeta} currentSlug={data.slug ?? ''} {...(data.sessionUser !== undefined ? { initialUser: data.sessionUser } : {})}>
