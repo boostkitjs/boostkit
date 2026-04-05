@@ -372,9 +372,9 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
       if (opts?.forceAgent) {
         body.forceAgent = opts.forceAgent
       }
-      // Include text selection context if present
-      if (selectionRef.current) {
-        body.selection = selectionRef.current
+      // Include text selection context if present (use snapshot �� ref is already cleared)
+      if (msgSelection) {
+        body.selection = msgSelection
       }
     }
 
