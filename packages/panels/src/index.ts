@@ -5,6 +5,15 @@ export type { PanelMeta, PanelNavigationMeta, ResourceNavigationMeta, GlobalNavi
 export type { PanelI18n } from './i18n/index.js'
 export { getPanelI18n, getPanelDir } from './i18n/index.js'
 
+// ─── Theme ────────────────────────────────────────────────
+
+export { resolveTheme, generateThemeCSS } from './theme/index.js'
+export type {
+  PanelThemeConfig, PanelThemeMeta,
+  StylePreset, BaseColor, AccentColor, RadiusPreset, ChartPalette,
+  IconLibrary, ThemeFonts, PresetDefinition,
+} from './theme/index.js'
+
 // ─── Page ──────────────────────────────────────────────────
 
 export { Page } from './Page.js'

@@ -4,6 +4,8 @@ import type { Page, PageMeta } from './Page.js'
 import type { Global, GlobalMeta } from './Global.js'
 import { getPanelI18n, getPanelDir, getActiveLocale } from './i18n/index.js'
 import type { PanelI18n } from './i18n/index.js'
+import type { PanelThemeConfig, PanelThemeMeta } from './theme/types.js'
+import { resolveTheme } from './theme/resolve.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelMiddlewareHandler = (...args: any[]) => any
@@ -81,6 +83,8 @@ export interface PanelNavigationMeta {
   layout:    PanelLayout
   locale:    string
   dir:       'ltr' | 'rtl'
+  /** Resolved theme — CSS variables, fonts, radius. Undefined = use app CSS defaults. */
+  theme?:    PanelThemeMeta
 }
 
 /** Full panel meta — includes complete resource/global definitions. */
@@ -95,6 +99,8 @@ export interface PanelMeta {
   locale:    string
   dir:       'ltr' | 'rtl'
   i18n:      PanelI18n
+  /** Resolved theme — CSS variables, fonts, radius. Undefined = use app CSS defaults. */
+  theme?:    PanelThemeMeta
 }
 
 // ─── Panel builder ─────────────────────────────────────────
@@ -112,6 +118,7 @@ export class Panel {
   protected _schema?:   PanelSchemaDefinition
   protected _middleware: PanelMiddlewareHandler[] = []
   protected _plugins:   PanelPlugin[] = []
+  protected _theme?:    PanelThemeConfig
 
   protected constructor(name: string) {
     this._name = name
@@ -232,6 +239,24 @@ export class Panel {
     return this
   }
 
+  /**
+   * Configure the panel's visual theme — colors, fonts, radius, and more.
+   * Theme CSS variables are injected at runtime, overriding the app's defaults.
+   *
+   * @example
+   * Panel.make('admin').theme({
+   *   preset: 'nova',
+   *   baseColor: 'zinc',
+   *   accentColor: 'blue',
+   *   radius: 'medium',
+   *   fonts: { heading: 'Space Grotesk', body: 'Inter' },
+   * })
+   */
+  theme(config: PanelThemeConfig): this {
+    this._theme = config
+    return this
+  }
+
   // ── Getters ─────────────────────────────────────────────
 
   getName(): string { return this._name }
@@ -268,6 +293,7 @@ export class Panel {
     return result
   }
   getPlugins(): PanelPlugin[] { return this._plugins }
+  getTheme(): PanelThemeConfig | undefined { return this._theme }
   getLayout(): PanelLayout { return this._layout }
   getSchema(): PanelSchemaDefinition | undefined { return this._schema }
   hasSchema(): boolean { return this._schema !== undefined }
@@ -306,6 +332,7 @@ export class Panel {
       layout:    this._layout,
       locale,
       dir:       getPanelDir(locale),
+      ...(this._theme ? { theme: resolveTheme(this._theme) } : {}),
     }
   }
 
@@ -323,6 +350,7 @@ export class Panel {
       locale,
       dir:       getPanelDir(locale),
       i18n:      getPanelI18n(locale),
+      ...(this._theme ? { theme: resolveTheme(this._theme) } : {}),
     }
   }
 

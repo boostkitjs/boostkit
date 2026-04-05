@@ -36,6 +36,17 @@ export const adminPanel = Panel.make('admin')
     title: 'RudderJS',
     logo: '/logo.svg',
   })
+  .theme({
+    preset: 'nova',
+    baseColor: 'zinc',
+    accentColor: 'blue',
+    chartPalette: 'ocean',
+    radius: 'none',
+    fonts: {
+      heading: 'Space Grotesk',
+      body: 'Inter',
+    },
+  })
   .layout('sidebar')
   .locale('en')
   .guard(async (ctx) => ctx.user?.role === 'admin')
