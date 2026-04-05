@@ -1,5 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { getField, subscribeFields } from '@rudderjs/panels'
+import { useAiChatSafe } from '../agents/AiChatContext.js'
 import type { FieldInputProps } from './types.js'
 import { INPUT_CLS } from './types.js'
 
@@ -29,9 +30,22 @@ export function getCollabTextRef(fieldName: string) {
   return collabTextRefs.get(fieldName)?.current ?? null
 }
 
-export function TextInput({ field, value, onChange, disabled = false, userName, userColor, wsPath, docName }: FieldInputProps) {
+export function TextInput({ field, value, onChange, disabled = false, userName, userColor, wsPath, docName, onAskAi: onAskAiProp }: FieldInputProps) {
   const isDisabled = disabled || field.readonly
   const inputType = typeMap[field.type] ?? 'text'
+  const aiChat = useAiChatSafe()
+  const fieldName = field.name
+
+  const onAskAi = useCallback((text: string) => {
+    if (onAskAiProp) {
+      onAskAiProp(text)
+    } else if (aiChat) {
+      aiChat.setSelection({ field: fieldName, text })
+      aiChat.setOpen(true)
+    }
+  }, [onAskAiProp, aiChat, fieldName])
+
+  const hasAskAi = !!(onAskAiProp || aiChat)
 
   const inputValue = (field.type === 'date' || field.type === 'datetime')
     ? formatDateValue(value, field.type)
@@ -69,6 +83,7 @@ export function TextInput({ field, value, onChange, disabled = false, userName, 
         {...(userName !== undefined ? { userName } : {})}
         {...(userColor !== undefined ? { userColor } : {})}
         editorRef={editorRef}
+        {...(hasAskAi ? { onAskAi } : {})}
       />
     )
   }
