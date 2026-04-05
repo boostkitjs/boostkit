@@ -14,10 +14,9 @@ interface AppContainer {
   make(key: string): unknown
 }
 
-interface AuthLike {
-  api: {
-    getSession(opts: { headers: Headers }): Promise<{ user?: { id?: string } } | null>
-  }
+interface AuthManagerLike {
+  guard(name?: string): { user(): Promise<{ getAuthIdentifier(): string } | null> }
+  config: { defaults: { guard: string } }
 }
 
 interface PrismaLayoutClient {
@@ -80,17 +79,17 @@ export function mountDashboardRoutes(
 
   // Resolve user from auth session
   async function resolveUserId(req: AppRequest): Promise<string | undefined> {
+    // Check __rjs_user first (set by AuthMiddleware)
+    const rjsUser = (req.raw as Record<string, unknown>)?.['__rjs_user'] as Record<string, unknown> | undefined
+    if (rjsUser?.id) return String(rjsUser.id)
     const reqUser = req as AppRequest & { user?: PanelUser }
     if (reqUser.user?.id) return String(reqUser.user.id)
     try {
       const { app } = await import(/* @vite-ignore */ '@rudderjs/core') as { app(): AppContainer }
-      const auth = app().make('auth') as AuthLike | null
-      if (auth?.api?.getSession) {
-        const session = await auth.api.getSession({
-          headers: new Headers(req.headers as Record<string, string>),
-        })
-        return session?.user?.id
-      }
+      const manager = app().make('auth.manager') as AuthManagerLike
+      const user = await manager.guard().user()
+      if (user) return user.getAuthIdentifier()
+      return undefined
     } catch { /* auth not configured */ }
     return undefined
   }
