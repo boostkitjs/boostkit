@@ -1,4 +1,5 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
@@ -6,7 +7,8 @@ import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
 import { CollaborationPlugin } from '@lexical/react/LexicalCollaborationPlugin'
 import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { $getRoot, $createParagraphNode, $createTextNode, KEY_ENTER_COMMAND, COMMAND_PRIORITY_HIGH, type TextNode } from 'lexical'
+import { $getRoot, $getSelection, $isRangeSelection, $createParagraphNode, $createTextNode, KEY_ENTER_COMMAND, COMMAND_PRIORITY_HIGH, SELECTION_CHANGE_COMMAND, COMMAND_PRIORITY_LOW, type TextNode } from 'lexical'
+import { mergeRegister } from '@lexical/utils'
 import { useYjsCollab } from './hooks/useYjsCollab.js'
 
 // ─── Edit operations for surgical AI edits ──────────────────
@@ -95,6 +97,8 @@ interface Props {
   multiline?:  boolean
   /** Ref for imperative control (e.g. version restore, AI edits) */
   editorRef?:  React.MutableRefObject<EditorHandle | null>
+  /** Callback when user clicks "Ask AI" on selected text. */
+  onAskAi?:    ((text: string) => void) | undefined
 }
 
 const THEME = {
@@ -111,7 +115,7 @@ const THEME = {
 export function CollaborativePlainText({
   value, onChange, wsPath, docName, fieldName,
   userName, userColor, placeholder, disabled, required,
-  className, multiline = false, editorRef,
+  className, multiline = false, editorRef, onAskAi,
 }: Props) {
   const cursorsContainerRef = useRef<HTMLDivElement>(null)
   const fragmentName = `text:${fieldName}`
@@ -177,6 +181,7 @@ export function CollaborativePlainText({
         {!multiline && <BlockEnterPlugin />}
         {providerSynced && <SeedPlugin value={value} yjsRef={collabRef} />}
         {editorRef && <PlainTextEditorRefPlugin editorRef={editorRef} />}
+        {onAskAi && <SelectionAiPlugin onAskAi={onAskAi} />}
       </div>
     </LexicalComposer>
   )
@@ -297,5 +302,81 @@ function PlainTextEditorRefPlugin({ editorRef }: { editorRef: React.MutableRefOb
   }, [editor, editorRef])
 
   return null
+}
+
+// ── SelectionAiPlugin ─────────────────────────────────────
+// Shows a small "✦" Ask AI button when text is selected in a plain-text field.
+
+function SelectionAiPlugin({ onAskAi }: { onAskAi: (text: string) => void }) {
+  const [editor] = useLexicalComposerContext()
+  const [visible, setVisible] = useState(false)
+  const selectedTextRef = useRef('')
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const updateSelection = useCallback(() => {
+    const selection = $getSelection()
+    if (!$isRangeSelection(selection) || selection.isCollapsed()) {
+      setVisible(false)
+      return
+    }
+    selectedTextRef.current = selection.getTextContent()
+    setVisible(true)
+  }, [])
+
+  // Position the button at the end of the native selection
+  useEffect(() => {
+    if (!visible || !btnRef.current) return
+    const nativeSel = window.getSelection()
+    if (!nativeSel || nativeSel.rangeCount === 0) return
+    const range = nativeSel.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    btnRef.current.style.left = `${rect.right + 4}px`
+    btnRef.current.style.top = `${rect.top + (rect.height / 2) - 12}px`
+  }, [visible])
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => updateSelection())
+      }),
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        () => { editor.getEditorState().read(() => updateSelection()); return false },
+        COMMAND_PRIORITY_LOW,
+      ),
+    )
+  }, [editor, updateSelection])
+
+  // Close on click outside
+  useEffect(() => {
+    if (!visible) return
+    const handle = (e: MouseEvent) => {
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) setVisible(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [visible])
+
+  if (!visible) return null
+
+  return createPortal(
+    <button
+      ref={btnRef}
+      type="button"
+      className="fixed z-50 flex items-center justify-center h-6 w-6 rounded-md bg-popover border border-border shadow-lg text-primary hover:bg-accent/50 transition-colors"
+      title="Ask AI"
+      onMouseDown={(e) => {
+        e.preventDefault()
+        const text = selectedTextRef.current
+        if (text) {
+          onAskAi(text)
+          setVisible(false)
+        }
+      }}
+    >
+      <span className="text-sm">✦</span>
+    </button>,
+    document.body,
+  )
 }
 
