@@ -5,6 +5,7 @@ export type {
   AgentPromptOptions,
   AiMessage,
   AiConfig,
+  AiModelConfig,
   AiProviderConfig,
   AiMiddleware,
   AgentResponse,
