@@ -37,7 +37,7 @@
 
 ```
 rudderjs/
-├── packages/               # 35 published packages (@rudderjs/*)
+├── packages/               # 36 published packages (@rudderjs/*)
 │   ├── contracts/          # Pure TypeScript types — no runtime code (erased at build)
 │   │                       #   ForgeRequest, ForgeResponse, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/            # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer
@@ -85,6 +85,7 @@ rudderjs/
 │   ├── media/              # Media library — file browser, uploads, preview, image conversions
 │   ├── workspaces/         # AI workspace canvas — 3D nodes, departments, connections, orchestrator
 │   ├── localization/       # i18n — trans(), setLocale(), locale middleware, JSON translation files
+│   ├── boost/              # AI developer tools — MCP server exposing project internals to coding assistants
 │   └── cli/                # Rudder-style CLI (make:*, module:*, user commands)
 ├── create-rudderjs-app/    # Interactive CLI scaffolder (pnpm create rudderjs-app)
 │                           #   Prompts: name · DB · Todo · frameworks (React/Vue/Solid)
@@ -745,6 +746,23 @@ pnpm rudder storage:link
 
 # User-defined (from routes/console.ts)
 pnpm rudder db:seed
+```
+
+---
+
+### Boost — AI Developer Tools
+
+`@rudderjs/boost` exposes project internals to AI coding assistants via MCP (Model Context Protocol).
+
+```bash
+rudder boost:mcp   # starts stdio MCP server
+```
+
+Available tools: `app_info`, `db_schema`, `route_list`, `model_list`, `config_get`, `last_error`.
+
+Connect to Claude Code:
+```bash
+claude mcp add -s local -t stdio rudderjs-boost -- npx tsx node_modules/@rudderjs/cli/src/index.ts boost:mcp
 ```
 
 ---

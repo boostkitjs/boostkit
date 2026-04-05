@@ -12,7 +12,7 @@ This file provides guidance to Claude Code when working in this repository.
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@rudderjs/*`
 - **GitHub**: https://github.com/rudderjs/rudder
-- **Status**: Early development — 35 packages published to npm
+- **Status**: Early development — 36 packages published to npm
 
 ---
 
@@ -78,7 +78,7 @@ npm requires browser passkey auth — press Enter when prompted to open the brow
 
 ```
 rudderjs/
-├── packages/           # 35 published packages (@rudderjs/*)
+├── packages/           # 36 published packages (@rudderjs/*)
 │   ├── contracts/      # Pure TypeScript types: ForgeRequest, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/        # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer, helpers
 │   ├── di/             # DI container: Container, @Injectable, @Inject
@@ -143,6 +143,7 @@ rudderjs/
 │   │                   #   AiModelConfig + AiRegistry.setModels/getModels for user model selection
 │   ├── workspaces/     # AI workspace canvas — Isoflow-style 3D nodes, departments, connections, chat, orchestrator
 │   │                   #   Panel plugin: workspaces(). Uses @rudderjs/ai for LLM, Prisma for persistence.
+│   ├── boost/          # AI dev tools — MCP server (app_info, db_schema, route_list, model_list, config_get, last_error)
 │   ├── localization/   # i18n — trans(), setLocale(), locale-aware middleware, JSON translation files
 │   └── cli/            # make:*, module:*, module:publish, rudder user commands
 ├── create-rudderjs-app/   # Interactive scaffolder CLI (pnpm/npm/yarn/bun create rudderjs-app)
@@ -190,6 +191,7 @@ rudderjs/
 | `@rudderjs/media` | 0.0.1 | Media library — `Media.make()` schema element, file browser, uploads, folders, preview, image conversions |
 | `@rudderjs/ai` | 0.0.1 | AI engine — 4 providers (Anthropic, OpenAI, Google, Ollama), Agent class, tool system, streaming, middleware, Output, conversation memory, AI facade, AiFake. Agent.prompt/stream accept `{ history }`. AiModelConfig + model registry for user selection. |
 | `@rudderjs/workspaces` | 0.0.1 | AI workspace canvas — Isoflow-style 3D nodes, departments, connections. Panel plugin: `workspaces()` |
+| `@rudderjs/boost` | 0.0.1 | AI dev tools — MCP server exposing project internals (DB schema, routes, models, config, logs) to AI coding assistants |
 | `@rudderjs/localization` | 0.0.1 | i18n — `trans()`, `setLocale()`, `getLocale()`, locale middleware, JSON translation files |
 
 **Merged/removed packages** (code absorbed, originals deleted):
@@ -245,6 +247,8 @@ rudderjs/
        │                               @rudderjs/workspaces (Panel.use plugin, uses @rudderjs/ai)
        │
 @rudderjs/image       (standalone, used by media for conversions)
+
+@rudderjs/boost       (MCP server, depends on core)
 ```
 
 > **Cycle resolution**: `@rudderjs/core` loads `@rudderjs/router` at runtime via `resolveOptionalPeer('@rudderjs/router')`. Never add `@rudderjs/core` to router's `dependencies` or `devDependencies`.

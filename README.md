@@ -41,7 +41,7 @@ RudderJS is the middle ground: a **batteries-included architecture that stays en
 ## Key Features
 
 - **Laravel-inspired DX** — service providers, fluent bootstrap, Rudder CLI, FormRequest validation
-- **Pay-as-you-go** — 35 optional `@rudderjs/*` packages; use only what you need
+- **Pay-as-you-go** — 36 optional `@rudderjs/*` packages; use only what you need
 - **AI-native** — multi-provider AI engine (Anthropic, OpenAI, Google, Ollama), Agent class with tool system, streaming
 - **Native auth** — session guards, API tokens (Sanctum), OAuth (Socialite), gates & policies, password hashing & encryption
 - **Pluggable adapters** — swap Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3, SMTP ↔ any mailer
@@ -529,6 +529,7 @@ const svc = resolve<UserService>(UserService)
 | Package | Description |
 |---|---|
 | `@rudderjs/ai` | AI engine — 4 providers (Anthropic, OpenAI, Google, Ollama), Agent class, tool system, streaming, middleware |
+| `@rudderjs/boost` | AI dev tools — MCP server for Claude Code, Cursor, Copilot |
 | `@rudderjs/workspaces` | AI workspace canvas — Isoflow-style 3D nodes, departments, connections, chat, orchestrator |
 | `@rudderjs/localization` | i18n — `trans()`, `setLocale()`, locale-aware middleware, JSON translation files |
 
@@ -552,7 +553,7 @@ const svc = resolve<UserService>(UserService)
 
 RudderJS is in **early development**. All packages are functional and the playground is a working full-stack application. Breaking changes may occur before v1.0.
 
-- 35 packages published to npm under `@rudderjs/*`
+- 36 packages published to npm under `@rudderjs/*`
 - Playground demonstrates routing, ORM, auth, queues, cache, storage, mail, notifications, scheduling, WebSocket broadcasting, real-time Yjs CRDT collaboration, admin panels with resource CRUD, media library, AI engine with multi-provider support, and AI workspace canvas — all end-to-end
 
 ---
