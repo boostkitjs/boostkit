@@ -52,7 +52,14 @@ interface ConversationStoreLike {
   setTitle(conversationId: string, title: string): Promise<void>
   list(userId?: string): Promise<Array<{ id: string; title: string; createdAt: Date; updatedAt?: Date }>>
   delete?(conversationId: string): Promise<void>
+  getMeta?(conversationId: string): Promise<{ userId?: string } | null>
   listForResource?(resourceSlug: string, recordId?: string, userId?: string): Promise<Array<{ id: string; title: string; createdAt: Date; updatedAt?: Date }>>
+}
+
+function extractUserId(req: AppRequest): string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = req as any
+  return r.user?.id ?? r.session?.get?.('userId') ?? undefined
 }
 
 async function resolveConversationStore(): Promise<ConversationStoreLike | null> {
@@ -224,9 +231,15 @@ async function handleAiChat(
 
   // Collect all editable field names from the resource's field metadata.
   // This covers ALL form fields, not just those assigned to named agents.
+  // Fields that are readonly or hidden from the edit view are excluded.
   const agentFieldNames = new Set(agents.flatMap(a => (a as any)._fields as string[]))
   const metaFieldNames = agentCtx.fieldMeta ? Object.keys(agentCtx.fieldMeta) : []
-  const allFields = [...new Set([...agentFieldNames, ...metaFieldNames])]
+  const candidateFields = [...new Set([...agentFieldNames, ...metaFieldNames])]
+  const allFields = candidateFields.filter(name => {
+    const meta = agentCtx.fieldMeta?.[name]
+    if (!meta) return true // agent-declared fields without meta are allowed
+    return !meta.readonly && !meta.hiddenFromEdit
+  })
 
   // Build edit_text tool — allows direct surgical edits without going through a named agent
   const Live = await loadLive()
@@ -317,12 +330,12 @@ async function handleAiChat(
         if (op.type === 'rewrite') { current = op.content as string; continue }
         if (op.type === 'update_block') continue
         const search = op.search as string
-        if (op.type === 'replace' && search) current = current.replace(search, op.replace as string)
+        if (op.type === 'replace' && search) current = current.replace(search, () => op.replace as string)
         else if (op.type === 'insert_after' && search) {
           const idx = current.indexOf(search)
           if (idx !== -1) current = current.slice(0, idx + search.length) + (op.text as string) + current.slice(idx + search.length)
         }
-        else if (op.type === 'delete' && search) current = current.replace(search, '')
+        else if (op.type === 'delete' && search) current = current.replace(search, () => '')
       }
       await Live.updateMap(docName, 'fields', targetField, current)
       return `Updated "${targetField}" successfully`
@@ -437,12 +450,17 @@ async function handlePanelChat(
   if (store) {
     try {
       if (conversationId) {
-        // Load history from DB
-        const msgs = await store.load(conversationId)
-        loadedHistory = msgs.map(m => ({ role: m.role, content: m.content }))
+        // Load history from DB — but skip when selection is active,
+        // so the selection-focused system prompt isn't diluted by prior context.
+        if (!selection) {
+          const msgs = await store.load(conversationId)
+          loadedHistory = msgs.map(m => ({ role: m.role, content: m.content }))
+        }
       } else {
         // Create a new conversation
         const meta: { userId?: string | undefined; resourceSlug?: string | undefined; recordId?: string | undefined } = {}
+        const reqUserId = extractUserId(req)
+        if (reqUserId) meta.userId = reqUserId
         if (resourceContext?.resourceSlug) meta.resourceSlug = resourceContext.resourceSlug
         if (resourceContext?.recordId) meta.recordId = resourceContext.recordId
         conversationId = await store.create(undefined, meta)
@@ -616,22 +634,33 @@ export function mountPanelChat(
     return handlePanelChat(req, res, panel)
   }, mw)
 
-  // GET — list conversations
-  router.get(`${base}/api/_chat/conversations`, async (_req, res) => {
+  // GET — list conversations (filtered by current user)
+  router.get(`${base}/api/_chat/conversations`, async (req, res) => {
     const store = await resolveConversationStore()
     if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
 
-    const conversations = await store.list()
+    const userId = extractUserId(req)
+    const conversations = await store.list(userId)
 
     return res.json({ conversations })
   }, mw)
 
-  // GET — load a single conversation's messages
+  // GET — load a single conversation's messages (with ownership check)
   router.get(`${base}/api/_chat/conversations/:id`, async (req, res) => {
     const store = await resolveConversationStore()
     if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
 
     const id = (req.params as Record<string, string>).id ?? ''
+    const userId = extractUserId(req)
+
+    // Verify ownership if store supports getMeta
+    if (userId && store.getMeta) {
+      const meta = await store.getMeta(id)
+      if (meta && meta.userId && meta.userId !== userId) {
+        return res.status(403).json({ message: 'Forbidden.' })
+      }
+    }
+
     try {
       const messages = await store.load(id)
       return res.json({ messages })
@@ -640,12 +669,22 @@ export function mountPanelChat(
     }
   }, mw)
 
-  // DELETE — delete a conversation
+  // DELETE — delete a conversation (with ownership check)
   router.delete(`${base}/api/_chat/conversations/:id`, async (req, res) => {
     const store = await resolveConversationStore()
     if (!store) return res.status(404).json({ message: 'Conversation store not available.' })
 
     const id = (req.params as Record<string, string>).id ?? ''
+    const userId = extractUserId(req)
+
+    // Verify ownership if store supports getMeta
+    if (userId && store.getMeta) {
+      const meta = await store.getMeta(id)
+      if (meta && meta.userId && meta.userId !== userId) {
+        return res.status(403).json({ message: 'Forbidden.' })
+      }
+    }
+
     try {
       if (store.delete) await store.delete(id)
       return res.json({ ok: true })

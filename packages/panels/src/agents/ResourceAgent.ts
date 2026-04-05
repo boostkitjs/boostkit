@@ -37,8 +37,8 @@ export interface ResourceAgentContext {
   resourceSlug: string
   recordId:     string
   panelSlug:    string
-  /** Field type metadata — keyed by field name. Used to route edit_text between Yjs and Y.Map. */
-  fieldMeta?:   Record<string, { type: string; yjs: boolean }>
+  /** Field type metadata — keyed by field name. Used to route edit_text between Yjs and Y.Map, and to enforce field-level edit permissions. */
+  fieldMeta?:   Record<string, { type: string; yjs: boolean; readonly?: boolean; hiddenFromEdit?: boolean }>
 }
 
 // ─── ResourceAgent ─────────────────────────────────────────
@@ -270,12 +270,12 @@ export class ResourceAgent {
           if (op.type === 'update_block') continue // Blocks only exist in collab fields
           const search = op.search as string
           if (op.type === 'replace' && search) {
-            current = current.replace(search, op.replace as string)
+            current = current.replace(search, () => op.replace as string)
           } else if (op.type === 'insert_after' && search) {
             const idx = current.indexOf(search)
             if (idx !== -1) current = current.slice(0, idx + search.length) + (op.text as string) + current.slice(idx + search.length)
           } else if (op.type === 'delete' && search) {
-            current = current.replace(search, '')
+            current = current.replace(search, () => '')
           }
         }
 

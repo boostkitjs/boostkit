@@ -119,6 +119,16 @@ export class PrismaConversationStore implements ConversationStore {
     return rows as { id: string; title: string; createdAt: Date; updatedAt?: Date }[]
   }
 
+  async getMeta(conversationId: string): Promise<{ userId?: string } | null> {
+    const row = await (await resolvePrisma()).aiConversation.findUnique({
+      where: { id: conversationId },
+      select: { userId: true },
+    })
+    if (!row) return null
+    const userId = row.userId as string | undefined
+    return userId ? { userId } : {}
+  }
+
   async delete(conversationId: string): Promise<void> {
     await (await resolvePrisma()).aiConversation.delete({
       where: { id: conversationId },

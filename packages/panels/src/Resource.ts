@@ -135,20 +135,27 @@ export class Resource {
   }
 
   /**
-   * Get field type metadata: `{ fieldName: { type, yjs } }`.
+   * Get field type metadata: `{ fieldName: { type, yjs, readonly, hiddenFromEdit } }`.
    * Used by ResourceAgent to route edit_text between server-side Yjs editing
    * (for collaborative fields) and Y.Map string replacement (for non-collaborative fields).
+   * Also used by panelChat to filter out non-editable fields from the AI edit_text tool.
    */
-  getFieldMeta(): Record<string, { type: string; yjs: boolean }> {
+  getFieldMeta(): Record<string, { type: string; yjs: boolean; readonly?: boolean; hiddenFromEdit?: boolean }> {
     const form = this._resolveForm()
-    const meta: Record<string, { type: string; yjs: boolean }> = {}
+    const meta: Record<string, { type: string; yjs: boolean; readonly?: boolean; hiddenFromEdit?: boolean }> = {}
 
     function extract(items: FieldOrGrouping[]) {
       for (const item of items) {
         // Field — has getName, getType, isYjs
         if ('getName' in item && 'getType' in item && 'isYjs' in item) {
           const field = item as Field
-          meta[field.getName()] = { type: field.getType(), yjs: field.isYjs() }
+          const entry: { type: string; yjs: boolean; readonly?: boolean; hiddenFromEdit?: boolean } = {
+            type: field.getType(),
+            yjs: field.isYjs(),
+          }
+          if (field.isReadonly()) entry.readonly = true
+          if (field.isHiddenFrom('edit')) entry.hiddenFromEdit = true
+          meta[field.getName()] = entry
         }
         // Section or Tab — has getFields()
         if ('getFields' in item) {
