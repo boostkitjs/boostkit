@@ -1,8 +1,9 @@
-import type { ProviderFactory, ProviderAdapter } from './types.js'
+import type { AiModelConfig, ProviderFactory, ProviderAdapter } from './types.js'
 
 export class AiRegistry {
   private static readonly factories = new Map<string, ProviderFactory>()
   private static _default: string | null = null
+  private static _models: AiModelConfig[] = []
 
   /** Register a provider factory */
   static register(factory: ProviderFactory): void {
@@ -41,9 +42,20 @@ export class AiRegistry {
     return factory.create(model)
   }
 
+  /** Set available models for user selection */
+  static setModels(models: AiModelConfig[]): void {
+    this._models = models
+  }
+
+  /** Get available models */
+  static getModels(): AiModelConfig[] {
+    return this._models
+  }
+
   /** @internal — reset for testing */
   static reset(): void {
     this.factories.clear()
     this._default = null
+    this._models = []
   }
 }

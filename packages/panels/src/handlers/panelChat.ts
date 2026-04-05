@@ -37,6 +37,7 @@ async function loadLive() {
 interface ChatRequestBody {
   message:          string
   conversationId?:  string
+  model?:           string
   history?:         Array<{ role: 'user' | 'assistant'; content: string }>
   resourceContext?: { resourceSlug: string; recordId: string }
   forceAgent?:      string
@@ -130,6 +131,7 @@ async function handleAiChat(
   agentCtx: ResourceAgentContext,
   record: Record<string, unknown>,
   conversationId?: string | undefined,
+  model?: string | undefined,
 ) {
   const { agent: agentFn, toolDefinition, z } = await loadAi()
 
@@ -289,6 +291,7 @@ async function handleAiChat(
     const a = agentFn({
       instructions: systemPrompt,
       tools,
+      model,
     })
 
     const { stream, response } = a.stream(message, {
@@ -370,7 +373,7 @@ async function handlePanelChat(
     return res.status(400).json({ message: 'Invalid request body.' })
   }
 
-  const { message, conversationId: reqConvId, history = [], resourceContext, forceAgent } = body
+  const { message, conversationId: reqConvId, model: requestedModel, history = [], resourceContext, forceAgent } = body
 
   // Create SSE stream
   const { readable, send, close } = createSSEStream()
@@ -472,7 +475,7 @@ async function handlePanelChat(
     // Don't await — stream runs asynchronously
     handleForceAgent(send, close, targetAgent, agentCtx, message)
   } else if (agents.length > 0 && agentCtx) {
-    handleAiChat(send, close, message, loadedHistory, agents, agentCtx, record, conversationId)
+    handleAiChat(send, close, message, loadedHistory, agents, agentCtx, record, conversationId, requestedModel)
   } else {
     // No resource context — simple AI chat (no tools)
     const { agent: agentFn } = await loadAi()
@@ -483,7 +486,10 @@ async function handlePanelChat(
       content: h.content,
     }))
 
-    const a = agentFn('You are a helpful assistant for an admin panel. Be concise.')
+    const a = agentFn({
+      instructions: 'You are a helpful assistant for an admin panel. Be concise.',
+      model: requestedModel,
+    })
     const { stream, response } = a.stream(message, {
       history: aiHistory.length > 0 ? aiHistory : undefined,
     });
@@ -542,6 +548,17 @@ export function mountPanelChat(
   mw: MiddlewareHandler[],
 ) {
   const base = panel.getPath()
+
+  // GET — available models
+  router.get(`${base}/api/_chat/models`, async (_req, res) => {
+    try {
+      const { app } = await import(/* @vite-ignore */ '@rudderjs/core') as { app(): { make(k: string): unknown } }
+      const registry = app().make('ai.registry') as { getModels(): Array<{ id: string; label: string }>; getDefault(): string }
+      return res.json({ models: registry.getModels(), default: registry.getDefault() })
+    } catch {
+      return res.json({ models: [], default: '' })
+    }
+  }, mw)
 
   // POST — main chat endpoint (SSE stream)
   router.post(`${base}/api/_chat`, async (req, res) => {

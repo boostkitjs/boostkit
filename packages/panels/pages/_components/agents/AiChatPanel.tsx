@@ -17,6 +17,56 @@ const AI_SIDEBAR_WIDTH = '22rem'
 
 // ─── Chat input ─────────────────────────────────────────────
 
+// ─── Model selector ─────────────────────────────────────────
+
+function ModelSelector() {
+  const { models, selectedModel, setSelectedModel } = useAiChat()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  if (models.length === 0) return null
+
+  const current = models.find(m => m.id === selectedModel) ?? models[0]
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <span className="truncate max-w-[120px]">{current?.label ?? 'Default'}</span>
+        <ChevronDownIcon className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 min-w-[160px] rounded-md border bg-popover shadow-md z-30">
+          {models.map(m => (
+            <button
+              key={m.id}
+              className={`flex w-full items-center px-3 py-1.5 text-xs hover:bg-muted/50 ${
+                (selectedModel ?? models[0]?.id) === m.id ? 'text-primary font-medium' : ''
+              }`}
+              onClick={() => { setSelectedModel(m.id); setOpen(false) }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Chat input ─────────────────────────────────────────────
+
 function ChatInput({ onSend, disabled }: { onSend: (text: string) => void; disabled: boolean }) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -54,7 +104,8 @@ function ChatInput({ onSend, disabled }: { onSend: (text: string) => void; disab
         rows={1}
         className="w-full resize-none bg-transparent px-3 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground"
       />
-      <div className="flex items-center justify-end px-2 pb-2">
+      <div className="flex items-center justify-between px-2 pb-2">
+        <ModelSelector />
         <Button
           variant="default"
           size="icon-sm"

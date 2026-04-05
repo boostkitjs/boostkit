@@ -233,10 +233,16 @@ export interface AiProviderConfig {
   [key: string]: unknown
 }
 
+export interface AiModelConfig {
+  id: string
+  label: string
+}
+
 export interface AiConfig {
   default: string
   providers: Record<string, AiProviderConfig>
   failover?: string[]
+  models?: AiModelConfig[]
 }
 
 // ─── Agent Options ─────────────���──────────────────────────

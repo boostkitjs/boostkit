@@ -45,6 +45,7 @@ export function ai(config: AiConfig): new (app: Application) => ServiceProvider 
       }
 
       AiRegistry.setDefault(config.default)
+      AiRegistry.setModels(config.models ?? [])
       this.app.instance('ai.registry', AiRegistry)
     }
   }
