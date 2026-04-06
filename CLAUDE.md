@@ -78,7 +78,7 @@ npm requires browser passkey auth — press Enter when prompted to open the brow
 
 ```
 rudderjs/
-├── packages/           # 36 published packages (@rudderjs/*)
+├── packages/           # 42 published packages (@rudderjs/*)
 │   ├── contracts/      # Pure TypeScript types: ForgeRequest, ServerAdapter, MiddlewareHandler, etc.
 │   ├── support/        # Utilities: Env, Collection, ConfigRepository, resolveOptionalPeer, helpers
 │   ├── di/             # DI container: Container, @Injectable, @Inject
@@ -161,6 +161,14 @@ rudderjs/
 │   ├── localization/   # i18n — trans(), setLocale(), locale-aware middleware, JSON translation files
 │   ├── testing/        # TestCase, TestResponse assertions, RefreshDatabase, WithFaker, actingAs(),
 │   │                   #   database assertions, HTTP request helpers (get/post/put/patch/delete)
+│   ├── context/        # Request-scoped context — ALS-backed data bag, hidden context, stacks,
+│   │                   #   scope(), remember(), dehydrate/hydrate for queue propagation, log integration
+│   ├── pennant/        # Feature flags — Feature.define/active/value, scoping, Lottery rollout,
+│   │                   #   memory driver, FeatureMiddleware, Feature.fake()
+│   ├── process/        # Shell execution — Process.run/start/pool/pipe, timeouts, env vars,
+│   │                   #   real-time output, Process.fake() with assertions
+│   ├── concurrency/    # Parallel execution — worker thread pool, Concurrency.run/defer,
+│   │                   #   sync driver for testing, Concurrency.fake()
 │   └── cli/            # make:*, module:*, module:publish, rudder user commands
 ├── create-rudderjs-app/   # Interactive scaffolder CLI (pnpm/npm/yarn/bun create rudderjs-app)
 │                          #   Prompts: name · DB · Todo · AI · frameworks · primary · Tailwind · shadcn
@@ -179,7 +187,7 @@ rudderjs/
 | `@rudderjs/middleware` | 0.0.2 | Middleware, Pipeline, CorsMiddleware, LoggerMiddleware, ThrottleMiddleware, RateLimit |
 | `@rudderjs/validation` | 0.0.1 | FormRequest, validate(), validateWith(), ValidationError, z re-export |
 | `@rudderjs/rudder` | 0.0.1 | CommandRegistry, Command base, parseSignature, rudder singleton |
-| `@rudderjs/core` | 0.0.2 | Application, DI container, ServiceProvider, Forge, AppBuilder, `HttpException`, `abort()`, `abort_if()`, `abort_unless()`, `report()`, `report_if()`, `setExceptionReporter()`, `Event.fake()` (EventFake: assertDispatched/assertNotDispatched/assertNothingDispatched) |
+| `@rudderjs/core` | 0.0.8 | Application, DI container, ServiceProvider, Forge, AppBuilder, `HttpException`, `abort()`, `abort_if()`, `abort_unless()`, `report()`, `report_if()`, `setExceptionReporter()`, `Event.fake()` (EventFake: assertDispatched/assertNotDispatched/assertNothingDispatched), `container.scoped()` (per-request bindings via ALS), `container.when(Class).needs(token).give(factory)` (contextual binding), deferred providers (`provides(): string[]`), `container.runScoped(fn)`, `ScopeMiddleware()` |
 | `@rudderjs/server-hono` | 0.0.2 | Hono adapter, logger `[rudderjs]` tag, CORS |
 | `@rudderjs/router` | 0.0.3 | Fluent + decorator routing, named routes, `route()` URL generation, `Url` signed URLs (HMAC-SHA256), `ValidateSignature()` middleware — metadata keys: `rudderjs:controller:*/route:*` |
 | `@rudderjs/queue` | 0.0.5 | Job, QueueAdapter, DispatchBuilder, SyncAdapter, queue:work/status/clear/failed/retry commands, `Chain.of()` (sequential execution, state sharing, `onFailure`), `Bus.batch()` (`then`/`catch`/`finally`, progress tracking, `allowFailures`), `ShouldBeUnique`/`ShouldBeUniqueUntilProcessing` (cache-backed locks), job middleware (`RateLimited`, `WithoutOverlapping`, `ThrottlesExceptions`, `Skip`), `dispatch(fn)` queued closures, `Queue.fake()` (FakeQueueAdapter: assertPushed/assertPushedOn/assertNotPushed/assertNothingPushed) |
@@ -212,6 +220,10 @@ rudderjs/
 | `@rudderjs/http` | 0.0.1 | Fluent HTTP client — `Http` facade, retries, timeouts, pools (`Pool.concurrency()`), request/response interceptors, `Http.fake()` with URL pattern matching + assertions |
 | `@rudderjs/localization` | 0.0.1 | i18n — `trans()`, `setLocale()`, `getLocale()`, locale middleware, JSON translation files |
 | `@rudderjs/testing` | 0.0.1 | TestCase base class, TestResponse assertions (assertOk/assertJson/assertJsonPath/assertJsonCount/assertHeader/assertRedirect), RefreshDatabase trait, WithFaker trait, database assertions (assertDatabaseHas/Missing/Count/Empty), HTTP request helpers (get/post/put/patch/delete), actingAs(user) |
+| `@rudderjs/context` | 0.0.1 | Request-scoped context — `Context` facade (add/get/all/forget/has), hidden context, stacks (push/stack), `scope()` (child isolation), `remember()` (memoize), `dehydrate()`/`hydrate()` (queue propagation), `ContextMiddleware()`, auto-merges into `@rudderjs/log` entries |
+| `@rudderjs/pennant` | 0.0.1 | Feature flags — `Feature.define()`/`active()`/`value()`, scoping (`Feature.for(scope)`), `Feature.values()` bulk, `Lottery.odds()` gradual rollout, `activate()`/`deactivate()`/`purge()`, MemoryDriver, `FeatureMiddleware()`, `Feature.fake()` |
+| `@rudderjs/process` | 0.0.1 | Shell execution — `Process.run()`/`start()`/`pool()`/`pipe()`, `PendingProcess` builder (path/timeout/env/input/quietly/tty/onOutput), `ProcessResult` (successful/failed/throw), `RunningProcess`, `Process.fake()` with assertions |
+| `@rudderjs/concurrency` | 0.0.1 | Parallel execution — `Concurrency.run(tasks)` via worker threads, `Concurrency.defer(fn)` fire-and-forget, sync driver for testing via `Concurrency.fake()` |
 
 **Merged/removed packages** (code absorbed, originals deleted):
 - `@rudderjs/di` → merged into `@rudderjs/core`
@@ -273,7 +285,11 @@ RudderJS Framework
 │    ├── @rudderjs/schedule           Cron tasks, sub-minute, hooks, onOneServer
 │    ├── @rudderjs/localization       i18n, trans(), locale middleware
 │    ├── @rudderjs/image              Image processing (sharp wrapper)
-│    └── @rudderjs/storage            Local + S3 file storage
+│    ├── @rudderjs/storage            Local + S3 file storage
+│    ├── @rudderjs/context            Request-scoped data bag (ALS), log+queue propagation
+│    ├── @rudderjs/pennant            Feature flags, scoping, Lottery, drivers
+│    ├── @rudderjs/process            Shell execution, pools, pipes, Process.fake()
+│    └── @rudderjs/concurrency        Worker thread parallelism, deferred tasks
 │
 ├─── AI
 │    ├── @rudderjs/ai                 4 providers, Agent, tools, streaming, AiFake

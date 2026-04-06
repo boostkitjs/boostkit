@@ -192,6 +192,28 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/concurrency:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/context:
+    dependencies:
+      '@rudderjs/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/contracts:
     devDependencies:
       '@types/node':
@@ -683,6 +705,31 @@ importers:
       yjs:
         specifier: ^13.6.29
         version: 13.6.29
+
+  packages/pennant:
+    dependencies:
+      '@rudderjs/core':
+        specifier: workspace:*
+        version: link:../core
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/process:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
 
   packages/queue:
     dependencies:
