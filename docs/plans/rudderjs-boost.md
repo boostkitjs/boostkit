@@ -1,7 +1,7 @@
 # @rudderjs/boost — AI Developer Experience Layer
 
 **Date:** 2026-04-05
-**Status:** Planning
+**Status:** Phase 1 (MCP Server) — ✅ Implemented and published as `@rudderjs/boost@0.0.1`. Phases 2-3 remain.
 **Inspiration:** [Laravel Boost](https://laravel.com/docs/13.x/boost)
 **Dependencies:** `@rudderjs/core`, `@rudderjs/cli`
 
