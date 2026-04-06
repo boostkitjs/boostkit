@@ -286,6 +286,17 @@ export function queue(config: QueueConfig): new (app: Application) => ServicePro
   return QueueServiceProvider
 }
 
+// ─── Queue Facade ─────────────────────────────────────────
+
+export class Queue {
+  /** Replace the queue adapter with a fake for testing. */
+  static fake(): import('./fake.js').FakeQueueAdapter {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { FakeQueueAdapter } = require('./fake.js') as typeof import('./fake.js')
+    return FakeQueueAdapter.fake()
+  }
+}
+
 // ─── Re-exports ────────────────────────────────────────────
 
 export { Chain, getChainState }                        from './chain.js'
@@ -295,3 +306,4 @@ export type { ShouldBeUnique, ShouldBeUniqueUntilProcessing }  from './unique.js
 export { isUniqueJob, isUniqueUntilProcessing, acquireUniqueLock, releaseUniqueLock }  from './unique.js'
 export type { JobMiddleware }                          from './job-middleware.js'
 export { runJobMiddleware, RateLimited, WithoutOverlapping, ThrottlesExceptions, Skip }  from './job-middleware.js'
+export { FakeQueueAdapter }                           from './fake.js'

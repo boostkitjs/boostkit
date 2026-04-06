@@ -88,6 +88,14 @@ export class Mail {
   static to(...addresses: string[]): MailPendingSend {
     return new MailPendingSend(addresses)
   }
+
+  /** Replace the mail adapter with a fake for testing. */
+  static fake(): import('./fake.js').FakeMailAdapter {
+    // Dynamic require to avoid circular top-level import (fake.ts imports from index.ts)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { FakeMailAdapter } = require('./fake.js') as typeof import('./fake.js')
+    return FakeMailAdapter.fake()
+  }
 }
 
 // ─── Mail Config ───────────────────────────────────────────
@@ -307,3 +315,4 @@ export function mail(config: MailConfig): new (app: Application) => ServiceProvi
 export { FailoverAdapter }    from './failover.js'
 export { MarkdownMailable }   from './markdown.js'
 export { mailPreview }        from './preview.js'
+export { FakeMailAdapter }    from './fake.js'
