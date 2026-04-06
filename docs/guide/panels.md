@@ -149,6 +149,7 @@ Panel.make('admin')
   })
   .resources([UserResource, PostResource])
   .globals([SiteSettingsGlobal])          // single-record settings pages
+  .notifications()                       // enable in-app notification bell
 ```
 
 The `guard` receives a `PanelContext` (`{ user, headers, path }`) and returns `true` to allow or `false` to reject. Unauthenticated UI requests are redirected to `/login?redirect=<encodedPath>`; API requests receive `401 Unauthorized`.
@@ -166,6 +167,50 @@ export default {
   },
 } satisfies BetterAuthConfig
 ```
+
+---
+
+## Notifications Widget
+
+Enable an in-app notification bell in the panel header with `.notifications()`:
+
+```ts
+Panel.make('admin')
+  .path('/admin')
+  .resources([UserResource])
+  .notifications()
+```
+
+This adds a bell icon to the top navigation bar that displays unread notifications for the current user. Notifications are sourced from `@rudderjs/notification` — any notification sent via the `database` channel appears in the panel.
+
+Requires `@rudderjs/notification` to be registered in providers.
+
+---
+
+## Activity Log Plugin
+
+Track all CRUD changes made through the panel with the `activityLog()` plugin:
+
+```ts
+import { Panel } from '@rudderjs/panels'
+import { activityLog } from '@rudderjs/panels'
+
+Panel.make('admin')
+  .path('/admin')
+  .resources([UserResource, PostResource])
+  .use(activityLog())
+```
+
+When enabled, every create, update, and delete action is recorded with:
+
+- **Who** — the authenticated user
+- **What** — the action performed (created, updated, deleted)
+- **When** — timestamp
+- **Changes** — a diff of old vs. new values (for updates)
+
+Activity logs appear on the detail page of each record and can be browsed globally via the panel sidebar.
+
+Requires an `ActivityLog` table in your database schema.
 
 ---
 
@@ -207,6 +252,38 @@ TextField.make('name')
 | `RelationField` | `belongsTo` / `hasMany` | `.resource(UserResource)`, `.displayField('name')`, `.multiple()` |
 | `RepeaterField` | `repeater` | Repeating group of fields |
 | `BuilderField` | `builder` | Block-based content builder |
+
+### FieldType Enum
+
+Instead of magic strings, use the `FieldType` enum for type-safe field type references:
+
+```ts
+import { FieldType } from '@rudderjs/panels'
+
+FieldType.Text       // 'text'
+FieldType.Email      // 'email'
+FieldType.Password   // 'password'
+FieldType.Number     // 'number'
+FieldType.Textarea   // 'textarea'
+FieldType.Select     // 'select'
+FieldType.Boolean    // 'boolean'
+FieldType.Toggle     // 'toggle'
+FieldType.Date       // 'date'
+FieldType.Datetime   // 'datetime'
+FieldType.Slug       // 'slug'
+FieldType.Tags       // 'tags'
+FieldType.Color      // 'color'
+FieldType.Hidden     // 'hidden'
+FieldType.Json       // 'json'
+FieldType.File       // 'file'
+FieldType.Image      // 'image'
+FieldType.BelongsTo  // 'belongsTo'
+FieldType.HasMany    // 'hasMany'
+FieldType.Repeater   // 'repeater'
+FieldType.Builder    // 'builder'
+```
+
+Useful when building dynamic field logic or custom components that branch on field type.
 
 ---
 
@@ -289,6 +366,51 @@ fields() {
 |--------|-------------|
 | `Tabs.make()` | Create a tabs group |
 | `.tab(label, ...fields)` | Add a tab with the given label and fields |
+
+### Wizard (Multi-Step Forms)
+
+Replace the standard create/edit form with a multi-step wizard. Each step has its own fields and validation — the user advances step by step with Next/Back buttons.
+
+```ts
+import { Wizard, Step, TextField, EmailField, SelectField, TextareaField } from '@rudderjs/panels'
+
+export class UserResource extends Resource {
+  form() {
+    return Wizard.make()
+      .steps([
+        Step.make('Account')
+          .description('Basic account information')
+          .schema([
+            TextField.make('name').required(),
+            EmailField.make('email').required(),
+          ]),
+
+        Step.make('Profile')
+          .description('Additional details')
+          .schema([
+            SelectField.make('role').options(['user', 'editor', 'admin']).required(),
+            TextareaField.make('bio').rows(4),
+          ]),
+
+        Step.make('Review')
+          .description('Confirm and submit')
+          .schema([
+            // summary fields or empty — user reviews before submitting
+          ]),
+      ])
+  }
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `Wizard.make()` | Create a wizard form |
+| `.steps(Step[])` | Define the wizard steps in order |
+| `Step.make(label)` | Create a step with the given label |
+| `Step.description(text)` | Subtitle shown below the step label |
+| `Step.schema(fields[])` | Fields for this step |
+
+When `form()` returns a `Wizard`, the create and edit pages render the wizard UI instead of the default single-page form. Validation runs per-step — the user cannot advance until the current step is valid. The final step submits all collected data at once.
 
 ---
 
@@ -414,6 +536,52 @@ The callback receives:
 - `q` — the ORM query builder (call `.where()`, `.orWhere()`, etc.)
 - `value` — the selected filter value as a string
 
+### Specialized Filter Types
+
+Beyond `SelectFilter` and `SearchFilter`, there are four additional filter types for common patterns:
+
+```ts
+import { DateFilter, BooleanFilter, NumberFilter, QueryFilter } from '@rudderjs/panels'
+
+filters() {
+  return [
+    DateFilter.make('createdAt')
+      .label('Created Between'),
+      // renders as a date range picker (from / to)
+
+    BooleanFilter.make('featured')
+      .label('Featured'),
+      // renders as a ternary: All | Yes | No
+
+    NumberFilter.make('price')
+      .label('Price Range'),
+      // renders as min / max number inputs
+
+    QueryFilter.make('hasComments')
+      .label('Has Comments')
+      .query((q) => q.where('commentCount', '>', 0)),
+      // renders as a simple toggle — applies the query when active
+  ]
+}
+```
+
+| Class | UI | Query |
+|-------|-----|-------|
+| `DateFilter` | Date range picker (from/to) | `WHERE column >= from AND column <= to` |
+| `BooleanFilter` | Ternary: All / Yes / No | `WHERE column = true` or `WHERE column = false` |
+| `NumberFilter` | Min/max number inputs | `WHERE column >= min AND column <= max` |
+| `QueryFilter` | On/off toggle | Runs the `.query(fn)` callback when toggled on |
+
+### Filter Indicator
+
+Any filter can show a colored dot in the filter bar when active, making it obvious that filters are applied:
+
+```ts
+SelectFilter.make('status')
+  .options([...])
+  .indicator()          // shows a dot when this filter has a value
+```
+
 ---
 
 ## Actions
@@ -456,6 +624,140 @@ actions() {
 | `.destructive()` | Renders with red styling |
 | `.confirm(message?)` | Shows a confirmation dialog before running |
 | `.icon(name)` | Icon string passed to the UI |
+
+### Action Forms
+
+Actions can collect input from the user before executing. Call `.form()` with an array of fields to show a modal dialog:
+
+```ts
+Action.make('change-status')
+  .label('Change Status')
+  .icon('refresh')
+  .bulk()
+  .form([
+    SelectField.make('status')
+      .label('New Status')
+      .options(['draft', 'published', 'archived'])
+      .required(),
+    TextareaField.make('reason')
+      .label('Reason for change')
+      .rows(3),
+  ])
+  .handler(async (records, formData) => {
+    for (const record of records as Article[]) {
+      await Article.query().update(record.id, {
+        status: formData.status,
+        statusReason: formData.reason,
+      })
+    }
+  }),
+```
+
+The handler receives `(records, formData)` where `formData` is a plain object with the form field values. Without `.form()`, the handler receives only `(records)`.
+
+### Action Groups
+
+Group related actions into a dropdown menu to reduce toolbar clutter:
+
+```ts
+import { Action, ActionGroup } from '@rudderjs/panels'
+
+actions() {
+  return [
+    Action.make('publish').label('Publish').icon('check').bulk()
+      .handler(async (records) => { /* ... */ }),
+
+    ActionGroup.make('more')
+      .label('More Actions')
+      .actions([
+        Action.make('archive').label('Archive').icon('archive')
+          .handler(async (records) => { /* ... */ }),
+        Action.make('export').label('Export CSV').icon('download')
+          .handler(async (records) => { /* ... */ }),
+        Action.make('duplicate').label('Duplicate').icon('copy')
+          .handler(async (records) => { /* ... */ }),
+      ]),
+  ]
+}
+```
+
+Top-level actions render as individual buttons. Grouped actions render inside a single dropdown button.
+
+### Header Actions
+
+Add global actions above the table (not tied to record selection) with `.headerActions()`:
+
+```ts
+import { Table, Action } from '@rudderjs/panels'
+
+// On a schema Table element
+Table.make('Articles')
+  .fromResource(ArticleResource)
+  .headerActions([
+    Action.make('export-all').label('Export All').icon('download')
+      .handler(async () => { /* export logic */ }),
+    Action.make('import').label('Import').icon('upload')
+      .handler(async () => { /* import logic */ }),
+  ])
+```
+
+Header actions also work on the resource table via the `table()` method:
+
+```ts
+export class ArticleResource extends Resource {
+  table() {
+    return { headerActions: [
+      Action.make('export-all').label('Export All').icon('download')
+        .handler(async () => { /* ... */ }),
+    ]}
+  }
+}
+```
+
+---
+
+## Data Import
+
+`Import.make()` adds a file import button to the resource table. Users upload a CSV/XLSX file and records are created in chunks with validation and optional transformation.
+
+```ts
+import { Import, TextField, EmailField } from '@rudderjs/panels'
+
+export class UserResource extends Resource {
+  // ...
+
+  table() {
+    return {
+      importable: Import.make()
+        .columns([
+          TextField.make('name').required(),
+          EmailField.make('email').required(),
+          TextField.make('role'),
+        ])
+        .chunkSize(100)           // process N rows at a time (default: 500)
+        .validate((row) => {
+          if (!row.email?.includes('@')) return 'Invalid email'
+          return true
+        })
+        .transform((row) => ({
+          ...row,
+          role: row.role || 'user',
+          createdAt: new Date(),
+        })),
+    }
+  }
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `Import.make()` | Create an import configuration |
+| `.columns(fields[])` | Define expected columns using field classes (used for mapping + validation) |
+| `.chunkSize(n)` | Number of rows to process per batch (default: `500`) |
+| `.validate(fn)` | Per-row validation — return `true` or an error message string |
+| `.transform(fn)` | Transform each row before insert — receives raw row, returns modified row |
+
+The import UI shows a column mapping step, a preview, validation errors, and progress.
 
 ---
 
@@ -662,8 +964,65 @@ export class PostResource extends Resource {
   fields() { return [...] }
   filters() { return [...] }   // optional
   actions() { return [...] }   // optional
+  relations() { return [...] } // optional — see Relation Managers below
 }
 ```
+
+---
+
+## Relation Managers
+
+Relation managers display and manage related records inline on the detail/edit page. Define a `relations()` method on your resource to add inline tables for hasMany relationships.
+
+```ts
+import { RelationManager, TextField, TextareaField, DateField } from '@rudderjs/panels'
+
+export class PostResource extends Resource {
+  static model = Post
+
+  fields() {
+    return [
+      TextField.make('title').required(),
+      TextareaField.make('body'),
+    ]
+  }
+
+  relations() {
+    return [
+      RelationManager.make('comments')
+        .label('Comments')
+        .foreignKey('postId')       // column on the related model (default: inferred)
+        .columns([
+          TextField.make('author').sortable(),
+          TextField.make('body'),
+          DateField.make('createdAt').label('Date').sortable(),
+        ])
+        .form([
+          TextField.make('author').required(),
+          TextareaField.make('body').required(),
+        ])
+        .creatable()                // show "Add" button
+        .editable()                 // allow inline editing
+        .deletable()                // show delete button per row
+        .defaultSort('createdAt', 'DESC'),
+    ]
+  }
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `RelationManager.make(relation)` | Create a manager for the named relation |
+| `.label(text)` | Display label (default: title-cased relation name) |
+| `.foreignKey(column)` | Foreign key column on the related model |
+| `.columns(fields[])` | Columns to show in the relation table |
+| `.form(fields[])` | Fields for the create/edit modal |
+| `.creatable()` | Show an "Add" button to create related records |
+| `.editable()` | Allow editing related records |
+| `.deletable()` | Show a delete button on each row |
+| `.defaultSort(column, dir?)` | Default sort for the relation table |
+
+Relation managers render as tabbed tables below the main form on the edit page. Each manager handles its own pagination and sorting independently.
 
 ---
 
