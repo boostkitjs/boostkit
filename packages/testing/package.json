@@ -1,0 +1,42 @@
+{
+  "name": "@rudderjs/testing",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rudderjs/rudder",
+    "directory": "packages/testing"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@rudderjs/core": "workspace:*",
+    "@rudderjs/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0"
+  },
+  "peerDependencies": {
+    "@faker-js/faker": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@faker-js/faker": {
+      "optional": true
+    }
+  }
+}

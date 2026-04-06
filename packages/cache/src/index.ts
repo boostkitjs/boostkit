@@ -1,5 +1,8 @@
 import { ServiceProvider, type Application } from '@rudderjs/core'
 
+import { FakeCacheAdapter } from './fake.js'
+export { FakeCacheAdapter, type CacheOperation } from './fake.js'
+
 // ─── Adapter Contract ──────────────────────────────────────
 
 export interface CacheAdapter {
@@ -92,6 +95,11 @@ export class Cache {
 
   /** Remove all cached entries. */
   static flush(): Promise<void>              { return this.store().flush() }
+
+  /** Replace the cache adapter with a fake for testing. */
+  static fake(): FakeCacheAdapter {
+    return FakeCacheAdapter.fake()
+  }
 }
 
 // ─── Memory Driver (built-in) ──────────────────────────────

@@ -332,6 +332,9 @@ export const notify = (
  *   import { notifications } from '@rudderjs/notification'
  *   export default [..., notifications(), ...]
  */
+export { NotificationFake } from './fake.js'
+export type { SentNotification } from './fake.js'
+
 export function notifications(): new (app: Application) => ServiceProvider {
   class NotificationServiceProvider extends ServiceProvider {
     register(): void {
