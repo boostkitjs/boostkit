@@ -12,7 +12,7 @@ This file provides guidance to Claude Code when working in this repository.
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@rudderjs/*`
 - **GitHub**: https://github.com/rudderjs/rudder
-- **Status**: Early development — 37 packages published to npm
+- **Status**: Early development — 38 packages published to npm
 
 ---
 
@@ -152,6 +152,7 @@ rudderjs/
 │   ├── log/            # Structured logging — channels (console, single, daily, stack, null), RFC 5424 levels,
 │   │                   #   LineFormatter/JsonFormatter, context propagation (per-channel + shared), listeners,
 │   │                   #   LogFake for testing, extendLog() for custom drivers
+│   ├── http/           # HTTP client — fluent fetch wrapper, retries, timeouts, pools, interceptors, Http.fake()
 │   ├── localization/   # i18n — trans(), setLocale(), locale-aware middleware, JSON translation files
 │   └── cli/            # make:*, module:*, module:publish, rudder user commands
 ├── create-rudderjs-app/   # Interactive scaffolder CLI (pnpm/npm/yarn/bun create rudderjs-app)
@@ -201,6 +202,7 @@ rudderjs/
 | `@rudderjs/workspaces` | 0.0.1 | AI workspace canvas — Isoflow-style 3D nodes, departments, connections. Panel plugin: `workspaces()` |
 | `@rudderjs/boost` | 0.0.1 | AI dev tools — MCP server exposing project internals (DB schema, routes, models, config, logs) to AI coding assistants |
 | `@rudderjs/log` | 0.0.1 | Structured logging — channels (console, single, daily, stack, null), RFC 5424 levels, LineFormatter/JsonFormatter, per-channel + shared context, listeners, `LogFake` for testing, `extendLog()` for custom drivers |
+| `@rudderjs/http` | 0.0.1 | Fluent HTTP client — `Http` facade, retries, timeouts, pools (`Pool.concurrency()`), request/response interceptors, `Http.fake()` with URL pattern matching + assertions |
 | `@rudderjs/localization` | 0.0.1 | i18n — `trans()`, `setLocale()`, `getLocale()`, locale middleware, JSON translation files |
 
 **Merged/removed packages** (code absorbed, originals deleted):
@@ -258,6 +260,8 @@ rudderjs/
 @rudderjs/image       (standalone, used by media for conversions)
 
 @rudderjs/log         (structured logging — no runtime deps beyond core)
+
+@rudderjs/http        (HTTP client — no deps, uses native fetch)
 
 @rudderjs/boost       (MCP server, depends on core)
 ```
