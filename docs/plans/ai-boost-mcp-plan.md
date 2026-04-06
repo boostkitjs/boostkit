@@ -11,7 +11,7 @@ This replaces `docs/plans/2026-04-03-ai-future-phases.md` and incorporates the e
 
 ---
 
-## Phase 1: AI Package Core Gaps (High Priority)
+## Phase 1: AI Package Core Gaps (High Priority) ✅
 
 ### 1.1 — Wire Middleware into Agent Loop
 

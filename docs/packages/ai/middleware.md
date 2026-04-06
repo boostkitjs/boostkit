@@ -51,12 +51,30 @@ const a = agent({
 
 ## Middleware Hooks
 
-| Hook | Arguments | Description |
+All hooks are wired into both the non-streaming and streaming agent loops.
+
+| Hook | Execution | Description |
 |---|---|---|
-| `onStart` | `ctx` | Agent run begins |
-| `onFinish` | `ctx` | Agent run completes |
-| `onBeforeToolCall` | `ctx, toolName, args` | Before a tool executes |
-| `onAfterToolCall` | `ctx, toolName, result` | After a tool returns |
+| `onConfig(ctx, config, phase)` | Piped (each transforms) | Modify request config at `init` or `beforeModel` phase |
+| `onStart(ctx)` | Sequential | Agent run begins |
+| `onIteration(ctx)` | Sequential | Each LLM call starts |
+| `onChunk(ctx, chunk)` | Piped (can drop) | Transform or filter streaming chunks (streaming only) |
+| `onBeforeToolCall(ctx, name, args)` | First wins | Skip, abort, or transform tool args |
+| `onAfterToolCall(ctx, name, args, result)` | Sequential | After a tool returns |
+| `onToolPhaseComplete(ctx)` | Sequential | After all tools in a step |
+| `onUsage(ctx, usage)` | Sequential | Token usage after each provider response |
+| `onFinish(ctx)` | Sequential | Agent run completes |
+| `onAbort(ctx, reason)` | Sequential | When `ctx.abort()` is called |
+| `onError(ctx, error)` | Sequential | On exceptions |
+
+### `onBeforeToolCall` Return Values
+
+| Return | Effect |
+|---|---|
+| `void` / `undefined` | Continue normally |
+| `{ type: 'transformArgs', args }` | Replace tool arguments |
+| `{ type: 'skip', result }` | Skip execution, use provided result |
+| `{ type: 'abort', reason }` | Stop the agent loop |
 
 ## Testing
 

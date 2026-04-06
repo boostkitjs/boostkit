@@ -51,10 +51,10 @@ rudderjs/
 │   ├── panels-lexical/ # Lexical rich-text editor adapter — see docs/claude/panels.md
 │   ├── image/          # Fluent image processing — resize, crop, convert, optimize. Thin wrapper over sharp.
 │   ├── media/          # Media library — Media.make() schema element, file browser, uploads, preview, conversions
-│   ├── ai/             # AI engine — 4 providers (Anthropic, OpenAI, Google, Ollama), Agent class, tool system,
-│   │                   #   streaming, middleware, structured output, conversation memory, AI facade, AiFake
-│   │                   #   Agent.prompt/stream accept { history } for conversation continuity
-│   │                   #   AiModelConfig + AiRegistry.setModels/getModels for user model selection
+│   ├── ai/             # AI engine — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI,
+│   │                   #   Mistral, Azure), Agent class, tool system, streaming, middleware (wired into loop),
+│   │                   #   structured output, conversation memory (forUser/continue), attachments (Document/Image),
+│   │                   #   queue integration (agent.queue()), AI facade, AiFake
 │   ├── workspaces/     # AI workspace canvas — Isoflow-style 3D nodes, departments, connections, chat, orchestrator
 │   │                   #   Panel plugin: workspaces(). Uses @rudderjs/ai for LLM, Prisma for persistence.
 │   ├── boost/          # AI dev tools — MCP server (app_info, db_schema, route_list, model_list, config_get, last_error)
@@ -116,7 +116,7 @@ rudderjs/
 | `@rudderjs/panels-lexical` | 0.0.1 | Lexical rich-text editor adapter — see docs/claude/panels.md |
 | `@rudderjs/image` | 0.0.1 | Fluent image processing — resize, crop, convert, optimize. Wraps sharp. |
 | `@rudderjs/media` | 0.0.1 | Media library — `Media.make()` schema element, file browser, uploads, folders, preview, image conversions |
-| `@rudderjs/ai` | 0.0.1 | AI engine — 4 providers (Anthropic, OpenAI, Google, Ollama), Agent class, tool system, streaming, middleware, Output, conversation memory, AI facade, AiFake. Agent.prompt/stream accept `{ history }`. AiModelConfig + model registry for user selection. |
+| `@rudderjs/ai` | 0.0.1 | AI engine — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), Agent class, tool system, streaming, middleware (wired into agent loop), structured Output, conversation memory (`forUser()`/`continue()`), file/image attachments (`Document`/`Image`), queue integration (`agent.queue()`), AI facade, AiFake. |
 | `@rudderjs/workspaces` | 0.0.1 | AI workspace canvas — Isoflow-style 3D nodes, departments, connections. Panel plugin: `workspaces()` |
 | `@rudderjs/boost` | 0.0.1 | AI dev tools — MCP server exposing project internals (DB schema, routes, models, config, logs) to AI coding assistants |
 | `@rudderjs/log` | 0.0.1 | Structured logging — channels (console, single, daily, stack, null), RFC 5424 levels, LineFormatter/JsonFormatter, per-channel + shared context, listeners, `LogFake` for testing, `extendLog()` for custom drivers |

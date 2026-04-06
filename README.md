@@ -42,7 +42,7 @@ RudderJS is the middle ground: a **batteries-included architecture that stays en
 
 - **Laravel-inspired DX** — service providers, fluent bootstrap, Rudder CLI, FormRequest validation
 - **Pay-as-you-go** — 42 optional `@rudderjs/*` packages; use only what you need
-- **AI-native** — multi-provider AI engine (Anthropic, OpenAI, Google, Ollama), Agent class with tool system, streaming
+- **AI-native** — 9-provider AI engine (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), agents with tools, streaming, middleware, attachments, conversations, queue integration
 - **Native auth** — session guards, API tokens (Sanctum), OAuth (Socialite), gates & policies, password hashing & encryption
 - **Pluggable adapters** — swap Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3, SMTP ↔ any mailer
 - **UI-agnostic** — pair with React, Vue, Solid, or run as a pure API server
