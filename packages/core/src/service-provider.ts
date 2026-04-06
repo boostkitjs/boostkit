@@ -42,6 +42,15 @@ export abstract class ServiceProvider {
   boot?(): void | Promise<void>
 
   /**
+   * If defined, this provider is **deferred** — its `register()` and `boot()`
+   * are not called during bootstrap but lazily when one of the returned tokens
+   * is first resolved from the container.
+   *
+   * **Constraint**: deferred providers must have a synchronous `boot()` (or none).
+   */
+  provides?(): string[]
+
+  /**
    * Register assets that can be published to the application with `vendor:publish`.
    *
    * @example

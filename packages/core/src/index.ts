@@ -14,7 +14,7 @@ export type { BootConfig, ConfigureOptions, RoutingOptions, ErrorRenderer, Provi
 
 // ─── DI ────────────────────────────────────────────────────
 
-export { Container, container, Injectable, Inject } from './di.js'
+export { Container, ContextualBindingBuilder, container, Injectable, Inject } from './di.js'
 
 // ─── Service Provider ──────────────────────────────────────
 

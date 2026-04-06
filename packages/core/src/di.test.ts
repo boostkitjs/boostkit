@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { Container, container, Inject, Injectable } from './di.js'
+import { Container, ContextualBindingBuilder, container, Inject, Injectable } from './di.js'
 
 // ─── Container bindings ────────────────────────────────────
 
@@ -337,5 +337,186 @@ describe('global container singleton', () => {
   it('bindings made on container are visible everywhere', () => {
     container.instance('shared', { ok: true })
     assert.deepStrictEqual(container.make('shared'), { ok: true })
+  })
+})
+
+// ─── Scoped bindings ──────────────────────────────────────
+
+describe('Container.scoped()', () => {
+  it('returns the same instance within one runScoped() call', () => {
+    const c = new Container()
+    let n = 0
+    c.scoped('svc', () => ({ id: ++n }))
+
+    c.runScoped(() => {
+      const a = c.make<{ id: number }>('svc')
+      const b = c.make<{ id: number }>('svc')
+      assert.strictEqual(a, b)
+      assert.strictEqual(a.id, 1)
+    })
+  })
+
+  it('returns different instances across separate runScoped() calls', () => {
+    const c = new Container()
+    let n = 0
+    c.scoped('svc', () => ({ id: ++n }))
+
+    let firstId: number | undefined
+    c.runScoped(() => {
+      firstId = c.make<{ id: number }>('svc').id
+    })
+
+    let secondId: number | undefined
+    c.runScoped(() => {
+      secondId = c.make<{ id: number }>('svc').id
+    })
+
+    assert.strictEqual(firstId, 1)
+    assert.strictEqual(secondId, 2)
+  })
+
+  it('throws when resolving scoped binding outside a scope', () => {
+    const c = new Container()
+    c.scoped('svc', () => ({}))
+    assert.throws(() => c.make('svc'), /outside of a request scope/)
+  })
+
+  it('does not interfere with singletons', () => {
+    const c = new Container()
+    c.singleton('single', () => ({ type: 'singleton' }))
+    c.scoped('scoped', () => ({ type: 'scoped' }))
+
+    c.runScoped(() => {
+      assert.strictEqual(c.make<{ type: string }>('single').type, 'singleton')
+      assert.strictEqual(c.make<{ type: string }>('scoped').type, 'scoped')
+    })
+  })
+
+  it('nested scopes get independent instances', () => {
+    const c = new Container()
+    let n = 0
+    c.scoped('svc', () => ({ id: ++n }))
+
+    c.runScoped(() => {
+      const outer = c.make<{ id: number }>('svc')
+      assert.strictEqual(outer.id, 1)
+
+      c.runScoped(() => {
+        const inner = c.make<{ id: number }>('svc')
+        assert.strictEqual(inner.id, 2)
+        assert.notStrictEqual(outer, inner)
+      })
+
+      // Outer scope still has its own instance
+      assert.strictEqual(c.make<{ id: number }>('svc'), outer)
+    })
+  })
+
+  it('returns this for chaining', () => {
+    const c = new Container()
+    assert.strictEqual(c.scoped('x', () => 1), c)
+  })
+})
+
+// ─── Contextual bindings ──────────────────────────────────
+
+describe('Container.when() — contextual binding', () => {
+  it('overrides a dependency for a specific class', () => {
+    @Injectable()
+    class Storage { readonly type = 'default' }
+
+    @Injectable()
+    class PhotoController {
+      constructor(readonly storage: Storage) {}
+    }
+    Reflect.defineMetadata('design:paramtypes', [Storage], PhotoController)
+
+    @Injectable()
+    class VideoController {
+      constructor(readonly storage: Storage) {}
+    }
+    Reflect.defineMetadata('design:paramtypes', [Storage], VideoController)
+
+    const c = new Container()
+    c.when(PhotoController).needs(Storage).give(() => ({ type: 's3' }) as unknown as Storage)
+
+    const photo = c.make(PhotoController)
+    const video = c.make(VideoController)
+
+    assert.strictEqual((photo.storage as unknown as { type: string }).type, 's3')
+    assert.strictEqual(video.storage.type, 'default')
+  })
+
+  it('overrides a string token dependency', () => {
+    @Injectable()
+    class Consumer {
+      constructor(@Inject('greeting') readonly greeting: string) {}
+    }
+    Reflect.defineMetadata('design:paramtypes', [String], Consumer)
+
+    const c = new Container()
+    c.instance('greeting', 'hello')
+    c.when(Consumer).needs('greeting').give('hola')
+
+    assert.strictEqual(c.make(Consumer).greeting, 'hola')
+  })
+
+  it('give() accepts a raw value (not a factory)', () => {
+    @Injectable()
+    class Consumer {
+      constructor(@Inject('val') readonly val: number) {}
+    }
+    Reflect.defineMetadata('design:paramtypes', [Number], Consumer)
+
+    const c = new Container()
+    c.instance('val', 0)
+    c.when(Consumer).needs('val').give(42)
+
+    assert.strictEqual(c.make(Consumer).val, 42)
+  })
+
+  it('returns a ContextualBindingBuilder', () => {
+    const c = new Container()
+    @Injectable()
+    class Foo {}
+    assert.ok(c.when(Foo) instanceof ContextualBindingBuilder)
+  })
+})
+
+// ─── Missing handler (deferred providers) ─────────────────
+
+describe('Container.setMissingHandler()', () => {
+  it('calls handler when make() cannot find a binding', () => {
+    const c = new Container()
+    let handledToken: string | symbol | undefined
+    c.setMissingHandler((token) => {
+      handledToken = token
+      c.instance(token, 'resolved-by-handler')
+    })
+
+    const result = c.make<string>('lazy-token')
+    assert.strictEqual(result, 'resolved-by-handler')
+    assert.strictEqual(handledToken, 'lazy-token')
+  })
+
+  it('does not call handler when binding exists', () => {
+    const c = new Container()
+    let called = false
+    c.setMissingHandler(() => { called = true })
+    c.instance('exists', 42)
+
+    assert.strictEqual(c.make<number>('exists'), 42)
+    assert.ok(!called)
+  })
+
+  it('still throws if handler does not register the token', () => {
+    const c = new Container()
+    c.setMissingHandler(() => { /* does nothing */ })
+    assert.throws(() => c.make('nope'), /Cannot resolve/)
+  })
+
+  it('returns this for chaining', () => {
+    const c = new Container()
+    assert.strictEqual(c.setMissingHandler(null), c)
   })
 })
