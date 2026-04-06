@@ -1,6 +1,6 @@
 # @rudderjs/router
 
-Decorator-based and fluent HTTP router for RudderJS. Supports route-level middleware, controller registration, and mounting onto any server adapter.
+Decorator-based and fluent HTTP router for RudderJS. Supports named routes, URL generation, signed URLs, route-level middleware, and controller registration.
 
 ## Installation
 
@@ -8,9 +8,9 @@ Decorator-based and fluent HTTP router for RudderJS. Supports route-level middle
 pnpm add @rudderjs/router
 ```
 
-## Usage
+---
 
-### Fluent routing
+## Fluent routing
 
 ```ts
 import { router } from '@rudderjs/router'
@@ -25,7 +25,88 @@ router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Not found' 
 
 `router` is the global singleton. `Route` is an alias for it.
 
-### Decorator-based routing
+---
+
+## Named routes
+
+Chain `.name()` on any fluent route registration to assign a name:
+
+```ts
+router.get('/users/:id', handler).name('users.show')
+router.post('/users', handler).name('users.store')
+router.get('/invoices/:id/download', handler, [ValidateSignature()]).name('invoice.download')
+```
+
+---
+
+## `route()` — URL generation
+
+Generate a URL from a named route. Route parameters are substituted; unused params are appended as a query string.
+
+```ts
+import { route } from '@rudderjs/router'
+
+route('users.show', { id: 42 })             // '/users/42'
+route('search', { q: 'hello', page: 2 })    // '/search?q=hello&page=2'
+route('users.list')                          // '/users'
+```
+
+Optional parameters (`:id?`) are omitted when not provided:
+
+```ts
+// route defined as '/posts/:category?/:slug'
+route('posts.show', { slug: 'hello' })  // '/posts/hello'
+```
+
+Throws if a required parameter is missing or the named route is not defined.
+
+---
+
+## `Url` — signed URLs
+
+Signed URLs include an HMAC-SHA256 `signature` parameter. The signing key is read from `APP_KEY` in your environment, or set explicitly with `Url.setKey()`.
+
+```ts
+import { Url } from '@rudderjs/router'
+
+// Sign a named route
+Url.signedRoute('invoice.download', { id: 42 })
+// → '/invoice/42?signature=abc123...'
+
+// Sign with an expiry (seconds from now)
+Url.temporarySignedRoute('invoice.download', 3600, { id: 42 })
+// → '/invoice/42?expires=1234567890&signature=abc123...'
+
+// Sign an arbitrary path
+Url.sign('/some/path?foo=bar')
+
+// Validate a request's signature
+Url.isValidSignature(req)   // → boolean
+
+// Current URL and referer helpers
+Url.current(req)            // → req.url
+Url.previous(req, '/')      // → Referer header or fallback
+
+// Override the signing key (e.g. in tests)
+Url.setKey('my-secret-key')
+```
+
+---
+
+## `ValidateSignature()` middleware
+
+Rejects requests with a missing, invalid, or expired URL signature with `403`.
+
+```ts
+import { ValidateSignature } from '@rudderjs/router'
+
+router.get('/invoice/:id/download', handler, [ValidateSignature()])
+  .name('invoice.download')
+```
+
+---
+
+## Decorator-based routing
 
 ```ts
 import { Controller, Get, Post, Delete, Middleware, router } from '@rudderjs/router'
@@ -54,46 +135,72 @@ class UserController {
 router.registerController(UserController)
 ```
 
-### Route-level middleware (fluent)
+---
+
+## Route-level middleware (fluent)
 
 ```ts
 router.get('/protected', handler, [authMiddleware])
 router.post('/admin', handler, [authMiddleware, adminMiddleware])
 ```
 
-### Mounting onto a server adapter
+---
+
+## Mounting onto a server adapter
 
 ```ts
 // bootstrap/app.ts — called automatically by Application.configure()
 router.mount(serverAdapter)
 ```
 
+---
+
 ## API Reference
 
 ### `Router`
 
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(path, handler, mw?)` | `RouteBuilder` | Register GET route |
+| `post(path, handler, mw?)` | `RouteBuilder` | Register POST route |
+| `put(path, handler, mw?)` | `RouteBuilder` | Register PUT route |
+| `patch(path, handler, mw?)` | `RouteBuilder` | Register PATCH route |
+| `delete(path, handler, mw?)` | `RouteBuilder` | Register DELETE route |
+| `all(path, handler, mw?)` | `RouteBuilder` | Register route matching any method |
+| `add(method, path, handler, mw?)` | `this` | Register route with explicit method |
+| `use(middleware)` | `this` | Register global middleware |
+| `registerController(Class)` | `this` | Register decorator-based controller |
+| `mount(serverAdapter)` | `void` | Apply middleware + routes to adapter |
+| `list()` | `RouteDefinition[]` | All registered routes |
+| `listNamed()` | `Record<string, string>` | All named routes |
+| `getNamedRoute(name)` | `string \| undefined` | Path for a named route |
+| `reset()` | `this` | Clear routes, middleware, and named routes |
+
+### `RouteBuilder`
+
+Returned by the shorthand route methods. Allows naming the registered route.
+
 | Method | Description |
 |--------|-------------|
-| `get(path, handler, mw?)` | Register GET route |
-| `post(path, handler, mw?)` | Register POST route |
-| `put(path, handler, mw?)` | Register PUT route |
-| `patch(path, handler, mw?)` | Register PATCH route |
-| `delete(path, handler, mw?)` | Register DELETE route |
-| `all(path, handler, mw?)` | Register route matching any method |
-| `add(method, path, handler, mw?)` | Register route with explicit method string |
-| `use(middleware)` | Register global middleware (runs on every route) |
-| `registerController(Class)` | Register all routes from a decorator-based controller |
-| `mount(serverAdapter)` | Apply global middleware + routes to a server adapter |
-| `list()` | Return a copy of all registered `RouteDefinition[]` |
-| `reset()` | Clear all routes and global middleware |
+| `.name(n)` | Assign a name to the route |
 
-All mutating methods return `this` for chaining.
+### `Url`
+
+| Method | Description |
+|--------|-------------|
+| `Url.setKey(key)` | Override the HMAC signing key |
+| `Url.current(req)` | Full URL of the request |
+| `Url.previous(req, fallback?)` | Referer header or fallback |
+| `Url.signedRoute(name, params?, expiresAt?)` | Signed URL for a named route |
+| `Url.temporarySignedRoute(name, seconds, params?)` | Expiring signed URL |
+| `Url.sign(path, expiresAt?)` | Sign an arbitrary path |
+| `Url.isValidSignature(req)` | Validate request signature |
 
 ### Decorators
 
 | Decorator | Target | Description |
 |-----------|--------|-------------|
-| `@Controller(prefix?)` | class | Marks a class as a controller with a route prefix |
+| `@Controller(prefix?)` | class | Marks class as a controller with a route prefix |
 | `@Middleware([...handlers])` | class or method | Applies middleware handlers |
 | `@Get(path)` | method | GET route |
 | `@Post(path)` | method | POST route |
@@ -102,13 +209,12 @@ All mutating methods return `this` for chaining.
 | `@Delete(path)` | method | DELETE route |
 | `@Options(path)` | method | OPTIONS route |
 
-### Middleware ordering
-
-- Class-level `@Middleware` runs before method-level `@Middleware`
-- Route registration order is preserved
+---
 
 ## Notes
 
 - `router` and `Route` are the same global singleton
 - Decorator controllers require `reflect-metadata` at the app entry point
-- Double slashes in composed paths (`/api` + `/users`) are normalised to `/api/users`
+- Double slashes in composed paths are normalised automatically
+- Signed URLs use HMAC-SHA256 with timing-safe comparison to prevent timing attacks
+- `APP_KEY` must be set (or `Url.setKey()` called) before using signed URLs
