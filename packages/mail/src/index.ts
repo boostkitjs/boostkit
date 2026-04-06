@@ -1,42 +1,10 @@
 import { ServiceProvider, type Application } from '@rudderjs/core'
 import { resolveOptionalPeer } from '@rudderjs/core'
+import { Mailable } from './mailable.js'
+import type { MailMessage } from './mailable.js'
 
-// ─── Mail Message ──────────────────────────────────────────
-
-export interface MailMessage {
-  subject: string
-  html?:   string
-  text?:   string
-}
-
-// ─── Mailable ──────────────────────────────────────────────
-
-export abstract class Mailable {
-  private _subject = ''
-  private _html?: string
-  private _text?: string
-
-  /** Set the email subject */
-  protected subject(subject: string): this { this._subject = subject; return this }
-
-  /** Set the HTML body */
-  protected html(html: string): this { this._html = html; return this }
-
-  /** Set the plain-text body */
-  protected text(text: string): this { this._text = text; return this }
-
-  /** Build the mailable — called before sending. Override to set subject/html/text. */
-  abstract build(): this | Promise<this>
-
-  /** Called by the adapter — builds then returns the compiled message */
-  async compile(): Promise<MailMessage> {
-    await this.build()
-    const msg: MailMessage = { subject: this._subject }
-    if (this._html !== undefined) msg.html = this._html
-    if (this._text !== undefined) msg.text = this._text
-    return msg
-  }
-}
+export { Mailable } from './mailable.js'
+export type { MailMessage } from './mailable.js'
 
 // ─── Adapter Contract ──────────────────────────────────────
 
@@ -76,19 +44,41 @@ export class MailRegistry {
 // ─── Pending Send (fluent builder) ─────────────────────────
 
 export class MailPendingSend {
-  private _cc:  string[] = []
-  private _bcc: string[] = []
+  private _cc:    string[] = []
+  private _bcc:   string[] = []
+  private _queue?: string
 
   constructor(private readonly _to: string[]) {}
 
   cc(...addresses: string[]):  this { this._cc  = addresses; return this }
   bcc(...addresses: string[]): this { this._bcc = addresses; return this }
 
+  /** Specify which queue to use for queued mail. */
+  onQueue(name: string): this { this._queue = name; return this }
+
   async send(mailable: Mailable): Promise<void> {
     const adapter = MailRegistry.get()
     if (!adapter) throw new Error('[RudderJS Mail] No mail adapter registered. Add mail() to providers.')
     const from = MailRegistry.getFrom()
     await adapter.send(mailable, { to: this._to, from, cc: this._cc, bcc: this._bcc })
+  }
+
+  /** Queue the mailable for background sending. Requires `@rudderjs/queue`. */
+  async queue(mailable: Mailable): Promise<void> {
+    const { dispatchMailJob } = await import('./queued.js')
+    const from = MailRegistry.getFrom()
+    const opts: { queue?: string; delay?: number } = {}
+    if (this._queue) opts.queue = this._queue
+    await dispatchMailJob(mailable, { to: this._to, from, cc: this._cc, bcc: this._bcc }, opts)
+  }
+
+  /** Queue the mailable to be sent after a delay (ms). Requires `@rudderjs/queue`. */
+  async later(delay: number, mailable: Mailable): Promise<void> {
+    const { dispatchMailJob } = await import('./queued.js')
+    const from = MailRegistry.getFrom()
+    const opts: { queue?: string; delay?: number } = { delay }
+    if (this._queue) opts.queue = this._queue
+    await dispatchMailJob(mailable, { to: this._to, from, cc: this._cc, bcc: this._bcc }, opts)
   }
 }
 
@@ -284,8 +274,24 @@ export function mail(config: MailConfig): new (app: Application) => ServiceProvi
           throw new Error('[RudderJS Mail] Invalid SMTP config. Expected fields: host (string), port (number).')
         }
         adapter = nodemailer(mailerConfig, config.from).create()
+      } else if (driver === 'failover') {
+        const mailerNames = (mailerConfig['mailers'] as string[] | undefined) ?? []
+        const retryAfter  = (mailerConfig['retryAfter'] as number | undefined) ?? 60
+        const adapters: MailAdapter[] = []
+        for (const name of mailerNames) {
+          const mc = config.mailers[name]
+          if (!mc) continue
+          if (mc.driver === 'log') {
+            adapters.push(new LogAdapter())
+          } else if (mc.driver === 'smtp' && isNodemailerConfig(mc)) {
+            adapters.push(nodemailer(mc, config.from).create())
+          }
+        }
+        if (adapters.length === 0) throw new Error('[RudderJS Mail] Failover driver has no valid mailers configured.')
+        const { FailoverAdapter } = await import('./failover.js')
+        adapter = new FailoverAdapter(adapters, retryAfter)
       } else {
-        throw new Error(`[RudderJS Mail] Unknown driver "${driver}". Available: log, smtp`)
+        throw new Error(`[RudderJS Mail] Unknown driver "${driver}". Available: log, smtp, failover`)
       }
 
       MailRegistry.set(adapter)
@@ -295,3 +301,9 @@ export function mail(config: MailConfig): new (app: Application) => ServiceProvi
 
   return MailServiceProvider
 }
+
+// ─── Re-exports ────────────────────────────────────────────
+
+export { FailoverAdapter }    from './failover.js'
+export { MarkdownMailable }   from './markdown.js'
+export { mailPreview }        from './preview.js'
