@@ -1,4 +1,4 @@
-import { Container, container } from './di.js'
+import { Container, ContextualBindingBuilder, container } from './di.js'
 import { ServiceProvider } from './service-provider.js'
 import { Env, ConfigRepository, setConfigRepository } from '@rudderjs/support'
 import type { ServerAdapterProvider, ServerAdapter, FetchHandler, MiddlewareHandler, AppRequest } from '@rudderjs/contracts'
@@ -39,6 +39,9 @@ export class Application {
   private _registeredClasses = new Set<ProviderClass>()
   /** Tracks registered provider names to prevent duplicates from factory functions. */
   private _registeredNames   = new Set<string>()
+
+  /** Deferred providers — token → ProviderClass (lazily booted on first resolve). */
+  private _deferredProviders = new Map<string, ProviderClass>()
 
   readonly name:  string
   readonly env:   string
@@ -126,6 +129,19 @@ export class Application {
     return this.container.make(token) as T
   }
 
+  scoped(token: Parameters<Container['scoped']>[0], factory: Parameters<Container['scoped']>[1]): this {
+    this.container.scoped(token, factory)
+    return this
+  }
+
+  runScoped<T>(fn: () => T): T {
+    return this.container.runScoped(fn)
+  }
+
+  when(concrete: Parameters<Container['when']>[0]): ContextualBindingBuilder {
+    return this.container.when(concrete)
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────
 
   /**
@@ -172,8 +188,40 @@ export class Application {
   }
 
   private _registerAll(): void {
-    for (const provider of this.providers) {
+    for (let i = 0; i < this.providers.length; i++) {
+      const provider = this.providers[i]!
+      const tokens = provider.provides?.()
+      if (tokens && tokens.length > 0) {
+        // Deferred — map each token to the provider's constructor for lazy boot
+        const Ctor = provider.constructor as ProviderClass
+        for (const token of tokens) {
+          this._deferredProviders.set(token, Ctor)
+        }
+        continue
+      }
       provider.register()
+    }
+
+    // Wire the missing handler so deferred providers boot on first resolve
+    if (this._deferredProviders.size > 0) {
+      this.container.setMissingHandler((token) => {
+        const key = typeof token === 'symbol' ? undefined : token
+        if (!key) return
+        const Provider = this._deferredProviders.get(key)
+        if (!Provider) return
+
+        // Remove all tokens for this provider to prevent re-entry
+        for (const [t, P] of this._deferredProviders) {
+          if (P === Provider) this._deferredProviders.delete(t)
+        }
+
+        const instance = new Provider(this)
+        this.providers.push(instance)
+        instance.register()
+        // Deferred providers must have sync boot (or none)
+        instance.boot?.()
+        this._bootedProviders.add(instance)
+      })
     }
   }
 
