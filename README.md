@@ -41,7 +41,7 @@ RudderJS is the middle ground: a **batteries-included architecture that stays en
 ## Key Features
 
 - **Laravel-inspired DX** — service providers, fluent bootstrap, Rudder CLI, FormRequest validation
-- **Pay-as-you-go** — 36 optional `@rudderjs/*` packages; use only what you need
+- **Pay-as-you-go** — 42 optional `@rudderjs/*` packages; use only what you need
 - **AI-native** — multi-provider AI engine (Anthropic, OpenAI, Google, Ollama), Agent class with tool system, streaming
 - **Native auth** — session guards, API tokens (Sanctum), OAuth (Socialite), gates & policies, password hashing & encryption
 - **Pluggable adapters** — swap Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3, SMTP ↔ any mailer
@@ -517,6 +517,17 @@ const svc = resolve<UserService>(UserService)
 | `@rudderjs/broadcast` | WebSocket channels — pub/sub, private, presence |
 | `@rudderjs/live` | Yjs CRDT real-time document sync |
 
+### Developer Experience
+| Package | Description |
+|---|---|
+| `@rudderjs/log` | Structured logging — channels (console, file, daily, stack), RFC 5424 levels, formatters, context |
+| `@rudderjs/http` | Fluent HTTP client — retries, timeouts, pools, interceptors, `Http.fake()` |
+| `@rudderjs/context` | Request-scoped context — ALS-backed data bag, auto-propagates to logs and queued jobs |
+| `@rudderjs/pennant` | Feature flags — define, scope to users/teams, Lottery gradual rollout, `Feature.fake()` |
+| `@rudderjs/process` | Shell execution — run, pool, pipe, timeouts, real-time output, `Process.fake()` |
+| `@rudderjs/concurrency` | Parallel execution via worker threads, deferred fire-and-forget, sync driver for testing |
+| `@rudderjs/testing` | TestCase, TestResponse assertions, RefreshDatabase, WithFaker, HTTP request helpers |
+
 ### Admin & Media
 | Package | Description |
 |---|---|
@@ -553,8 +564,8 @@ const svc = resolve<UserService>(UserService)
 
 RudderJS is in **early development**. All packages are functional and the playground is a working full-stack application. Breaking changes may occur before v1.0.
 
-- 36 packages published to npm under `@rudderjs/*`
-- Playground demonstrates routing, ORM, auth, queues, cache, storage, mail, notifications, scheduling, WebSocket broadcasting, real-time Yjs CRDT collaboration, admin panels with resource CRUD, media library, AI engine with multi-provider support, and AI workspace canvas — all end-to-end
+- 42 packages published to npm under `@rudderjs/*`
+- Playground demonstrates routing, ORM, auth, queues, cache, storage, mail, notifications, scheduling, WebSocket broadcasting, real-time Yjs CRDT collaboration, admin panels with resource CRUD, media library, AI engine with multi-provider support, AI workspace canvas, request-scoped context, feature flags, and shell/concurrency utilities — all end-to-end
 
 ---
 
