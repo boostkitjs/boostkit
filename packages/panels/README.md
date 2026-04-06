@@ -23,6 +23,8 @@ export const adminPanel = Panel.make('admin')
   .guard(async (ctx) => ctx.user?.role === 'admin')
   .resources([UserResource])
   .globals([SiteSettingsGlobal])
+  .notifications()                        // enable with defaults
+  .notifications({ pollInterval: 15000 }) // custom poll interval
 ```
 
 ### Plugins
@@ -38,6 +40,18 @@ export const adminPanel = Panel.make('admin')
   .use(panelsLexical())
   .use(media({ conversions: [{ name: 'thumb', width: 200, format: 'webp' }] }))
   .resources([UserResource])
+```
+
+#### Activity Log
+
+Track record changes with the built-in activity log plugin:
+
+```ts
+import { activityLog } from '@rudderjs/panels'
+
+Panel.make('admin')
+  .use(activityLog())
+  .use(activityLog({ trackChanges: true }))
 ```
 
 ```ts
@@ -66,8 +80,9 @@ Resources use `table()`, `form()`, and `detail()` to configure CRUD. Each method
 ```ts
 import {
   Resource, Table, Form, Column, Tab,
-  TextField, TextareaField, SelectField, DateField, SelectFilter, Action,
-  Stats, Stat,
+  TextField, TextareaField, SelectField, DateField,
+  SelectFilter, DateFilter, BooleanFilter, NumberFilter, QueryFilter,
+  Action, ActionGroup, Stats, Stat,
 } from '@rudderjs/panels'
 import { Article } from '../../Models/Article.js'
 
@@ -100,11 +115,19 @@ export class ArticleResource extends Resource {
           { label: 'Published', value: 'published' },
           { label: 'Draft', value: 'draft' },
         ]),
+        DateFilter.make('createdAt').label('Created'),
+        BooleanFilter.make('active').trueLabel('Active').falseLabel('Inactive'),
+        NumberFilter.make('price').min(0).max(1000).step(10),
+        QueryFilter.make('recent').label('Last 7 days')
+          .query((q) => q.where('createdAt', '>=', new Date(Date.now() - 7 * 86400000))),
       ])
       .actions([
         Action.make('publish').bulk().handler(async (records) => { /* ... */ }),
         Action.make('delete').destructive().confirm('Delete selected?').bulk()
           .handler(async (records) => { /* ... */ }),
+      ])
+      .headerActions([
+        Action.make('generate-report').handler(async () => { /* ... */ }),
       ])
   }
 
@@ -143,8 +166,10 @@ export class ArticleResource extends Resource {
 | `.softDeletes()` | Enable trash/restore |
 | `.live()` | Real-time WebSocket updates |
 | `.tabs([Tab.make(...)])` | Filter tabs with independent state |
-| `.filters([SelectFilter.make(...)])` | Filter dropdowns |
-| `.actions([Action.make(...)])` | Bulk/row actions |
+| `.filters([SelectFilter.make(...)])` | Filter dropdowns (Select, Date, Boolean, Number, Query) |
+| `.actions([Action.make(...)])` | Bulk/row actions (with form modals, groups) |
+| `.headerActions([Action.make(...)])` | Actions above the table (not bound to records) |
+| `.importable(Import.make())` | Enable data import (CSV, JSON) |
 | `.titleField('name')` | Field used as record display title |
 | `.emptyState({ icon, heading, description })` | Custom empty state |
 | `.creatable()` | Show "+ Create" button |
@@ -174,6 +199,35 @@ Column.make('role').editable(SelectField.make('role').options([...]))     // inl
 | `.beforeSubmit(fn)` | Transform data before validation |
 | `.afterSubmit(fn)` | Run after successful submit |
 | `.successMessage(msg)` | Success message text |
+
+### Wizard / Multi-Step Forms
+
+Use `Wizard` to split a form into guided steps:
+
+```ts
+import { Wizard, Step } from '@rudderjs/panels'
+
+form(form: Form) {
+  return Wizard.make()
+    .steps([
+      Step.make('Details')
+        .description('Basic information')
+        .schema([
+          TextField.make('title').required(),
+          TextareaField.make('description'),
+        ]),
+      Step.make('Settings')
+        .icon('settings')
+        .schema([
+          BooleanField.make('published'),
+          DateField.make('publishedAt'),
+        ]),
+      Step.make('Review')
+        .description('Review and submit')
+        .schema([]),
+    ])
+}
+```
 
 ---
 
@@ -221,6 +275,21 @@ TextField.make('name')
   .persist('websocket')      // persist mode: 'websocket' | 'indexeddb' | 'localStorage' | 'url' | 'session'
   .showWhen('role', 'admin') // conditional visibility
   .validate(async (value, data) => value ? true : 'Required')
+```
+
+### FieldType Enum
+
+Use `FieldType` constants instead of magic strings when referencing field types programmatically:
+
+```ts
+import { FieldType } from '@rudderjs/panels'
+
+FieldType.Text      // 'text'
+FieldType.Email     // 'email'
+FieldType.Number    // 'number'
+FieldType.Select    // 'select'
+FieldType.Boolean   // 'boolean'
+// ... etc
 ```
 
 ---
@@ -495,6 +564,40 @@ export class SiteSettingsGlobal extends Global {
 
 ---
 
+## Relation Managers
+
+Display and manage related records inline on a resource's edit/detail page:
+
+```ts
+import { RelationManager, Column, TextField, TextareaField } from '@rudderjs/panels'
+
+export class PostResource extends Resource {
+  static model = Post
+
+  relations() {
+    return [
+      RelationManager.make('comments')
+        .label('Comments')
+        .columns([
+          Column.make('author').sortable(),
+          Column.make('body'),
+          Column.make('createdAt').label('Date'),
+        ])
+        .form([
+          TextField.make('author').required(),
+          TextareaField.make('body').required(),
+        ])
+        .creatable()
+        .editable()
+        .deletable()
+        .perPage(10),
+    ]
+  }
+}
+```
+
+---
+
 ## Pages
 
 Custom pages with schema elements:
@@ -622,6 +725,92 @@ table.softDeletes()
 ```
 
 Adds trash toggle, restore, and force-delete.
+
+### Filter Types
+
+Beyond `SelectFilter`, several specialized filter types are available:
+
+```ts
+import { SelectFilter, DateFilter, BooleanFilter, NumberFilter, QueryFilter } from '@rudderjs/panels'
+
+table.filters([
+  SelectFilter.make('status').options([...]),
+
+  // Date range filter (from/to)
+  DateFilter.make('createdAt').label('Created'),
+
+  // Boolean ternary toggle (Yes / No / All)
+  BooleanFilter.make('active').trueLabel('Active').falseLabel('Inactive'),
+
+  // Number range filter (min/max)
+  NumberFilter.make('price').min(0).max(1000).step(10),
+
+  // Query toggle — no user input, applies a custom query
+  QueryFilter.make('recent').label('Last 7 days')
+    .query((q) => q.where('createdAt', '>=', new Date(Date.now() - 7 * 86400000))),
+])
+
+// Filter indicator badges
+SelectFilter.make('status').indicator('Status active')
+```
+
+### Action Forms & Action Groups
+
+Actions can display a form modal before executing, and can be organized into dropdown groups:
+
+```ts
+import { Action, ActionGroup } from '@rudderjs/panels'
+
+// Action with a form modal (shown before executing)
+Action.make('change-status')
+  .form([
+    SelectField.make('status').options(['active', 'inactive']).required(),
+    TextareaField.make('reason').label('Reason'),
+  ])
+  .handler(async (records, formData) => {
+    for (const r of records) await r.update({ status: formData.status })
+  })
+
+// Action groups (dropdown menu)
+ActionGroup.make('more')
+  .label('More Actions')
+  .icon('more-horizontal')
+  .actions([
+    Action.make('archive').handler(async (records) => { /* ... */ }),
+    Action.make('export').handler(async (records) => { /* ... */ }),
+  ])
+
+// Header actions (above the table, not bound to records)
+table.headerActions([
+  Action.make('generate-report').handler(async () => { /* ... */ }),
+])
+```
+
+### Data Import
+
+Enable CSV/JSON import with column mapping, validation, and transformation:
+
+```ts
+import { Import } from '@rudderjs/panels'
+
+table.importable(
+  Import.make()
+    .formats(['csv', 'json'])
+    .columns([
+      { source: 'Name', target: 'name' },
+      { source: 'Email', target: 'email' },
+    ])
+    .chunkSize(100)
+    .validate((row) => {
+      if (!row.email) return 'Email is required'
+      return true
+    })
+    .transform((row) => ({
+      ...row,
+      email: String(row.email).toLowerCase(),
+    }))
+)
+```
 
 ---
 
