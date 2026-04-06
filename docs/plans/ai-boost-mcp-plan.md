@@ -281,10 +281,45 @@ Add to the existing boost MCP server:
 |------|-------------|
 | `db_query` | Execute read-only SQL queries |
 | `read_logs` | Read last N log entries (separate from `last_error`) |
+| `browser_logs` | Read browser logs and errors |
+| `get_absolute_url` | Convert relative URIs to absolute URLs |
 
-**Files:** `packages/boost/src/tools/db-query.ts`, `packages/boost/src/tools/read-logs.ts`, update `server.ts`
+**Files:** `packages/boost/src/tools/db-query.ts`, `packages/boost/src/tools/read-logs.ts`, `packages/boost/src/tools/browser-logs.ts`, `packages/boost/src/tools/get-absolute-url.ts`, update `server.ts`
 
 **Effort:** Small
+
+### 3.5 — `boost:update` Command
+
+Auto-update guidelines and skills when packages change (e.g., after `pnpm install`).
+
+```bash
+rudder boost:update              # Re-scan and update guidelines + skills
+rudder boost:update --discover   # Auto-discover newly installed @rudderjs/* packages
+```
+
+Can be automated via `postinstall` script in `package.json`.
+
+**Files:** `packages/boost/src/commands/update.ts`
+
+**Effort:** Small
+
+### 3.6 — Search Docs Tool
+
+MCP tool that queries a hosted RudderJS documentation API with semantic search (embeddings).
+
+```ts
+// Usage by AI agent via MCP
+search_docs({ query: 'how to define middleware', packages: ['core', 'router'] })
+```
+
+- Hosted API serves indexed docs for all `@rudderjs/*` packages
+- Semantic search via embeddings for accurate results
+- Filterable by package and version
+- Referenced automatically by guidelines/skills so agents know to use it
+
+**Files:** `packages/boost/src/tools/search-docs.ts`
+
+**Effort:** Medium (tool is small, but requires hosted docs API infrastructure)
 
 ---
 
@@ -357,24 +392,6 @@ rudder make:mcp-prompt SummarizeTable
 
 **Effort:** Small
 
-### 4.5 — Refactor Boost to Use MCP Package
-
-After `@rudderjs/mcp` is built, refactor `@rudderjs/boost` to use it instead of raw `@modelcontextprotocol/sdk`:
-
-```ts
-// Before (current):
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-
-// After:
-import { McpServer, McpTool } from '@rudderjs/mcp'
-
-class BoostServer extends McpServer {
-  tools = [AppInfoTool, DbSchemaTool, RoutesTool, ...]
-}
-```
-
-**Effort:** Small
-
 ---
 
 ## Phase 5: AI Panels Integration (Lower Priority)
@@ -395,9 +412,9 @@ Client-side Lexical block operations triggered by SSE tool_call events.
 ## Execution Order
 
 ```
-Phase 1 (AI Core)     — 1.1 middleware, 1.2 attachments, 1.3 queue, 1.4 conversations, 1.5 providers
-Phase 3 (Boost 2-3)   — 3.1 install, 3.2 guidelines, 3.3 skills, 3.4 new tools    ← parallel with Phase 1
-Phase 4 (MCP Package)  — 4.1 core, 4.2 stdio, 4.3 testing, 4.4 scaffolders, 4.5 refactor boost
+Phase 1 (AI Core)     — 1.1 middleware, 1.2 attachments, 1.3 queue, 1.4 conversations, 1.5 providers  ✅
+Phase 3 (Boost 2-3)   — 3.1 install, 3.2 guidelines, 3.3 skills, 3.4 tools, 3.5 update, 3.6 search docs  ← parallel with Phase 4
+Phase 4 (MCP Package)  — 4.1 core, 4.2 stdio, 4.3 testing, 4.4 scaffolders
 Phase 2 (AI Caps)      — 2.1 image, 2.2 provider tools, 2.3 vercel, 2.4 audio, 2.5 embeddings
 Phase 5 (Panels AI)    — 5.1 field assist, 5.2 suggestions, 5.3 blocks
 ```
@@ -421,12 +438,13 @@ Phase 5 (Panels AI)    — 5.1 field assist, 5.2 suggestions, 5.3 blocks
 | 3.1 | `boost:install` command | boost | S | High |
 | 3.2 | Auto-generated guidelines | boost + all | M | High |
 | 3.3 | Package-bundled skills | boost + all | M | Medium |
-| 3.4 | New MCP tools (db_query, read_logs) | boost | S | Medium |
+| 3.4 | New MCP tools (db_query, read_logs, browser_logs, get_absolute_url) | boost | S | Medium |
+| 3.5 | `boost:update` command | boost | S | Medium |
+| 3.6 | Search Docs tool (hosted docs API) | boost | M | Medium |
 | 4.1 | McpServer + McpTool + web transport | mcp (new) | M | High |
 | 4.2 | Stdio transport + CLI | mcp | S | Medium |
 | 4.3 | Testing utilities | mcp | S | Medium |
 | 4.4 | CLI scaffolders | cli | S | Low |
-| 4.5 | Refactor boost to use mcp | boost | S | Low |
 | 5.1 | Field-level AI assist | panels | M | Low |
 | 5.2 | Suggestion system | panels-lexical | L | Low |
 | 5.3 | Block-level AI tools | panels-lexical | L | Low |
