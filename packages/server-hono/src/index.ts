@@ -2,6 +2,23 @@ import { Hono, type Context } from 'hono'
 import type { StatusCode, RedirectStatusCode } from 'hono/utils/http-status'
 import { renderErrorPage } from './error-page.js'
 import { serve } from '@hono/node-server'
+import http from 'node:http'
+
+// ─── WebSocket upgrade handler for production ──────────────
+// Monkey-patch http.createServer at module load time so that any HTTP server
+// created after providers boot (including photon's nodeServe) gets the WS
+// upgrade handler attached. In dev, the @rudderjs/vite plugin does the same.
+const _origCreateServer = http.createServer.bind(http)
+http.createServer = ((...args: Parameters<typeof http.createServer>) => {
+  const srv = (_origCreateServer as (...a: unknown[]) => import('node:http').Server)(...args)
+  srv.on('upgrade', (req: unknown, socket: unknown, head: unknown) => {
+    const handler = (globalThis as Record<string, unknown>)['__rudderjs_ws_upgrade__'] as
+      | ((req: unknown, socket: unknown, head: unknown) => void)
+      | undefined
+    handler?.(req, socket, head)
+  })
+  return srv
+}) as typeof http.createServer
 import type {
   ServerAdapter,
   ServerAdapterProvider,
