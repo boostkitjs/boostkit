@@ -80,28 +80,28 @@
 
 ---
 
-## Plan 5: Advanced Framework Features
+## Plan 5: Advanced Framework Features ✅
 
 *Differentiators and power-user features.*
 
-**Priority**: Medium — valuable but apps can ship without them.
+**Status**: Complete
 
-| # | Package | Feature | Effort | Depends On |
-|---|---|---|---|---|
-| 5.1 | `@rudderjs/context` (new) | Context — request-scoped data bag via AsyncLocalStorage, auto-propagates to log entries + queued jobs, hidden context, stacks, scoped context, `when()`/`remember()` | M | log |
-| 5.2 | `@rudderjs/pennant` (new) | Feature Flags — `Feature.define()`, `Feature.active()`, scoping (user/team/any), rich values (not just boolean), database + memory drivers, `Lottery` for gradual rollout, `@feature` middleware | M | cache, orm |
-| 5.3 | `@rudderjs/core` | Scoped container bindings — per-request lifecycle scope, auto-cleanup at request end, `Container.scoped()` | S | — |
-| 5.4 | `@rudderjs/core` | Deferred providers — lazy-load providers until their bindings are first resolved, `provides()` method | S | — |
-| 5.5 | `@rudderjs/core` | Contextual binding — `container.when(ClassA).needs(InterfaceB).give(ImplC)`, closure-based, per-class resolution | S | — |
-| 5.6 | `@rudderjs/process` (new) | Process facade — `Process.run('cmd')`, async `Process.start()`, pools, pipes, timeouts, environment vars, real-time output, testing fakes | M | — |
-| 5.7 | `@rudderjs/concurrency` (new) | Concurrency — `Concurrency.run([fn1, fn2])` via worker threads, `Concurrency.defer()` for post-response fire-and-forget, sync driver for testing | M | — |
+| # | Package | Feature | Effort | Depends On | Status |
+|---|---|---|---|---|---|
+| 5.1 | `@rudderjs/context` (new) | Context — request-scoped data bag via AsyncLocalStorage, auto-propagates to log entries + queued jobs, hidden context, stacks, scoped context, `when()`/`remember()` | M | log | ✅ |
+| 5.2 | `@rudderjs/pennant` (new) | Feature Flags — `Feature.define()`, `Feature.active()`, scoping (user/team/any), rich values (not just boolean), database + memory drivers, `Lottery` for gradual rollout, `@feature` middleware | M | cache, orm | ✅ |
+| 5.3 | `@rudderjs/core` | Scoped container bindings — per-request lifecycle scope, auto-cleanup at request end, `Container.scoped()` | S | — | ✅ |
+| 5.4 | `@rudderjs/core` | Deferred providers — lazy-load providers until their bindings are first resolved, `provides()` method | S | — | ✅ |
+| 5.5 | `@rudderjs/core` | Contextual binding — `container.when(ClassA).needs(InterfaceB).give(ImplC)`, closure-based, per-class resolution | S | — | ✅ |
+| 5.6 | `@rudderjs/process` (new) | Process facade — `Process.run('cmd')`, async `Process.start()`, pools, pipes, timeouts, environment vars, real-time output, testing fakes | M | — | ✅ |
+| 5.7 | `@rudderjs/concurrency` (new) | Concurrency — `Concurrency.run([fn1, fn2])` via worker threads, `Concurrency.defer()` for post-response fire-and-forget, sync driver for testing | M | — | ✅ |
 
 ### Deliverables
-- [ ] `@rudderjs/context` package with ALS-backed request context
-- [ ] `@rudderjs/pennant` package with feature flag system
-- [ ] Scoped + deferred + contextual container bindings
-- [ ] `@rudderjs/process` package for shell execution
-- [ ] `@rudderjs/concurrency` package for parallel work
+- [x] `@rudderjs/context` package with ALS-backed request context
+- [x] `@rudderjs/pennant` package with feature flag system
+- [x] Scoped + deferred + contextual container bindings
+- [x] `@rudderjs/process` package for shell execution
+- [x] `@rudderjs/concurrency` package for parallel work
 
 ---
 
@@ -327,7 +327,7 @@ Phase 2 ──── Plan 2 (ORM) + Plan 3 (Queue/Schedule)  ← parallel  ✅ D
 Phase 3 ──── Plan 4 (Auth/Mail)                                   ✅ DONE
               ├── email verification, queued mail, markdown, failover
               │
-Phase 4 ──── Plan 5 (Advanced) + Plan 6 (Testing)  ← parallel    ✅/⬜ (Plan 6 DONE)
+Phase 4 ──── Plan 5 (Advanced) + Plan 6 (Testing)  ← parallel    ✅ DONE
               ├── context, pennant, process, concurrency, fakes
               │
 Phase 5 ──── Plan 7 (Monitoring & Observability)                  ⬜ LATER
@@ -342,10 +342,10 @@ Phase 5 ──── Plan 7 (Monitoring & Observability)                  ⬜ LA
 |---|---|---|---|
 | `@rudderjs/log` | 1 | Core framework | ✅ |
 | `@rudderjs/http` | 1 | Core framework | ✅ |
-| `@rudderjs/context` | 5 | Core framework | ⬜ |
-| `@rudderjs/pennant` | 5 | Core framework | ⬜ |
-| `@rudderjs/process` | 5 | Core framework | ⬜ |
-| `@rudderjs/concurrency` | 5 | Core framework | ⬜ |
+| `@rudderjs/context` | 5 | Core framework | ✅ |
+| `@rudderjs/pennant` | 5 | Core framework | ✅ |
+| `@rudderjs/process` | 5 | Core framework | ✅ |
+| `@rudderjs/concurrency` | 5 | Core framework | ✅ |
 | `@rudderjs/testing` | 6 | Core framework | ✅ |
 | `@pilotiq/pulse` | 7 | Panel plugin | ⬜ |
 | `@pilotiq/telescope` | 7 | Panel plugin | ⬜ |
@@ -358,7 +358,7 @@ Phase 5 ──── Plan 7 (Monitoring & Observability)                  ⬜ LA
 |---|---|---|---|
 | `@rudderjs/support` | 1 | +Str, +Num, +15 Collection methods | ✅ |
 | `@rudderjs/contracts` | 1 | +typed request input | ✅ |
-| `@rudderjs/core` | 1, 5, 6 | +ExceptionHandler ✅ / +scoped/deferred/contextual bindings ⬜ / +Event.fake() ✅ | partial |
+| `@rudderjs/core` | 1, 5, 6 | +ExceptionHandler ✅ / +scoped/deferred/contextual bindings ✅ / +Event.fake() ✅ | ✅ |
 | `@rudderjs/router` | 1 | +URL generation, +signed URLs | ✅ |
 | `@rudderjs/orm` | 2 | +casts, +accessors, +resources, +factories, +serialization | ✅ |
 | `@rudderjs/queue` | 3, 6 | +chains, +batches, +unique, +middleware, +closures ✅ / +fake ✅ | ✅ |
