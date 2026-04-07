@@ -10,6 +10,10 @@ import { makeEvent } from './make/event.js'
 import { makeListener } from './make/listener.js'
 import { makeMail } from './make/mail.js'
 import { makeAgent } from './make/agent.js'
+import { makeMcpServer } from './make/mcp-server.js'
+import { makeMcpTool } from './make/mcp-tool.js'
+import { makeMcpResource } from './make/mcp-resource.js'
+import { makeMcpPrompt } from './make/mcp-prompt.js'
 
 export function makeCommand(program: Command): void {
   makeController(program)
@@ -23,4 +27,8 @@ export function makeCommand(program: Command): void {
   makeListener(program)
   makeMail(program)
   makeAgent(program)
+  makeMcpServer(program)
+  makeMcpTool(program)
+  makeMcpResource(program)
+  makeMcpPrompt(program)
 }
