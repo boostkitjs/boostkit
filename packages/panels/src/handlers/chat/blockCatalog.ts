@@ -3,21 +3,25 @@ import type { Field, FieldMeta } from '../../schema/Field.js'
 import type { Section } from '../../schema/Section.js'
 import type { Tabs } from '../../schema/Tabs.js'
 import type { BlockMeta } from '../../schema/Block.js'
-import { FieldType } from '../../schema/FieldType.js'
 
 // ─── Catalog shape ──────────────────────────────────────────
 
 /**
- * One builder field on the resource form, with the block types it accepts.
- * Sourced from `BuilderField.blocks([...])` declarations — no inference from
- * runtime Lexical JSON.
+ * One block-bearing field on the resource form, with the block types it
+ * accepts. Sourced from any field that exposes `_extra.blocks` — typically
+ * `BuilderField.blocks([...])` or `RichContentField.blocks([...])` from
+ * `@rudderjs/panels-lexical`. No inference from runtime Lexical JSON.
+ *
+ * The interface is named "BuilderFieldCatalog" for historical reasons; it
+ * covers any field that embeds the same `BlockMeta[]` shape, not just
+ * `BuilderField`.
  */
 export interface BuilderFieldCatalog {
   /** Form field name (e.g. `"content"`). */
   fieldName: string
   /** Field's display label (e.g. `"Content"`). */
   fieldLabel: string
-  /** Block types declared via `BuilderField.blocks([...])`. */
+  /** Block types declared on the field. */
   blocks: BlockMeta[]
 }
 
@@ -40,15 +44,17 @@ export function extractBuilderCatalog(resource: Resource): BuilderFieldCatalog[]
   function walk(items: FieldOrGrouping[]): void {
     for (const item of items) {
       if (isField(item)) {
-        if (item.getType() === FieldType.Builder) {
-          const blocks = (item.getExtra()['blocks'] as BlockMeta[] | undefined) ?? []
-          if (blocks.length > 0) {
-            out.push({
-              fieldName:  item.getName(),
-              fieldLabel: item.toMeta().label,
-              blocks,
-            })
-          }
+        // Match by `_extra.blocks` rather than field type so this works for
+        // both `BuilderField` (`getType()` === 'builder') and other field
+        // types that embed blocks the same way — notably `RichContentField`
+        // from `@rudderjs/panels-lexical` (`getType()` === 'richcontent').
+        const blocks = item.getExtra()['blocks'] as BlockMeta[] | undefined
+        if (Array.isArray(blocks) && blocks.length > 0) {
+          out.push({
+            fieldName:  item.getName(),
+            fieldLabel: item.toMeta().label,
+            blocks,
+          })
         }
       }
       // Tabs exposes both getFields() (flat) and getTabs() (structured) — only
