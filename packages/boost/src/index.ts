@@ -7,10 +7,8 @@ export { getConfigValue } from './tools/config-get.js'
 export { getRouteList } from './tools/route-list.js'
 export { getModelList } from './tools/model-list.js'
 export { getLastError } from './tools/last-error.js'
-export { executeDbQuery } from './tools/db-query.js'
-export { readLogs } from './tools/read-logs.js'
-export { readBrowserLogs } from './tools/browser-logs.js'
-export { getAbsoluteUrl } from './tools/get-absolute-url.js'
+export { boostInstall } from './commands/install.js'
+export { boostUpdate } from './commands/update.js'
 
 /**
  * Boost service provider — registers the `boost:mcp` rudder command.
@@ -31,6 +29,16 @@ export function boost(): new (app: Application) => ServiceProvider {
         rudder.command('boost:mcp', async () => {
           await startBoostMcp(process.cwd())
         }).description('Start the Boost MCP server (stdio transport)')
+
+        rudder.command('boost:install', async () => {
+          const { boostInstall } = await import('./commands/install.js')
+          await boostInstall(process.cwd())
+        }).description('Generate IDE configs for AI coding assistants')
+
+        rudder.command('boost:update', async () => {
+          const { boostUpdate } = await import('./commands/update.js')
+          await boostUpdate(process.cwd())
+        }).description('Update AI guidelines and skills from installed packages')
       } catch {
         // rudder not available
       }
