@@ -1,9 +1,10 @@
 import type { AppRequest, AppResponse, MiddlewareHandler } from '@rudderjs/contracts'
 import { QueueRegistry } from '@rudderjs/queue'
 import type { HorizonStorage, HorizonConfig } from '../types.js'
+import { dashboardPage, recentJobsPage, failedJobsPage, queuesPage, workersPage } from '../ui/pages.js'
 
 /**
- * Register all Horizon API routes on the router.
+ * Register all Horizon API + UI routes on the router.
  */
 export async function registerRoutes(
   storage: HorizonStorage,
@@ -11,8 +12,19 @@ export async function registerRoutes(
 ): Promise<void> {
   const { router } = await import('@rudderjs/router')
 
-  const prefix    = `/${config.path ?? 'horizon'}/api`
+  const basePath  = `/${config.path ?? 'horizon'}`
+  const prefix    = `${basePath}/api`
   const middleware = config.auth ? [authMiddleware(config)] : []
+
+  // ── UI Pages ─────────────────────────────────────────────
+  const html = (_req: AppRequest, res: AppResponse, content: string) =>
+    res.header('Content-Type', 'text/html').send(content)
+
+  router.get(basePath,                  (r, s) => html(r, s, dashboardPage(basePath, prefix)), middleware)
+  router.get(`${basePath}/jobs/recent`, (r, s) => html(r, s, recentJobsPage(basePath, prefix)), middleware)
+  router.get(`${basePath}/jobs/failed`, (r, s) => html(r, s, failedJobsPage(basePath, prefix)), middleware)
+  router.get(`${basePath}/queues`,      (r, s) => html(r, s, queuesPage(basePath, prefix)), middleware)
+  router.get(`${basePath}/workers`,     (r, s) => html(r, s, workersPage(basePath, prefix)), middleware)
 
   // ── Overview stats ───────────────────────────────────────
   router.get(`${prefix}/stats`, async (_req: AppRequest, res: AppResponse) => {
