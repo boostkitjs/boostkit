@@ -9,7 +9,7 @@ import { Block }           from '../schema/Block.js'
 import { TextField }       from '../schema/fields/TextField.js'
 import { TextareaField }   from '../schema/fields/TextareaField.js'
 import { BuilderField }    from '../schema/fields/BuilderField.js'
-import type { Field }      from '../schema/Field.js'
+import { Field }           from '../schema/Field.js'
 import {
   extractBuilderCatalog,
   formatBuilderCatalog,
@@ -104,6 +104,37 @@ describe('extractBuilderCatalog', () => {
     assert.equal(catalog.length, 1)
     assert.equal(catalog[0]?.fieldName, 'content')
     assert.equal(catalog[0]?.blocks[0]?.name, 'text')
+  })
+
+  it('extracts blocks from non-Builder field types (e.g. RichContentField)', () => {
+    // Simulate a custom field type (like RichContentField from
+    // @rudderjs/panels-lexical) that embeds blocks via the same `_extra.blocks`
+    // convention but reports its own `getType()`. The extractor must match by
+    // _extra.blocks, not by FieldType.Builder.
+    class FakeRichContentField extends Field {
+      static make(name: string): FakeRichContentField {
+        return new FakeRichContentField(name)
+      }
+      blocks(blocks: { toMeta(): unknown }[]): this {
+        this._extra['blocks'] = blocks.map(b => b.toMeta())
+        return this
+      }
+      getType(): string { return 'richcontent' }
+    }
+
+    const resource = makeResource([
+      FakeRichContentField.make('content').blocks([
+        Block.make('callToAction').schema([TextField.make('label')]),
+        Block.make('video').schema([TextField.make('url').required()]),
+      ]),
+    ])
+
+    const catalog = extractBuilderCatalog(resource)
+    assert.equal(catalog.length, 1)
+    assert.equal(catalog[0]?.fieldName, 'content')
+    assert.equal(catalog[0]?.blocks.length, 2)
+    assert.equal(catalog[0]?.blocks[0]?.name, 'callToAction')
+    assert.equal(catalog[0]?.blocks[1]?.name, 'video')
   })
 
   it('returns multiple builder fields when several exist', () => {
