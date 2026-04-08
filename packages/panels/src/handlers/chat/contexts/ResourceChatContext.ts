@@ -11,7 +11,8 @@ import { buildRunAgentTool } from '../tools/runAgentTool.js'
 import { buildEditTextTool } from '../tools/editTextTool.js'
 import { buildReadFormStateTool } from '../tools/readFormStateTool.js'
 import { buildDeleteRecordTool } from '../tools/deleteRecordTool.js'
-import { buildBuilderCatalogPrompt } from '../blockCatalog.js'
+import { buildBuilderCatalogPrompt, extractBuilderCatalog } from '../blockCatalog.js'
+import type { FieldBlockAllowlist } from '../tools/editTextTool.js'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -126,8 +127,15 @@ export class ResourceChatContext implements ChatContext {
       return !meta.readonly && !meta.hiddenFromEdit
     })
 
+    // Build per-field block allowlist so editTextTool can reject hallucinated
+    // block types regardless of what the system prompt taught the agent.
+    const blockAllowlist: FieldBlockAllowlist = {}
+    for (const entry of extractBuilderCatalog(resource)) {
+      blockAllowlist[entry.fieldName] = new Set(entry.blocks.map(b => b.name))
+    }
+
     const runAgentTool      = await buildRunAgentTool(agents, agentCtx, message, send)
-    const editTextTool      = await buildEditTextTool(agentCtx, allFields, record, selection)
+    const editTextTool      = await buildEditTextTool(agentCtx, allFields, record, selection, blockAllowlist)
     const readFormStateTool = await buildReadFormStateTool()
     const deleteRecordTool  = Model
       ? await buildDeleteRecordTool({ Model, recordId })
