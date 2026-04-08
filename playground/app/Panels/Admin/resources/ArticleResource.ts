@@ -29,6 +29,25 @@ import { RichContentField } from '@rudderjs/panels-lexical'
 import { MediaPickerField } from '@rudderjs/media'
 import { Article } from '../../../Models/Article.js'
 
+// Reference example for the Phase 5 plan: a custom PanelAgent passed
+// directly to .ai([...]) — no separate registration needed. The action
+// declares appliesTo so it only renders on text fields, and the standalone
+// agent endpoint runs it scoped to the field that was clicked. The agent
+// inherits the full default toolkit (update_form_state / read_form_state /
+// edit_text / etc.), so it can both read the current value and write the
+// rewritten one without clobbering unsaved local edits.
+const seoTitleAction = PanelAgent.make('seo-title-optimize')
+  .label('SEO optimize')
+  .icon('Search')
+  .appliesTo(['text'])
+  .instructions(
+    'Rewrite the value of the {field} field as an SEO-optimized version. ' +
+    'Keep it under 60 characters. Lead with the primary keyword if obvious from context. ' +
+    'Use read_form_state to see the current value and the rest of the article. ' +
+    'Use update_form_state to write the result back. ' +
+    'Operate ONLY on the {field} field — do not touch any other field.',
+  )
+
 export class ArticleResource extends Resource {
   static model          = Article
   static label          = 'Articles'
@@ -261,7 +280,11 @@ export class ArticleResource extends Resource {
         .schema(
           TextField.make('metaTitle')
             .label('Meta Title').hideFromTable()
-            .ai(['rewrite', 'shorten']),
+            // Mix built-in slugs with a custom PanelAgent — both render as
+            // buttons in the field's ✦ dropdown. The custom action is scoped
+            // to this single field via .appliesTo + the standalone endpoint's
+            // `field` parameter.
+            .ai(['rewrite', 'shorten', seoTitleAction]),
 
           TextareaField.make('metaDescription')
             .label('Meta Description')

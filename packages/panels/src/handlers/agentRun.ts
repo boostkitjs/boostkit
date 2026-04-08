@@ -7,6 +7,7 @@ import { buildContext } from './shared/context.js'
 import { streamAgentToSSE } from './agentStream/index.js'
 import { storeRun, consumeRun, type AgentRunState } from './agentStream/runStore.js'
 import { extractUserId } from './chat/types.js'
+import { BuiltInAiActionRegistry } from '../ai-actions/registry.js'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -210,8 +211,19 @@ async function loadAgentRunContext(
     return { errorResponse: res.status(500).json({ message: `Resource "${ResourceClass.getSlug()}" has no model.` }) }
   }
 
-  const agents = resource.agents()
-  const agentDef = agents.find(a => a.getSlug() === agentSlug)
+  // Resolve the agent in two layers:
+  //   1. User-defined resource agents (from `Resource.agents()`) — these are
+  //      the resource-level "AI Agents" dropdown items like `seo` / `editor`.
+  //   2. Built-in field actions registered globally via
+  //      `BuiltInAiActionRegistry` — `rewrite` / `shorten` / etc., used from
+  //      the per-field `✦` dropdown. These have empty `_fields`; the route
+  //      handler scopes them to the request body's `field` param below.
+  // Resource agents take precedence so an app can override a built-in slug
+  // with a record-aware version if needed.
+  const resourceAgents = resource.agents()
+  const agentDef =
+    resourceAgents.find(a => a.getSlug() === agentSlug) ??
+    BuiltInAiActionRegistry.get(agentSlug)
   if (!agentDef) {
     return { errorResponse: res.status(404).json({ message: `Agent "${agentSlug}" not found.` }) }
   }
@@ -221,10 +233,10 @@ async function loadAgentRunContext(
     return { errorResponse: res.status(404).json({ message: 'Record not found.' }) }
   }
 
-  // Optional `field` param narrows the scope to a single field. Stored on
-  // the run state and forwarded for any per-field scope enforcement that
-  // tools choose to honor (Phase 5 will wire the tool dispatcher to enforce
-  // it; Phase 2 only plumbs the value through).
+  // Optional `field` param narrows the scope to a single field. Set on
+  // `agentCtx.fieldScope` so `PanelAgent.buildTools()` builds the write
+  // tools' enums against the single field instead of the agent's `_fields`
+  // (which is empty for built-in actions like `rewrite`).
   let fieldScope: string | undefined
   try {
     const body = req.body as Record<string, unknown> | undefined
@@ -237,6 +249,7 @@ async function loadAgentRunContext(
     recordId:     id,
     panelSlug,
     fieldMeta:    resource.getFieldMeta(),
+    ...(fieldScope ? { fieldScope: [fieldScope] } : {}),
   }
 
   return {

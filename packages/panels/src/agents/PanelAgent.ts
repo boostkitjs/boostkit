@@ -40,6 +40,15 @@ export interface PanelAgentContext {
   panelSlug:    string
   /** Field type metadata — keyed by field name. Used to route edit_text between Yjs and Y.Map, and to enforce field-level edit permissions. */
   fieldMeta?:   Record<string, { type: string; yjs: boolean; readonly?: boolean; hiddenFromEdit?: boolean }>
+  /**
+   * Per-request field-scope override. When set, this list (instead of the
+   * agent's `_fields`) is used to build the write tools' allowlist
+   * (`update_field` / `edit_text` / `update_form_state`). This is how
+   * **built-in actions** (`rewrite`, `shorten`, etc.) get scoped to the
+   * single field that was clicked — built-ins have an empty `_fields`
+   * because they don't know in advance which field they'll run against.
+   */
+  fieldScope?:  string[]
 }
 
 // ─── PanelAgent ─────────────────────────────────────────
@@ -139,11 +148,27 @@ export class PanelAgent {
 
   // ── Override points for subclasses ─────────────────────
 
-  /** Override for dynamic instructions based on record data. */
+  /**
+   * Override for dynamic instructions based on record data.
+   *
+   * Built-in field actions (`rewrite`, `shorten`, etc.) and any custom
+   * agent that wants to render the active field name in its prompt can use
+   * `{field}` as a placeholder — it gets substituted with the first entry
+   * of `context.fieldScope` (set by the standalone endpoint when the user
+   * clicks an action on a specific field). Falls back to the agent's first
+   * declared `_fields` entry, then to a generic "the active" if neither is
+   * available.
+   */
   resolveInstructions(): string {
-    return typeof this._instructions === 'function'
+    const raw = typeof this._instructions === 'function'
       ? this._instructions(this.context.record)
       : this._instructions
+    if (!raw.includes('{field}')) return raw
+    const fieldName =
+      this.context.fieldScope?.[0] ??
+      this._fields[0] ??
+      'the active'
+    return raw.split('{field}').join(fieldName)
   }
 
   /** Override to provide additional tools beyond field update tools. */
@@ -166,7 +191,13 @@ export class PanelAgent {
     const { toolDefinition, z } = await loadAi()
     const Live = await loadLive()
 
-    const allFields = this._fields
+    // Field-scope override (`PanelAgentContext.fieldScope`) wins over the
+    // agent's declared `_fields`. Built-in actions like `rewrite` use this
+    // path: they have empty `_fields` and the standalone endpoint sets the
+    // scope to `[clickedFieldName]` from the request body.
+    const allFields = this.context.fieldScope && this.context.fieldScope.length > 0
+      ? this.context.fieldScope
+      : this._fields
     const docName = `panel:${this.context.resourceSlug}:${this.context.recordId}`
 
     const updateField = toolDefinition({

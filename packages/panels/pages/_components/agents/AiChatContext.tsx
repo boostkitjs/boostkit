@@ -53,17 +53,6 @@ export interface ChatMessage {
   selection?: TextSelection | undefined
 }
 
-// ─── Agent run request (from FormActions dropdown) ──────────
-
-export interface AgentRunRequest {
-  agentSlug:    string
-  agentLabel:   string
-  resourceSlug: string
-  recordId:     string
-  apiBase:      string
-  input?:       string
-}
-
 // ─── Resource context (set by edit page) ────────────────────
 
 export interface ResourceContext {
@@ -100,9 +89,6 @@ interface AiChatContextValue {
   open: boolean
   setOpen: (v: boolean) => void
 
-  /** Trigger an agent run — adds to chat and runs via forceAgent. */
-  triggerRun: (run: AgentRunRequest) => void
-
   /** Field updates from agent tool calls — append-only array for SchemaForm animation. */
   fieldUpdates: Array<{ field: string; value: string }>
 
@@ -115,8 +101,8 @@ interface AiChatContextValue {
   /** Chat messages. */
   messages: ChatMessage[]
 
-  /** Send a free-form chat message (or with forceAgent hint). */
-  sendMessage: (text: string, opts?: { forceAgent?: string }) => void
+  /** Send a free-form chat message. */
+  sendMessage: (text: string) => void
 
   /** Whether the AI is generating a response. */
   isGenerating: boolean
@@ -604,7 +590,6 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
       const continuationBody: Record<string, unknown> = { ...body, messages: wireMessagesRef.current }
       delete continuationBody.message
       delete continuationBody.selection
-      delete continuationBody.forceAgent
       if (conversationIdRef.current) continuationBody.conversationId = conversationIdRef.current
 
       await runChatTurn({ assistantId, body: continuationBody, url, usePanelChat, abortCtrl, onConversation })
@@ -620,7 +605,7 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
     }
   }, [])
 
-  const sendMessage = useCallback((text: string, opts?: { forceAgent?: string }) => {
+  const sendMessage = useCallback((text: string) => {
     // Snapshot selection before clearing — attach to user message for display
     const msgSelection = selectionRef.current ?? undefined
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', text, selection: msgSelection }
@@ -663,10 +648,7 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
           recordId: rc.recordId,
         }
       }
-      if (opts?.forceAgent) {
-        body.forceAgent = opts.forceAgent
-      }
-      // Include text selection context if present (use snapshot �� ref is already cleared)
+      // Include text selection context if present (use snapshot — ref is already cleared)
       if (msgSelection) {
         body.selection = msgSelection
       }
@@ -737,21 +719,6 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
 
   const approvePending = useCallback(() => submitApprovalDecision(true),  [submitApprovalDecision])
   const rejectPending  = useCallback(() => submitApprovalDecision(false), [submitApprovalDecision])
-
-  const triggerRun = useCallback((run: AgentRunRequest) => {
-    setOpen(true)
-    // Ensure resource context is set for the agent run
-    setResourceContext({
-      resourceSlug: run.resourceSlug,
-      recordId: run.recordId,
-      apiBase: run.apiBase,
-      agents: [], // agents list not needed for forceAgent
-    })
-    // Small delay to let resourceContext update before sendMessage reads it
-    setTimeout(() => {
-      sendMessage(`Run "${run.agentLabel}"`, { forceAgent: run.agentSlug })
-    }, 0)
-  }, [sendMessage])
 
   const clearMessages = useCallback(() => {
     abortRef.current?.abort()
@@ -842,7 +809,6 @@ export function AiChatProvider({ children, panelPath }: { children: React.ReactN
   return (
     <AiChatContext.Provider value={{
       open, setOpen,
-      triggerRun,
       fieldUpdates, onFieldUpdate, clearFieldUpdates,
       messages, sendMessage, isGenerating, clearMessages,
       resourceContext, setResourceContext,

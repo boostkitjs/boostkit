@@ -6,7 +6,6 @@ import { extractUserId, resolveConversationStore, createSSEStream } from './type
 import { loadAi } from './lazyImports.js'
 import { resolveContext } from './contexts/resolveContext.js'
 import { ChatContextError, type ChatContext } from './contexts/types.js'
-import { ResourceChatContext } from './contexts/ResourceChatContext.js'
 import { persistConversation, persistContinuation } from './persistence.js'
 import { validateContinuation, ContinuationError } from './continuation.js'
 import { streamAgentToSSE } from '../agentStream/index.js'
@@ -139,26 +138,6 @@ interface RunChatDeps {
 async function runChat(deps: RunChatDeps): Promise<void> {
   const { send, close, context, body, loadedHistory, continuationMessages, conversationId, store } = deps
 
-  // Force-agent branch — only meaningful for ResourceChatContext.
-  // The current PanelAgent path doesn't go through agent() at all; it
-  // calls agentDef.stream() directly, so we keep it as a localized branch
-  // here rather than pretending it folds into the main loop.
-  if (context.kind === 'resource' && !continuationMessages) {
-    const resCtx = context as ResourceChatContext
-    const forceAgent = resCtx.getForceAgent()
-    if (forceAgent) {
-      const userInput = body.message ?? ''
-      await runForceAgent({
-        send,
-        agentDef: forceAgent,
-        agentCtx: resCtx.getAgentContext(),
-        input:    userInput,
-      })
-      close()
-      return
-    }
-  }
-
   // Normal agent loop
   const { agent: agentFn } = await loadAi()
   const systemPrompt = context.buildSystemPrompt()
@@ -218,41 +197,6 @@ async function runChat(deps: RunChatDeps): Promise<void> {
     }
   } finally {
     close()
-  }
-}
-
-// ─── Force-agent branch (lifted from old handleForceAgent) ──
-
-interface RunForceAgentDeps {
-  send:     SSESend
-  agentDef: import('../../agents/PanelAgent.js').PanelAgent
-  agentCtx: import('../../agents/PanelAgent.js').PanelAgentContext
-  input:    string
-}
-
-async function runForceAgent(deps: RunForceAgentDeps): Promise<void> {
-  const { send, agentDef, agentCtx, input } = deps
-  send('agent_start', { agentSlug: agentDef.getSlug(), agentLabel: (agentDef as any)._label })
-
-  try {
-    const { stream, response } = await agentDef.stream(agentCtx, input)
-
-    for await (const chunk of stream) {
-      switch (chunk.type) {
-        case 'text-delta':
-          if (chunk.text) send('text', { text: chunk.text })
-          break
-        case 'tool-call':
-          send('tool_call', { tool: chunk.toolCall?.name, input: chunk.toolCall?.arguments })
-          break
-      }
-    }
-
-    const result = await response
-    send('agent_complete', { steps: result.steps.length, tokens: result.usage?.totalTokens ?? 0 })
-    send('complete', { done: true })
-  } catch (err) {
-    send('error', { message: err instanceof Error ? err.message : 'Agent run failed.' })
   }
 }
 

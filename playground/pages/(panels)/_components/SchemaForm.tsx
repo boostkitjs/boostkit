@@ -721,6 +721,14 @@ export function SchemaForm({ form, panelPath, i18n, onSuccess, submitUrl, submit
     uploadBase: panelPath.replace(/\/$/, '') + '/api',
     i18n: i18n as PanelI18n & Record<string, string>,
     mode,
+    // Threaded through for the per-field AI quick-action dropdown — clicks
+    // POST to the standalone agent endpoint via `useAgentRun`. Only set in
+    // edit mode (the only mode where there's a recordId).
+    ...(isEditMode && resourceSlug && recordId ? {
+      aiApiBase:    `${panelPath}/api`,
+      aiResourceSlug: resourceSlug,
+      aiRecordId:    recordId,
+    } : {}),
     ...(formYjs.yjs && formYjs.wsLivePath ? { wsPath: formYjs.wsLivePath } : {}),
     ...(formYjs.yjs && formYjs.docName ? { docName: formYjs.docName } : {}),
     ...(userName ? { userName } : {}),

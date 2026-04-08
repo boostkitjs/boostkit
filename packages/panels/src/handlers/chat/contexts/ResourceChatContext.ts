@@ -23,7 +23,6 @@ interface ResolvedResourceState {
   record:           Record<string, unknown>
   agents:           PanelAgent[]
   agentCtx:         PanelAgentContext
-  forceAgent:       PanelAgent | null
   selection:        { field: string; text: string } | undefined
   userId:           string | undefined
   tools:            AnyTool[]
@@ -105,17 +104,7 @@ export class ResourceChatContext implements ChatContext {
       fieldMeta: resource.getFieldMeta(),
     }
 
-    // 6. Resolve forceAgent if requested
-    let forceAgent: PanelAgent | null = null
-    if (body.forceAgent) {
-      const target = agents.find(a => a.getSlug() === body.forceAgent)
-      if (!target) {
-        throw new ChatContextError(404, `Agent "${body.forceAgent}" not found.`)
-      }
-      forceAgent = target
-    }
-
-    // 7. Pre-build the tools (async — they import zod/ai and live)
+    // 6. Pre-build the tools (async — they import zod/ai and live)
     const message = body.message ?? ''
     const selection = body.selection
 
@@ -160,7 +149,6 @@ export class ResourceChatContext implements ChatContext {
       record,
       agents,
       agentCtx,
-      forceAgent,
       selection,
       userId: extractUserId(req),
       tools,
@@ -168,12 +156,7 @@ export class ResourceChatContext implements ChatContext {
     })
   }
 
-  /** Used by the dispatcher's force-agent branch */
-  getForceAgent(): PanelAgent | null {
-    return this.state.forceAgent
-  }
-
-  /** Used by the dispatcher's force-agent branch — reuses the resolved agentCtx */
+  /** Reuses the resolved agentCtx (no longer used by dispatcher; retained for completeness). */
   getAgentContext(): PanelAgentContext {
     return this.state.agentCtx
   }
