@@ -2,7 +2,7 @@
 
 Restore field-level AI actions and resource-level agents to the **standalone path** (button → dedicated SSE endpoint → result in field), unblock client-tool round-trips on that path, and unify both surfaces under a single `PanelAgent` primitive so app devs can ship custom actions and tools without forking `@rudderjs/panels`.
 
-**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC actual incl. minor exactOptional fixes). Phase 1 (extract `agentStream` helpers) is next as PR #2.
+**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC actual). **Phase 1 (extract `agentStream` helper) DONE 2026-04-08** (~115 LOC actual; scope narrowed — see Phase 1 status note). Phase 2 (upgrade standalone for client tools) is next as PR #3.
 **Packages affected:** `@rudderjs/panels` (handlers, agents, schema, frontend chat + field renderers, service providers); `playground` (one reference resource migration)
 **Depends on:**
 - Nothing — this plan is itself the prerequisite for `ai-loop-parity-plan.md`
@@ -249,6 +249,8 @@ Built-in text actions all declare `appliesTo: ['text', 'textarea', 'richcontent'
 Six phases. Phases 1–2 are pure refactor and add no user-visible behavior. Phases 3–6 build on top.
 
 ### Phase 1 — Extract `agentStream` shared helpers (`@rudderjs/panels`)
+
+**Status:** DONE 2026-04-08. ~115 LOC actual (vs. ~290 estimate). **Scope narrowed:** the only thing extracted in this PR is the chunk-forwarding loop (`streamAgentToSSE`). The continuation-handling helper and the cache-backed `runStore` were both deferred to Phase 2 — they only exist to support standalone client-tool round-trips, which is exactly what Phase 2 builds. This keeps Phase 1 a true zero-behavior-change refactor: no new state, no new endpoints, just an inner loop moved into a reusable function. The chat path produces byte-identical SSE output before and after.
 
 **Files:**
 - `packages/panels/src/handlers/agentStream/index.ts` (new, ~180 LOC)
