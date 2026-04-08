@@ -131,13 +131,27 @@ export class ResourceChatContext implements ChatContext {
     const deleteRecordTool     = Model
       ? await buildDeleteRecordTool({ Model, recordId })
       : null
-    const tools: AnyTool[] = [
-      ...(runAgentTool         ? [runAgentTool]        : []),
-      ...(editTextTool         ? [editTextTool]        : []),
-      readFormStateTool,
-      ...(updateFormStateTool  ? [updateFormStateTool] : []),
-      ...(deleteRecordTool     ? [deleteRecordTool]    : []),
-    ]
+
+    // Selection mode is a one-shot scoped edit. Restrict the toolkit to
+    // `update_form_state` (the write path) and `read_form_state` (read-only,
+    // safe). Hiding `delete_record` / `edit_text` / `run_agent` is defense in
+    // depth: even if the model misreads the user's intent (e.g. parses "delete
+    // selected" as "delete the record"), it can't escalate beyond the
+    // selection because the destructive tools simply aren't in its toolkit.
+    // The system prompt also tells it to stop after the edit; this is the
+    // belt-and-suspenders backup.
+    const tools: AnyTool[] = selection
+      ? [
+          readFormStateTool,
+          ...(updateFormStateTool  ? [updateFormStateTool] : []),
+        ]
+      : [
+          ...(runAgentTool         ? [runAgentTool]        : []),
+          ...(editTextTool         ? [editTextTool]        : []),
+          readFormStateTool,
+          ...(updateFormStateTool  ? [updateFormStateTool] : []),
+          ...(deleteRecordTool     ? [deleteRecordTool]    : []),
+        ]
 
     // 8. Pre-render the builder block catalog (LSP-style structured metadata
     //    so the agent doesn't infer block types from raw Lexical JSON).
@@ -169,6 +183,14 @@ export class ResourceChatContext implements ChatContext {
       .join('\n')
 
     if (selection) {
+      // Selection mode MUST direct the model to `update_form_state`, never
+      // `edit_text`. `edit_text` on a non-collaborative field writes to a Yjs
+      // `fields` map that the plain React inputs don't subscribe to, so the
+      // tool returns success while the form is unchanged — the model then
+      // confidently lies to the user. `update_form_state` always operates on
+      // the live form state for every field type and supports formatting ops
+      // that `edit_text` lacks. The latency difference is negligible for a
+      // single selection-scoped edit; correctness wins.
       return [
         'You are an AI assistant that edits text fields in an admin panel.',
         '',
@@ -179,10 +201,17 @@ export class ResourceChatContext implements ChatContext {
         '"""',
         '',
         'INSTRUCTIONS:',
-        `1. You MUST call the \`edit_text\` tool to apply changes. Do NOT just respond with text.`,
+        `1. You MUST call \`update_form_state\` to apply the change. Do NOT use \`edit_text\` — it cannot reliably write to non-collaborative fields and has no formatting ops, so calling it here will silently fail and lie to the user. Do NOT just respond with text either.`,
         `2. The field is "${selection.field}" — do NOT touch any other field.`,
-        '3. Use a replace operation where search is the selected text (or a unique substring) and replace is the new text.',
-        '4. After calling the tool, briefly confirm what you changed.',
+        '3. Pass the selected text above as the `search` argument for whichever op matches the user\'s request:',
+        '   - `replace` with `search: "<selected text>", replace: "<new text>"` — for rewrite, translate, shorten, expand, fix grammar, make formal, simplify, etc.',
+        '   - `delete` with `search: "<selected text>"` — for deletions',
+        '   - `format_text` with `search: "<selected text>", marks: {...}` — for bold / italic / underline / strikethrough / code (set `true` to apply, `false` to remove, omit to leave unchanged)',
+        '   - `set_link` with `search: "<selected text>", url: "..."` — for wrapping the selection in a link',
+        '   - `unset_link` with `search: "<selected text>"` — for removing a link from the selection',
+        '   - `set_paragraph_type` with `selector: { textContains: "<selected text>" }` and `paragraphType: ...` — only when the selection is (or sits inside) a single paragraph being converted to a heading / quote / code / etc.',
+        '4. SCOPE — every word the user types ("delete", "remove", "rewrite", "fix", etc.) refers to the SELECTED TEXT inside the field, never to the field as a whole and never to the record. "Delete selected" means delete the selected text from the field — it does NOT mean delete the record. There is no `delete_record` tool available in this mode for that reason.',
+        '5. After your `update_form_state` call returns success, STOP. Reply with one short confirmation sentence ("Deleted." / "Rewritten." / etc.) and end your turn. Do NOT call any other tools. Do NOT call `update_form_state` a second time. Do NOT continue reasoning about further edits unless the user asks again.',
       ].join('\n')
     }
 
