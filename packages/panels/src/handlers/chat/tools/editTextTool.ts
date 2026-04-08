@@ -3,11 +3,21 @@ import { loadAi, loadLive } from '../lazyImports.js'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/**
+ * Map from field name to the allowed block type names declared on that field
+ * via `BuilderField.blocks([...])` or `RichContentField.blocks([...])`.
+ * Used to reject `insert_block` calls with unknown block types — without this
+ * the agent can hallucinate block types and the editor renders them as
+ * "Unknown block type: …".
+ */
+export type FieldBlockAllowlist = Record<string, Set<string>>
+
 export async function buildEditTextTool(
   agentCtx: ResourceAgentContext,
   allFields: string[],
   record: Record<string, unknown>,
   selection?: { field: string; text: string } | undefined,
+  blockAllowlist: FieldBlockAllowlist = {},
 ) {
   if (allFields.length === 0) return null
 
@@ -85,9 +95,24 @@ export async function buildEditTextTool(
       const fragment = fieldInfo.type === 'richcontent' ? 'richcontent' : 'text'
       const fieldDocName = `${docName}:${fragment}:${targetField}`
       const aiCursor = { name: 'AI Assistant', color: '#8b5cf6' }
+      const allowedBlocks = blockAllowlist[targetField]
 
       let applied = 0
+      const rejected: string[] = []
       for (const op of input.operations) {
+        // Reject block ops with types not declared on this field, regardless
+        // of whether the system prompt taught the agent the catalog. The
+        // editor renders unknown blocks as "Unknown block type: ..." which
+        // looks like a successful edit, so the agent can't self-correct.
+        if (
+          allowedBlocks &&
+          (op.type === 'insert_block' || op.type === 'update_block' || op.type === 'delete_block') &&
+          typeof op.blockType === 'string' &&
+          !allowedBlocks.has(op.blockType)
+        ) {
+          rejected.push(`${op.type}: "${op.blockType}" is not a valid block type for "${targetField}". Allowed: ${[...allowedBlocks].join(', ') || '(none)'}`)
+          continue
+        }
         if (op.type === 'rewrite') {
           if (Live.rewriteText(fieldDocName, op.content as string, aiCursor)) applied++
         } else if (op.type === 'update_block') {
@@ -106,7 +131,10 @@ export async function buildEditTextTool(
         }
       }
       setTimeout(() => Live.clearAiAwareness(fieldDocName), 2000)
-      return `Applied ${applied}/${input.operations.length} edit(s) to "${targetField}"`
+      const summary = `Applied ${applied}/${input.operations.length} edit(s) to "${targetField}"`
+      return rejected.length > 0
+        ? `${summary}. Rejected: ${rejected.join('; ')}`
+        : summary
     } else {
       let current = String(record[targetField] ?? '')
       try {
