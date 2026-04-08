@@ -668,6 +668,9 @@ importers:
       '@rudderjs/broadcast':
         specifier: workspace:*
         version: link:../broadcast
+      '@rudderjs/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@rudderjs/live':
         specifier: workspace:*
         version: link:../live

@@ -41,6 +41,7 @@
   "peerDependencies": {
     "@rudderjs/ai": "workspace:*",
     "@rudderjs/broadcast": "workspace:*",
+    "@rudderjs/cache": "workspace:*",
     "@rudderjs/image": "workspace:*",
     "@rudderjs/live": "workspace:*",
     "@rudderjs/localization": "workspace:*",
@@ -52,6 +53,9 @@
   },
   "peerDependenciesMeta": {
     "@rudderjs/ai": {
+      "optional": true
+    },
+    "@rudderjs/cache": {
       "optional": true
     },
     "@rudderjs/storage": {
@@ -86,6 +90,7 @@
     "@base-ui-components/react": "1.0.0-rc.0",
     "@rudderjs/ai": "workspace:*",
     "@rudderjs/broadcast": "workspace:*",
+    "@rudderjs/cache": "workspace:*",
     "@rudderjs/live": "workspace:*",
     "@rudderjs/localization": "workspace:*",
     "@rudderjs/storage": "workspace:*",

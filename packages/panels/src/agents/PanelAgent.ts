@@ -352,9 +352,16 @@ export class PanelAgent {
     return result
   }
 
-  /** Run the agent with SSE streaming. */
+  /**
+   * Run the agent with SSE streaming.
+   *
+   * Pass `opts` to forward `@rudderjs/ai`'s `AgentPromptOptions` (used by the
+   * standalone runner to enable client-tool round-trips via
+   * `toolCallStreamingMode: 'stop-on-client-tool'`, plus `messages` /
+   * `approvedToolCallIds` / `rejectedToolCallIds` for continuations).
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async stream(ctx: PanelAgentContext, input?: string): Promise<{ stream: AsyncIterable<any>; response: Promise<any> }> {
+  async stream(ctx: PanelAgentContext, input?: string, opts?: any): Promise<{ stream: AsyncIterable<any>; response: Promise<any> }> {
     this.context = ctx
     await this.beforeRun?.(ctx)
 
@@ -367,7 +374,7 @@ export class PanelAgent {
       model: this._model,
     })
 
-    return a.stream(input ?? 'Run your task on this record.')
+    return a.stream(input ?? 'Run your task on this record.', opts)
   }
 
   // ── Meta ───────────────────────────────────────────────

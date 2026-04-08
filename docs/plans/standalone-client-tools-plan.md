@@ -2,7 +2,7 @@
 
 Restore field-level AI actions and resource-level agents to the **standalone path** (button → dedicated SSE endpoint → result in field), unblock client-tool round-trips on that path, and unify both surfaces under a single `PanelAgent` primitive so app devs can ship custom actions and tools without forking `@rudderjs/panels`.
 
-**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC actual). **Phase 1 (extract `agentStream` helper) DONE 2026-04-08** (~115 LOC actual; scope narrowed — see Phase 1 status note). Phase 2 (upgrade standalone for client tools) is next as PR #3.
+**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC). **Phase 1 (extract `agentStream` helper) DONE 2026-04-08** (~115 LOC). **Phase 2 (upgrade standalone for client tools) DONE 2026-04-08** (~520 LOC; standalone path now supports the same client-tool round-trip protocol as chat, backed by `@rudderjs/cache`). Phase 4 (built-ins as registered `PanelAgent`s) is next as PR #4.
 **Packages affected:** `@rudderjs/panels` (handlers, agents, schema, frontend chat + field renderers, service providers); `playground` (one reference resource migration)
 **Depends on:**
 - Nothing — this plan is itself the prerequisite for `ai-loop-parity-plan.md`
@@ -305,6 +305,8 @@ Six phases. Phases 1–2 are pure refactor and add no user-visible behavior. Pha
 ---
 
 ### Phase 2 — Upgrade standalone path to support client tools (`@rudderjs/panels`)
+
+**Status:** DONE 2026-04-08. ~520 LOC actual (vs. ~250 estimate; overage came from a more complete client-tool round-trip protocol than the plan originally sketched, including: per-run signed validation by user id + tool call id coverage check, recursive `streamRequest` in `useAgentRun` for the round-trip, the `Phase 1` helper signature refinement to take `{stream, response}` instead of `{agent, input}`, and `PanelAgent.stream()` getting a third `opts` parameter so callers can pass `toolCallStreamingMode`). Files added: `agentStream/runStore.ts`, `/_agents/:slug/continue` route. Files modified: `agentRun.ts` (rewritten to a two-handler shape), `AgentOutput.tsx` `useAgentRun` (extended for round-trips), `PanelAgent.ts`, `agentStream/index.ts` (signature refactor), `chatHandler.ts` (signature update), `package.json` (added `@rudderjs/cache` as optional peer dep).
 
 **Files:**
 - `packages/panels/src/handlers/agentRun.ts` (rewrite to use `streamAgentWithClientTools`)

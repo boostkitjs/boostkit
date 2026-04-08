@@ -15,7 +15,7 @@ import {
 } from './softDeleteHandler.js'
 import { mountVersionRoutes } from '../versionRoutes.js'
 import { mountImportRoutes } from '../meta/importRoutes.js'
-import { handleAgentRun } from '../agentRun.js'
+import { handleAgentRun, handleAgentRunContinuation } from '../agentRun.js'
 
 export function mountResourceRoutes(
   router: RouterLike,
@@ -85,6 +85,12 @@ export function mountResourceRoutes(
   if (mountResource.agents().length > 0) {
     router.post(`${base}/:id/_agents/:agentSlug`, async (req, res) => {
       return handleAgentRun(req, res, ResourceClass, panel.getName())
+    }, mw)
+    // Continuation endpoint for client-tool round-trips and approval gates.
+    // The browser POSTs here after executing client tools (or approving)
+    // with the runId from the initial run_started SSE event.
+    router.post(`${base}/:id/_agents/:agentSlug/continue`, async (req, res) => {
+      return handleAgentRunContinuation(req, res, ResourceClass, panel.getName())
     }, mw)
   }
 

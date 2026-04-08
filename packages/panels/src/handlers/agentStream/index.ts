@@ -19,18 +19,16 @@
  * - Continuation prefix-checking / runStore (Phase 2)
  */
 
-import type { Agent, AgentPromptOptions, AgentResponse, StreamChunk } from '@rudderjs/ai'
+import type { AgentResponse, StreamChunk } from '@rudderjs/ai'
 import type { SSESend } from '../chat/types.js'
 
 export interface StreamAgentToSSEOptions {
-  /** A constructed `@rudderjs/ai` agent (the return value of `agent({...})`). */
-  agent:      Agent
-  /** User input string, or empty for continuations. */
-  input:      string
-  /** Prompt options forwarded to `agent.stream()`. */
-  promptOpts: AgentPromptOptions
+  /** The stream returned by `agent.stream()` (chat) or `panelAgent.stream()` (standalone). */
+  stream:   AsyncIterable<StreamChunk>
+  /** The response promise from the same `.stream()` call. */
+  response: Promise<AgentResponse>
   /** Callback for forwarding chunks to the wire. */
-  send:       SSESend
+  send:     SSESend
 }
 
 /**
@@ -58,10 +56,9 @@ export interface StreamAgentToSSEOptions {
  * `docs/plans/mixed-tool-continuation-plan.md`.
  */
 export async function streamAgentToSSE(opts: StreamAgentToSSEOptions): Promise<AgentResponse> {
-  const { agent, input, promptOpts, send } = opts
-  const { stream, response } = agent.stream(input, promptOpts)
+  const { stream, response, send } = opts
 
-  for await (const chunk of stream as AsyncIterable<StreamChunk>) {
+  for await (const chunk of stream) {
     switch (chunk.type) {
       case 'text-delta':
         if (chunk.text) send('text', { text: chunk.text })
