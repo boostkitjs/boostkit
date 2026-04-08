@@ -112,9 +112,11 @@ export function formatBuilderCatalog(catalog: BuilderFieldCatalog[]): string {
     lines.push('')
   }
 
-  lines.push('To edit a block, call `edit_text` with an `update_block` operation:')
-  lines.push('  `{ type: "update_block", blockType: "<block name from above>", blockIndex: 0, field: "<field name from the block schema>", value: "<new value>" }`')
-  lines.push('Use `blockIndex` to disambiguate multiple blocks of the same type (0-based).')
+  lines.push('Block operations available via `edit_text`:')
+  lines.push('  - `insert_block` — `{ type: "insert_block", blockType: "<name>", blockData: { /* field values keyed by the block schema */ }, position?: number }`')
+  lines.push('  - `update_block` — `{ type: "update_block", blockType: "<name>", blockIndex: 0, field: "<field name>", value: "<new value>" }`')
+  lines.push('  - `delete_block` — `{ type: "delete_block", blockType: "<name>", blockIndex: 0 }`')
+  lines.push('Use `blockIndex` (0-based) to disambiguate multiple blocks of the same type. On `insert_block`, omit `position` to append at the end of the field; pass a 0-based paragraph index to insert before that paragraph; pass a negative number to count from the end (`-1` = before the last paragraph). Only use block types listed above — do not invent new ones.')
 
   return lines.join('\n')
 }

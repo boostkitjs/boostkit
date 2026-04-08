@@ -174,8 +174,10 @@ describe('formatBuilderCatalog', () => {
     // Field schema lines with type + required flag.
     assert.match(out, /`heading` \(text\) — required/)
     assert.match(out, /`subheading` \(textarea\)/)
-    // Tool usage hint.
+    // Tool usage hints — all three block ops should be advertised.
+    assert.match(out, /insert_block/)
     assert.match(out, /update_block/)
+    assert.match(out, /delete_block/)
   })
 
   it('marks blocks with no fields as "_no fields_"', () => {
