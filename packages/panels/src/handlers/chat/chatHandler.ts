@@ -197,12 +197,8 @@ async function runChat(deps: RunChatDeps): Promise<void> {
       promptOpts.rejectedToolCallIds = body.rejectedToolCallIds
     }
 
-    const result = await streamAgentToSSE({
-      agent: a,
-      input: transformedInput,
-      promptOpts,
-      send,
-    })
+    const { stream, response } = a.stream(transformedInput, promptOpts)
+    const result = await streamAgentToSSE({ stream, response, send })
 
     // Persistence — branch on whether this was a fresh prompt or continuation.
     if (conversationId && store) {
