@@ -27,7 +27,7 @@ export async function buildEditTextTool(
         'Edit text or blocks in a field.',
         'Use "rewrite" to replace the entire field content with new text (for full rewrites, translations, shortening).',
         'Use "replace"/"insert_after"/"delete" for surgical edits to specific text.',
-        'Use "update_block" for embedded blocks shown as [BLOCK: ...] in the record.',
+        'Use "insert_block"/"update_block"/"delete_block" for embedded blocks shown as [BLOCK: ...] in the record.',
         'Available fields: ' + allFields.join(', '),
       ].join(' ')
 
@@ -62,6 +62,17 @@ export async function buildEditTextTool(
           field: z.string().describe('The block field to update (e.g. "title", "buttonText")'),
           value: z.string().describe('The new value'),
         }),
+        z.object({
+          type: z.literal('insert_block'),
+          blockType: z.string().describe('Block type from the available block catalog'),
+          blockData: z.record(z.string(), z.unknown()).describe('Field values keyed by the block schema field names'),
+          position: z.number().optional().describe('0-based paragraph index. Omit to append at end. Negative counts from end.'),
+        }),
+        z.object({
+          type: z.literal('delete_block'),
+          blockType: z.string().describe('The block type to delete (e.g. "callToAction")'),
+          blockIndex: z.number().describe('0-based index of the block to remove (across all blocks of this type)'),
+        }),
       ])),
     }),
   }).server(async (input: { field: string; operations: Array<Record<string, unknown>> }) => {
@@ -81,6 +92,15 @@ export async function buildEditTextTool(
           if (Live.rewriteText(fieldDocName, op.content as string, aiCursor)) applied++
         } else if (op.type === 'update_block') {
           if (Live.editBlock(fieldDocName, op.blockType as string, (op.blockIndex as number) ?? 0, op.field as string, op.value)) applied++
+        } else if (op.type === 'insert_block') {
+          if (Live.insertBlock(
+            fieldDocName,
+            op.blockType as string,
+            (op.blockData as Record<string, unknown>) ?? {},
+            op.position as number | undefined,
+          )) applied++
+        } else if (op.type === 'delete_block') {
+          if (Live.removeBlock(fieldDocName, op.blockType as string, (op.blockIndex as number) ?? 0)) applied++
         } else {
           if (Live.editText(fieldDocName, op as any, aiCursor)) applied++
         }
@@ -96,7 +116,7 @@ export async function buildEditTextTool(
 
       for (const op of input.operations) {
         if (op.type === 'rewrite') { current = op.content as string; continue }
-        if (op.type === 'update_block') continue
+        if (op.type === 'update_block' || op.type === 'insert_block' || op.type === 'delete_block') continue
         const search = op.search as string
         if (op.type === 'replace' && search) current = current.replace(search, () => op.replace as string)
         else if (op.type === 'insert_after' && search) {

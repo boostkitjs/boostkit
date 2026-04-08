@@ -19,6 +19,8 @@ export async function loadLive() {
     updateMap(docName: string, mapName: string, field: string, value: unknown): Promise<void>
     editText(docName: string, operation: unknown, aiCursor?: { name: string; color: string }): boolean
     editBlock(docName: string, blockType: string, blockIndex: number, field: string, value: unknown): boolean
+    insertBlock(docName: string, blockType: string, blockData: Record<string, unknown>, position?: number): boolean
+    removeBlock(docName: string, blockType: string, blockIndex: number): boolean
     rewriteText(docName: string, newText: string, aiCursor?: { name: string; color: string }): boolean
     clearAiAwareness(docName: string): void
   }

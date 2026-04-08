@@ -547,6 +547,29 @@ export function live(config: LiveConfig = {}): new (app: Application) => Service
                   }
                 } catch { /* not a text-like element */ }
               }
+            } else if (entry.insert instanceof Y.XmlText) {
+              // Lexical paragraph-level node (paragraph, heading, list, quote, code).
+              const child = entry.insert as Y.XmlText
+              const childAttrs = (child as unknown as { getAttributes(): Record<string, unknown> }).getAttributes?.() ?? {}
+              const attrParts = Object.entries(childAttrs)
+                .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+                .join(' ')
+              console.log(`    [${i}] YXmlText ${attrParts}`)
+              try {
+                const innerDelta = child.toDelta() as Array<{ insert: unknown; attributes?: Record<string, unknown> }>
+                for (let j = 0; j < innerDelta.length; j++) {
+                  const inner = innerDelta[j]!
+                  if (typeof inner.insert === 'string') {
+                    console.log(`          [${j}] text: ${JSON.stringify(inner.insert.slice(0, 80))}${inner.attributes ? ` attrs=${JSON.stringify(inner.attributes)}` : ''}`)
+                  } else if (inner.insert instanceof Y.XmlElement) {
+                    const elem = inner.insert
+                    const innerAttrs = elem.getAttributes()
+                    console.log(`          [${j}] <${elem.nodeName}> ${Object.entries(innerAttrs).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : JSON.stringify(String(v).slice(0, 60))}`).join(' ')}`)
+                  } else {
+                    console.log(`          [${j}] ${inner.insert?.constructor?.name ?? typeof inner.insert}`)
+                  }
+                }
+              } catch { /* */ }
             } else {
               console.log(`    [${i}] ${entry.insert?.constructor?.name ?? typeof entry.insert}`)
             }
@@ -638,11 +661,28 @@ function findBlockInXmlTree(
   blockType: string,
   blockIndex: number,
 ): Y.XmlElement | null {
+  return findBlockWithParentInXmlTree(root, blockType, blockIndex)?.elem ?? null
+}
+
+/**
+ * Like {@link findBlockInXmlTree} but also returns the parent paragraph
+ * Y.XmlText and the paragraph's offset within `root`. Used by `removeBlock`
+ * which needs to delete the entire parent paragraph from the root delta.
+ */
+function findBlockWithParentInXmlTree(
+  root: Y.XmlText,
+  blockType: string,
+  blockIndex: number,
+): { elem: Y.XmlElement; parent: Y.XmlText; parentRootOffset: number } | null {
   const rootDelta = root.toDelta() as InnerDeltaItem[]
   let matchIdx = 0
+  let rootOffset = 0
 
   for (const entry of rootDelta) {
-    if (!(entry.insert instanceof Y.XmlText)) continue
+    if (!(entry.insert instanceof Y.XmlText)) {
+      rootOffset += 1
+      continue
+    }
     const child = entry.insert as Y.XmlText
     const innerDelta = child.toDelta() as InnerDeltaItem[]
 
@@ -651,10 +691,13 @@ function findBlockInXmlTree(
       const elem = item.insert as Y.XmlElement
 
       if (elem.getAttribute('__blockType') === blockType) {
-        if (matchIdx === blockIndex) return elem
+        if (matchIdx === blockIndex) {
+          return { elem, parent: child, parentRootOffset: rootOffset }
+        }
         matchIdx++
       }
     }
+    rootOffset += 1
   }
   return null
 }
@@ -1143,6 +1186,117 @@ export const Live = {
       data[field] = value
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Lexical-Yjs stores __blockData as raw object, Yjs types expect string
       ;(elem.setAttribute as (k: string, v: unknown) => void)('__blockData', data)
+    }, SERVER_ORIGIN)
+
+    return true
+  },
+
+  /**
+   * Insert a new block into a Lexical Y.Doc room.
+   *
+   * Wraps the block in a fresh paragraph `Y.XmlText` and inserts it into the
+   * root. With no `position`, appends at the end. With a 0-based `position`,
+   * inserts before the paragraph currently at that index. Negative `position`
+   * counts from the end (`-1` = before the last paragraph).
+   *
+   * The block's `__blockData` is stored as a raw JS object — the Lexical-Yjs
+   * binding handles serialization itself.
+   *
+   * Returns false (no-op) if the room or root XmlText is uninitialized.
+   *
+   * @example
+   * Live.insertBlock('panel:articles:42:richcontent:body', 'callToAction',
+   *   { title: 'Subscribe', buttonText: 'Join now' })
+   */
+  insertBlock(
+    docName: string,
+    blockType: string,
+    blockData: Record<string, unknown>,
+    position?: number,
+  ): boolean {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    const root = room.doc.get('root', Y.XmlText)
+    if (root.length === 0) return false
+
+    room.doc.transact(() => {
+      // Build a fresh paragraph node containing only the block.
+      // The Lexical-Yjs binding (`@lexical/yjs`) creates DecoratorNodes via
+      // `new XmlElement()` (NO nodeName arg — Yjs defaults to 'UNDEFINED'),
+      // and writes the Lexical node type as a `__type` attribute, not as the
+      // XML nodeName. We must mirror that exactly or `CollabDecoratorNode`
+      // will not pick up the element. See `LexicalYjs.dev.mjs:925`.
+      const paragraph = new Y.XmlText()
+      paragraph.setAttribute('__type', 'paragraph')
+
+      const customBlock = new Y.XmlElement()
+      customBlock.setAttribute('__type', 'custom-block')
+      customBlock.setAttribute('__blockType', blockType)
+      // __blockData is a raw object; cast to bypass Yjs's string-typed setAttribute signature.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Lexical-Yjs binding stores raw objects
+      ;(customBlock.setAttribute as (k: string, v: unknown) => void)('__blockData', blockData)
+
+      paragraph.insertEmbed(0, customBlock)
+
+      // Compute paragraph offsets in root for positional insertion.
+      const rootDelta = root.toDelta() as InnerDeltaItem[]
+      const paragraphOffsets: number[] = []
+      let offset = 0
+      for (const entry of rootDelta) {
+        if (entry.insert instanceof Y.XmlText) paragraphOffsets.push(offset)
+        offset += 1
+      }
+      const totalLen = offset
+      const paragraphCount = paragraphOffsets.length
+
+      let insertOffset: number
+      if (position === undefined) {
+        insertOffset = totalLen
+      } else {
+        let pIdx = position < 0 ? paragraphCount + position : position
+        if (pIdx < 0) pIdx = 0
+        if (pIdx >= paragraphCount) {
+          insertOffset = totalLen
+        } else {
+          insertOffset = paragraphOffsets[pIdx]!
+        }
+      }
+
+      root.insertEmbed(insertOffset, paragraph)
+    }, SERVER_ORIGIN)
+
+    return true
+  },
+
+  /**
+   * Remove a block from a Lexical Y.Doc room.
+   *
+   * Identifies the block via the same walker `editBlock` uses (`blockType` +
+   * 0-based `blockIndex` across all blocks of that type). The parent paragraph
+   * `Y.XmlText` is removed in its entirety — any text or other blocks sharing
+   * that paragraph are destroyed with it. The block-write plan documents this
+   * trade-off: blocks are expected to live in their own paragraphs.
+   *
+   * Returns true if the block was found and removed.
+   *
+   * @example
+   * Live.removeBlock('panel:articles:42:richcontent:body', 'callToAction', 0)
+   */
+  removeBlock(
+    docName: string,
+    blockType: string,
+    blockIndex: number,
+  ): boolean {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    const root = room.doc.get('root', Y.XmlText)
+    if (root.length === 0) return false
+
+    const found = findBlockWithParentInXmlTree(root, blockType, blockIndex)
+    if (!found) return false
+
+    room.doc.transact(() => {
+      root.delete(found.parentRootOffset, 1)
     }, SERVER_ORIGIN)
 
     return true
