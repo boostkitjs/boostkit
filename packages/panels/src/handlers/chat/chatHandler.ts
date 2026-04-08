@@ -9,6 +9,7 @@ import { ChatContextError, type ChatContext } from './contexts/types.js'
 import { ResourceChatContext } from './contexts/ResourceChatContext.js'
 import { persistConversation, persistContinuation } from './persistence.js'
 import { validateContinuation, ContinuationError } from './continuation.js'
+import { streamAgentToSSE } from '../agentStream/index.js'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -196,46 +197,12 @@ async function runChat(deps: RunChatDeps): Promise<void> {
       promptOpts.rejectedToolCallIds = body.rejectedToolCallIds
     }
 
-    const { stream, response } = a.stream(transformedInput, promptOpts)
-
-    for await (const chunk of stream) {
-      switch (chunk.type) {
-        case 'text-delta':
-          if (chunk.text) send('text', { text: chunk.text })
-          break
-        case 'tool-call':
-          send('tool_call', {
-            id:    chunk.toolCall?.id,
-            tool:  chunk.toolCall?.name,
-            input: chunk.toolCall?.arguments,
-          })
-          break
-        case 'tool-result':
-          // Forward server-side tool results so the browser can build a
-          // wireMessagesRef that mirrors the persisted state. The `content`
-          // string MUST match what persistence.ts writes (string passthrough,
-          // otherwise JSON.stringify) so the continuation prefix check passes.
-          // See docs/plans/mixed-tool-continuation-plan.md.
-          send('tool_result', {
-            id:         chunk.toolCall?.id,
-            tool:       chunk.toolCall?.name,
-            toolCallId: chunk.toolCall?.id,
-            content:    typeof chunk.result === 'string' ? chunk.result : JSON.stringify(chunk.result),
-          })
-          break
-        case 'pending-client-tools':
-          send('pending_client_tools', { toolCalls: chunk.toolCalls ?? [] })
-          break
-        case 'pending-approval':
-          send('tool_approval_required', {
-            toolCall:     chunk.toolCall,
-            isClientTool: chunk.isClientTool ?? false,
-          })
-          break
-      }
-    }
-
-    const result = await response
+    const result = await streamAgentToSSE({
+      agent: a,
+      input: transformedInput,
+      promptOpts,
+      send,
+    })
 
     // Persistence — branch on whether this was a fresh prompt or continuation.
     if (conversationId && store) {
