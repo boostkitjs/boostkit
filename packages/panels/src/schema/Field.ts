@@ -48,15 +48,12 @@ export interface FieldMeta {
  * Field-level AI action serialised to the browser. Built by `Field.ai()` from
  * either built-in slugs or `PanelAgent` instances. The browser reads `slug`
  * + `label` + `icon` to render the dropdown; clicking POSTs to the standalone
- * agent endpoint with the slug. The `prompt` is a Phase 4 transitional field
- * — it will be removed in Phase 5 once the click handler stops injecting into
- * chat and starts calling the standalone endpoint directly.
+ * agent endpoint with `field` set to this field's name.
  */
 export interface ResolvedAiAction {
-  slug:    string
-  label:   string
-  icon?:   string
-  prompt?: string
+  slug:  string
+  label: string
+  icon?: string
 }
 
 // ─── Field base class ──────────────────────────────────────
@@ -601,14 +598,6 @@ function resolveAiActions(
     }
     const icon = agent.getIcon()
     if (icon) action.icon = icon
-
-    // Phase 4 transitional: ship the agent's instructions as `prompt` so the
-    // chat-injection bridge in SchemaRenderer.tsx can keep working until
-    // Phase 5 swaps the click handler to the standalone endpoint. Phase 5
-    // will drop this field.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const instr = (agent as any)._instructions
-    if (typeof instr === 'string' && instr.length > 0) action.prompt = instr
 
     resolved.push(action)
   }

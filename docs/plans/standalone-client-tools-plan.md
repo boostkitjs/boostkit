@@ -2,7 +2,7 @@
 
 Restore field-level AI actions and resource-level agents to the **standalone path** (button → dedicated SSE endpoint → result in field), unblock client-tool round-trips on that path, and unify both surfaces under a single `PanelAgent` primitive so app devs can ship custom actions and tools without forking `@rudderjs/panels`.
 
-**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC). **Phase 1 (extract `agentStream` helper) DONE 2026-04-08** (~115 LOC). **Phase 2 (upgrade standalone for client tools) DONE 2026-04-08** (~520 LOC). **Phase 4 (built-ins as registered `PanelAgent`s) DONE 2026-04-08** (~430 LOC; 8 built-in text actions ship as real `PanelAgent` instances registered by `PanelServiceProvider.register()`, `Field.ai()` accepts mixed `(string | PanelAgent)[]` with `appliesTo` validation, hardcoded `QUICK_ACTION_LABELS` map deleted from frontend, default `PanelAgent` toolkit gained `update_form_state` + `read_form_state`). Phase 5 (restore standalone bridges for both surfaces; delete chat-injection bridges) is next as PR #5.
+**Status:** IN PROGRESS — all decisions resolved 2026-04-08. **Phase 3 (rename) DONE 2026-04-08** (~120 LOC). **Phase 1 (extract `agentStream` helper) DONE 2026-04-08** (~115 LOC). **Phase 2 (upgrade standalone for client tools) DONE 2026-04-08** (~520 LOC). **Phase 4 (built-ins as registered `PanelAgent`s) DONE 2026-04-08** (~430 LOC). **Phase 5 (restore standalone for both surfaces; delete chat bridges) DONE 2026-04-08** (~340 LOC; both `AiQuickActions` and `FormActions` now route through `useAgentRun` to the standalone endpoint, `triggerRun` / `forceAgent` / `runForceAgent` / `AgentRunRequest` / `getForceAgent` all deleted, playground `ArticleResource.ts` migrated with a custom `seoTitleAction` PanelAgent as the reference example). Phase 6 (cleanup, docs, memory) is the final step as PR #6.
 **Packages affected:** `@rudderjs/panels` (handlers, agents, schema, frontend chat + field renderers, service providers); `playground` (one reference resource migration)
 **Depends on:**
 - Nothing — this plan is itself the prerequisite for `ai-loop-parity-plan.md`
@@ -412,6 +412,8 @@ Six phases. Phases 1–2 are pure refactor and add no user-visible behavior. Pha
 ---
 
 ### Phase 5 — Restore standalone for both surfaces; delete the chat bridges (`@rudderjs/panels`)
+
+**Status:** DONE 2026-04-08. ~340 LOC actual (vs. ~220 estimate; overage from threading `aiApiBase` / `aiResourceSlug` / `aiRecordId` from `SchemaForm` through `SchemaRenderer` to `AiQuickActions`, plus the playground reference migration with the new `seoTitleAction` example, plus the README + docs cleanup). Both surfaces now hit the standalone endpoint, the `prompt` transitional field on `ResolvedAiAction` is gone, and the chat dispatcher's `forceAgent` branch + body field are deleted.
 
 **Files:**
 - `packages/panels/pages/_components/edit/SchemaRenderer.tsx` (rewrite `AiQuickActions.handleAction`)

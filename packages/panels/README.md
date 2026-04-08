@@ -860,8 +860,9 @@ The chat endpoint (`POST /{panel}/api/_chat`) supports:
 - `resourceContext` — current resource slug + record ID
 - `pageContext` — page slug for future page-level chat (stub)
 - `selection` — selected text context (field name + text)
-- `forceAgent` — bypass AI intent detection, run a specific agent directly
 - `approvedToolCallIds` / `rejectedToolCallIds` — user's decision on `needsApproval` tool calls
+
+For running a specific agent (resource-level dropdown or per-field action), use the **standalone agent endpoint** instead — `POST /{panel}/api/{resource}/:id/_agents/:agentSlug`. The chat endpoint is for open-ended conversations only. See `feedback_standalone_field_actions_vs_chat.md`.
 
 Internally the endpoint uses a **pluggable `ChatContext` architecture**
 (`ResourceChatContext`, `PageChatContext`, `GlobalChatContext`) — one

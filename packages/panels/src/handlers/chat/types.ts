@@ -21,7 +21,6 @@ export interface ChatRequestBody {
   resourceContext?:   { resourceSlug: string; recordId: string }
   pageContext?:       { pageSlug: string }
 
-  forceAgent?:        string
   selection?:         { field: string; text: string }
 
   /** Tool-call ids the user has approved (server-side approval gate). */

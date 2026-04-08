@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { PanelI18n, PanelAgentMeta } from '@rudderjs/panels'
-import { useAiChat, type AgentRunRequest } from '../agents/AiChatContext.js'
+import { useAgentRun } from '../agents/AgentOutput.js'
 
 interface Props {
   draftable:     boolean
@@ -18,21 +18,23 @@ interface Props {
 
 export function FormActions({ draftable, recordStatus, saving, backHref, onPublish, onUnpublish, i18n, agents, resourceSlug, recordId, apiBase }: Props) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  let aiChat: ReturnType<typeof useAiChat> | null = null
-  try { aiChat = useAiChat() } catch { /* no provider */ }
 
   const hasAgents = !!agents?.length && !!resourceSlug && !!recordId && !!apiBase
 
+  // Standalone agent runner for resource-level agents (the "AI Agents"
+  // dropdown). After Phase 5, these run via the dedicated /_agents/${slug}
+  // endpoint instead of being injected into chat. The agent uses the
+  // client-tool toolkit (update_form_state, read_form_state) so non-collab
+  // fields are no longer clobbered.
+  const { run, status } = useAgentRun(apiBase ?? '', resourceSlug ?? '')
+
   function handleAgentClick(agent: PanelAgentMeta) {
     setDropdownOpen(false)
-    aiChat?.triggerRun({
-      agentSlug:    agent.slug,
-      agentLabel:   agent.label,
-      resourceSlug: resourceSlug!,
-      recordId:     recordId!,
-      apiBase:      apiBase!,
-    })
+    if (!recordId) return
+    run(agent.slug, recordId)
   }
+
+  const isRunning = status === 'running'
 
   return (
     <div className="flex items-center gap-3 pt-2">
@@ -85,9 +87,10 @@ export function FormActions({ draftable, recordStatus, saving, backHref, onPubli
         <div className="relative ms-auto">
           <button
             type="button"
+            disabled={isRunning}
             onClick={() => setDropdownOpen(v => !v)}
             onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors disabled:opacity-50"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />

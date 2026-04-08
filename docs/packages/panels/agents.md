@@ -150,8 +150,7 @@ When an agent calls `update_field`, the new value animates into the form field c
   "resourceContext": {
     "resourceSlug": "articles",
     "recordId": "abc123"
-  },
-  "forceAgent": "summarize"
+  }
 }
 ```
 
@@ -160,7 +159,8 @@ When an agent calls `update_field`, the new value animates into the form field c
 | `message` | Yes | The user's message |
 | `history` | No | Conversation history (last 20 messages recommended) |
 | `resourceContext` | No | Current resource + record for context-aware responses |
-| `forceAgent` | No | Skip AI intent detection — run this agent slug directly |
+
+To run a specific agent (instead of free-form chat), use the **standalone agent endpoint** `POST /{panel}/api/{resource}/:id/_agents/:agentSlug` — that's the canonical way to invoke a `PanelAgent` from a button click. The chat endpoint is for open-ended conversations only.
 
 ### SSE Events
 
