@@ -67,7 +67,7 @@ export async function buildRunAgentTool(
   const slugs = agents.map(a => a.getSlug())
   if (slugs.length === 0) return null
 
-  const { toolDefinition, z, PauseLoopForClientTools } = await loadAi()
+  const { toolDefinition, z, pauseForClientTools } = await loadAi()
 
   return toolDefinition({
     name: 'run_agent',
@@ -163,13 +163,25 @@ export async function buildRunAgentTool(
         }
 
         // Propagate the sub-agent's pending calls to the parent loop as
-        // if the parent model itself had emitted them. The parent loop's
-        // tool-execute catch (in @rudderjs/ai agent.ts) recognizes this
-        // error, adds the toolCalls to pendingClientToolCalls, sets
-        // stop-for-client-tools, and breaks cleanly. The run_agent tool
-        // call stays orphaned in parent messages until the chat
-        // continuation dispatcher resolves it (Phase 3).
-        throw new PauseLoopForClientTools(pending)
+        // if the parent model itself had emitted them. The agent loop's
+        // generator iterator recognizes this control chunk (see tool.ts
+        // `isPauseForClientToolsChunk`), appends the toolCalls to
+        // pendingClientToolCalls, sets stop-for-client-tools, and halts
+        // iteration. The run_agent tool call stays orphaned in parent
+        // messages until the chat continuation dispatcher resolves it
+        // (Phase 3).
+        yield pauseForClientTools(pending, subRunId)
+        // Unreachable: the parent loop halts consumption of this
+        // generator after the pause chunk, so no further yields or
+        // returns are observed. The return is here only to satisfy the
+        // AsyncGenerator<..., RunAgentResult, void> contract.
+        return {
+          agentSlug: targetAgent.getSlug(),
+          label,
+          text:      '',
+          steps,
+          tokens,
+        }
       }
 
       yield { kind: 'agent_complete', steps, tokens }
