@@ -39,14 +39,17 @@ export class ToolBuilder<
    */
   server<TReturn = unknown>(
     execute: (input: z.infer<TInput>) => TReturn | Promise<TReturn>,
-  ): Tool<z.infer<TInput>, TReturn>
+  ): ServerToolBuilder<z.infer<TInput>, TReturn>
   server<TReturn = unknown, TUpdate = unknown>(
     execute: (input: z.infer<TInput>) => AsyncGenerator<TUpdate, TReturn, void>,
-  ): Tool<z.infer<TInput>, TReturn>
+  ): ServerToolBuilder<z.infer<TInput>, TReturn>
   server<TReturn = unknown>(
     execute: ToolExecuteFn<z.infer<TInput>, TReturn, unknown>,
-  ): Tool<z.infer<TInput>, TReturn> {
-    return { definition: this.options as unknown as ToolDefinitionOptions, execute }
+  ): ServerToolBuilder<z.infer<TInput>, TReturn> {
+    return new ServerToolBuilder<z.infer<TInput>, TReturn>(
+      this.options as unknown as ToolDefinitionOptions,
+      execute as ToolExecuteFn<z.infer<TInput>, TReturn, unknown>,
+    )
   }
 
   /** Convert to provider-friendly JSON Schema format */
@@ -56,6 +59,48 @@ export class ToolBuilder<
       description: this.options.description,
       parameters: zodToJsonSchema(this.options.inputSchema),
     }
+  }
+}
+
+/**
+ * Builder returned by {@link ToolBuilder.server}. Itself a valid `Tool`, so
+ * it can be passed directly into `tools()` arrays — `.toModelOutput(...)` is
+ * an optional chained refinement, not a required `.build()` step.
+ *
+ * Future per-tool refinements (`.onError(...)`, `.middleware(...)`) would slot
+ * in here in the same chained-builder style.
+ */
+export class ServerToolBuilder<TInput = unknown, TOutput = unknown>
+  implements Tool<TInput, TOutput>
+{
+  readonly definition: ToolDefinitionOptions
+  readonly execute: ToolExecuteFn<TInput, TOutput, unknown>
+  readonly toModelOutput?: ((result: TOutput) => string | Promise<string>) | undefined
+
+  constructor(
+    definition: ToolDefinitionOptions,
+    execute: ToolExecuteFn<TInput, TOutput, unknown>,
+    toModelOutput?: (result: TOutput) => string | Promise<string>,
+  ) {
+    this.definition = definition
+    this.execute = execute
+    if (toModelOutput) this.toModelOutput = toModelOutput
+  }
+
+  /**
+   * Declare a transform from this tool's structured result to the string the
+   * **model** sees on its next step. The UI continues to receive the original
+   * structured result.
+   *
+   * @example
+   * toolDefinition({...})
+   *   .server(async (input) => bigStructuredResult)
+   *   .modelOutput((result) => `${result.items.length} items found`)
+   */
+  modelOutput(
+    fn: (result: TOutput) => string | Promise<string>,
+  ): ServerToolBuilder<TInput, TOutput> {
+    return new ServerToolBuilder<TInput, TOutput>(this.definition, this.execute, fn)
   }
 }
 
