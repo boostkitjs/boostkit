@@ -46,6 +46,10 @@ export class LocalizationRegistry {
 		_cache().set(`${locale}:${namespace}`, data)
 	}
 
+	static deleteCached(locale: string, namespace: string): void {
+		_cache().delete(`${locale}:${namespace}`)
+	}
+
 	static reset(): void {
 		_cache().clear()
 		_G['__rudderjs_localization_config__'] = undefined

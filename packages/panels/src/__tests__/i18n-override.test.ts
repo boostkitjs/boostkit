@@ -1,33 +1,28 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getPanelI18n, _clearI18nCache } from '../i18n/index.js'
+import { LocalizationRegistry } from '@rudderjs/localization'
+
+import { getPanelI18n, _clearI18nCache, _setLocalizationRegistry } from '../i18n/index.js'
 import { en } from '../i18n/en.js'
 import { ar } from '../i18n/ar.js'
 
-type GMap = Map<string, Record<string, unknown>>
-
-function getCache(): GMap {
-  const g = globalThis as Record<string, unknown>
-  if (!g['__rudderjs_localization_cache__']) {
-    g['__rudderjs_localization_cache__'] = new Map<string, Record<string, unknown>>()
-  }
-  return g['__rudderjs_localization_cache__'] as GMap
-}
+const SEEDED_LOCALES = ['en', 'ar', 'es', 'en-US', 'es-MX', 'xx']
 
 function seed(locale: string, data: Record<string, unknown>): void {
-  getCache().set(`${locale}:panels`, data)
+  LocalizationRegistry.setCached(locale, 'pilotic', data)
 }
 
 function clearOverrides(): void {
-  const cache = getCache()
-  for (const key of [...cache.keys()]) {
-    if (key.endsWith(':panels')) cache.delete(key)
+  for (const locale of SEEDED_LOCALES) {
+    LocalizationRegistry.deleteCached(locale, 'pilotic')
   }
 }
 
 describe('panels i18n override', () => {
   beforeEach(() => {
+    // Wire the typed registry the same way PanelServiceProvider.boot() does.
+    _setLocalizationRegistry(LocalizationRegistry)
     clearOverrides()
     _clearI18nCache()
   })
