@@ -551,8 +551,15 @@ async function runAgentLoop(a: Agent, input: string, options?: AgentPromptOption
               const step = await execGen.next()
               if (step.done) { result = step.value; break }
             }
-            const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
+            // toolResults preserves the ORIGINAL value; only the tool message
+            // pushed onto `messages` (what the next model step sees) is
+            // narrowed by toModelOutput.
             toolResults.push({ toolCallId: tc.id, result })
+            const resultStr = await applyToModelOutput(
+              tool,
+              result,
+              middlewares.length > 0 ? (e) => runOnError(middlewares, ctx, e) : undefined,
+            )
             messages.push({ role: 'tool', content: resultStr, toolCallId: tc.id })
 
             // onAfterToolCall
@@ -874,8 +881,16 @@ function runAgentLoopStreaming(a: Agent, input: string, options?: AgentPromptOpt
                   yield updateChunk
                 }
               }
-              const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
+              // The streamed `tool-result` chunk and `step.toolResults`
+              // both carry the ORIGINAL value; only the message content
+              // pushed onto `messages` (next-step model input) is narrowed
+              // by toModelOutput.
               toolResults.push({ toolCallId: tc.id, result })
+              const resultStr = await applyToModelOutput(
+                tool,
+                result,
+                middlewares.length > 0 ? (e) => runOnError(middlewares, ctx, e) : undefined,
+              )
               messages.push({ role: 'tool', content: resultStr, toolCallId: tc.id })
               yield { type: 'tool-result' as const, toolCall: tc, result }
 
@@ -1038,7 +1053,9 @@ async function resumePendingToolCalls(deps: {
         const step = await execGen.next()
         if (step.done) { result = step.value; break }
       }
-      const content = typeof result === 'string' ? result : JSON.stringify(result)
+      // Approval-resume has no middleware context here, so toModelOutput
+      // errors fall back silently to default stringification (R6).
+      const content = await applyToModelOutput(tool, result)
       const m: AiMessage = { role: 'tool', content, toolCallId: tc.id }
       messages.push(m)
       resumed.push(m)
@@ -1096,6 +1113,40 @@ async function* executeMaybeStreaming(
     }
   }
   return await ret
+}
+
+/**
+ * Default stringification used for the `tool` role message content when a
+ * tool has no `toModelOutput` transform: pass through strings, JSON-encode
+ * everything else.
+ */
+function defaultStringify(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
+/**
+ * Convert a tool's structured `result` into the string the **model** will
+ * see on its next step. Honors `tool.toModelOutput` when present, falling
+ * back to {@link defaultStringify}.
+ *
+ * Per R6 in the ai-loop-parity plan: a throwing `toModelOutput` MUST NOT
+ * crash the loop. We swallow the error, route it through `onError`
+ * middleware so it stays observable, and use the default stringification
+ * as a safety net.
+ */
+async function applyToModelOutput(
+  tool: Tool,
+  result: unknown,
+  onError?: (err: unknown) => void | Promise<void>,
+): Promise<string> {
+  if (tool.toModelOutput) {
+    try {
+      return await (tool.toModelOutput as (r: unknown) => string | Promise<string>)(result)
+    } catch (err) {
+      if (onError) await onError(err)
+    }
+  }
+  return defaultStringify(result)
 }
 
 /**
