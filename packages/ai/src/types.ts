@@ -256,6 +256,17 @@ export interface ToolDefinitionOptions<
 export interface Tool<TInput = unknown, TOutput = unknown> {
   readonly definition: ToolDefinitionOptions
   readonly execute?: ToolExecuteFn<TInput, TOutput, unknown> | undefined
+  /**
+   * Optional transform from the tool's structured `result` to the string the
+   * **model** sees on its next step. The UI (`tool-result` chunk and
+   * `step.toolResults`) still receives the original `result`.
+   *
+   * Use this to summarize, redact, or shrink large/binary tool outputs so
+   * the parent model doesn't get the full payload stuffed into its context
+   * (e.g. subagent transcripts, base64 blobs). Default — when this is
+   * absent — is the same `JSON.stringify`-or-pass-through behavior as before.
+   */
+  readonly toModelOutput?: ((result: TOutput) => string | Promise<string>) | undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
