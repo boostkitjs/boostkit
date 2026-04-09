@@ -1210,3 +1210,127 @@ describe('async-generator tool execute', () => {
     assert.deepEqual(updateChunksSeenByMw[1]!.update, { step: 'b' })
   })
 })
+
+// ─── toModelOutput (Phase 2: decouple model-input from UI/result) ──────────
+
+describe('toModelOutput', () => {
+  beforeEach(() => installScriptedFake())
+
+  it('narrows the next-step model input while UI/toolResults keep the original', async () => {
+    const richTool = toolDefinition({
+      name: 'search',
+      description: 'returns a rich payload',
+      inputSchema: z.object({ q: z.string() }),
+    })
+      .server(async () => ({ items: [{ id: 1 }, { id: 2 }, { id: 3 }] }))
+      .modelOutput((result) => `${result.items.length} items found`)
+
+    _script = [
+      { toolCalls: [{ id: 'tmo-1', name: 'search', arguments: { q: 'x' } }] },
+      { text: 'cool' },
+    ]
+
+    const result = await agent({ instructions: 'sys', tools: [richTool] }).prompt('go')
+
+    // toolResults preserves the ORIGINAL structured result.
+    assert.deepEqual(result.steps[0]!.toolResults[0]!.result, {
+      items: [{ id: 1 }, { id: 2 }, { id: 3 }],
+    })
+
+    // The next provider call must have seen the SUMMARIZED string in the
+    // tool message, not the JSON-encoded original.
+    const secondCall = _calls[1]
+    assert.ok(secondCall, 'expected a second provider call after the tool ran')
+    const toolMsg = secondCall.messages.find(m => m.role === 'tool' && m.toolCallId === 'tmo-1')
+    assert.ok(toolMsg, 'expected a tool message in the next provider call')
+    assert.strictEqual(toolMsg.content, '3 items found')
+  })
+
+  it('streaming tool-result chunk still carries the original structured value', async () => {
+    const richTool = toolDefinition({
+      name: 'lookup',
+      description: 'rich + summarized',
+      inputSchema: z.object({}),
+    })
+      .server(async () => ({ payload: { a: 1, b: 2 }, big: 'x'.repeat(50) }))
+      .modelOutput(() => 'OK')
+
+    _script = [
+      { toolCalls: [{ id: 'tmo-2', name: 'lookup', arguments: {} }] },
+      { text: 'done' },
+    ]
+
+    const a = agent({ instructions: 'sys', tools: [richTool] })
+    const { stream, response } = a.stream('go')
+    const collected: StreamChunk[] = []
+    for await (const chunk of stream) collected.push(chunk)
+    await response
+
+    const toolResultChunk = collected.find(c => c.type === 'tool-result' && c.toolCall?.id === 'tmo-2')
+    assert.ok(toolResultChunk, 'expected a tool-result chunk for the call')
+    assert.deepEqual(toolResultChunk.result, {
+      payload: { a: 1, b: 2 },
+      big: 'x'.repeat(50),
+    })
+
+    // And the second provider call's tool message used the summary.
+    const secondCall = _calls[1]
+    assert.ok(secondCall)
+    const toolMsg = secondCall.messages.find(m => m.role === 'tool' && m.toolCallId === 'tmo-2')
+    assert.strictEqual(toolMsg?.content, 'OK')
+  })
+
+  it('regression: tool without modelOutput is unchanged (default JSON.stringify)', async () => {
+    const plainTool = toolDefinition({
+      name: 'plain',
+      description: 'no modelOutput',
+      inputSchema: z.object({}),
+    }).server(async () => ({ value: 42 }))
+
+    _script = [
+      { toolCalls: [{ id: 'tmo-3', name: 'plain', arguments: {} }] },
+      { text: 'k' },
+    ]
+
+    await agent({ instructions: 'sys', tools: [plainTool] }).prompt('go')
+
+    const secondCall = _calls[1]
+    assert.ok(secondCall)
+    const toolMsg = secondCall.messages.find(m => m.role === 'tool' && m.toolCallId === 'tmo-3')
+    assert.strictEqual(toolMsg?.content, JSON.stringify({ value: 42 }))
+  })
+
+  it('throwing modelOutput falls back to default stringify and surfaces via onError', async () => {
+    const errors: unknown[] = []
+    const recorder: AiMiddleware = {
+      name: 'err-recorder',
+      onError(_ctx, err) { errors.push(err) },
+    }
+
+    const tool = toolDefinition({
+      name: 'boom',
+      description: 'modelOutput throws',
+      inputSchema: z.object({}),
+    })
+      .server(async () => ({ value: 'real' }))
+      .modelOutput(() => { throw new Error('formatter exploded') })
+
+    _script = [
+      { toolCalls: [{ id: 'tmo-4', name: 'boom', arguments: {} }] },
+      { text: 'k' },
+    ]
+
+    await agent({ instructions: 'sys', tools: [tool], middleware: [recorder] }).prompt('go')
+
+    // Loop did not crash; second call happened.
+    assert.strictEqual(_calls.length, 2)
+    const secondCall = _calls[1]!
+    const toolMsg = secondCall.messages.find(m => m.role === 'tool' && m.toolCallId === 'tmo-4')
+    // Fell back to default stringify.
+    assert.strictEqual(toolMsg?.content, JSON.stringify({ value: 'real' }))
+    // Error was surfaced through onError middleware.
+    assert.strictEqual(errors.length, 1)
+    assert.ok(errors[0] instanceof Error)
+    assert.match((errors[0] as Error).message, /formatter exploded/)
+  })
+})
