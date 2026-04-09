@@ -11,6 +11,29 @@ const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug'])
 // Cache merged i18n per locale to avoid re-merging on every call.
 const mergedCache = new Map<string, PanelI18n>()
 
+/**
+ * Reference to `@rudderjs/localization`'s `LocalizationRegistry`, captured at
+ * panel boot via `_setLocalizationRegistry()`. `@rudderjs/localization` is an
+ * optional peer dep, so we can't import it statically — but `getOverride()`
+ * is sync (called from the render path), so we can't dynamic-import per call
+ * either. Capturing the typed registry once at boot gives us a sync, typed
+ * read path with no `globalThis` reach-through.
+ */
+interface LocalizationRegistryLike {
+  getCached(locale: string, namespace: string): Record<string, unknown> | undefined
+}
+
+let _localizationRegistry: LocalizationRegistryLike | null = null
+
+/**
+ * @internal — wires the localization registry for sync reads. Called by
+ * `PanelServiceProvider.boot()` after dynamically importing the optional
+ * peer, and by tests via `beforeEach`.
+ */
+export function _setLocalizationRegistry(registry: LocalizationRegistryLike | null): void {
+  _localizationRegistry = registry
+}
+
 export function getPanelI18n(locale: string): PanelI18n {
   const cached = mergedCache.get(locale)
   if (cached) return cached
@@ -31,18 +54,15 @@ export function getPanelI18n(locale: string): PanelI18n {
 }
 
 /**
- * Read panel translations from @rudderjs/localization's cache.
- * Returns undefined if no override exists or localization isn't installed.
+ * Read panel translations from `@rudderjs/localization`'s typed cache via
+ * the `LocalizationRegistry` reference captured at boot. Returns undefined
+ * if no override exists or localization isn't installed.
  *
- * The cache is keyed by `${locale}:${namespace}` — we use the `panels` namespace,
- * so an override file lives at `lang/<locale>/panels.json`.
+ * Override files live at `lang/<locale>/pilotic.json` (the `pilotic` namespace).
  */
 function getOverride(locale: string): Partial<PanelI18n> | undefined {
-  const g = globalThis as Record<string, unknown>
-  const cache = g['__rudderjs_localization_cache__'] as Map<string, unknown> | undefined
-  if (!cache) return undefined
-
-  const data = cache.get(`${locale}:panels`) as Partial<PanelI18n> | undefined
+  if (!_localizationRegistry) return undefined
+  const data = _localizationRegistry.getCached(locale, 'pilotic') as Partial<PanelI18n> | undefined
   if (!data || Object.keys(data).length === 0) return undefined
   return data
 }

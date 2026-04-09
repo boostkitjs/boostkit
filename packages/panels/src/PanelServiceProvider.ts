@@ -15,25 +15,33 @@ import {
 } from './handlers/index.js'
 import { mountThemeRoutes, loadThemeOverrides } from './handlers/themeRoutes.js'
 import { mountNotificationRoutes } from './handlers/notificationRoutes.js'
-import { _clearI18nCache } from './i18n/index.js'
+import { _clearI18nCache, _setLocalizationRegistry } from './i18n/index.js'
 
 /**
- * Best-effort preload of `lang/<locale>/panels.json` overrides into the
+ * Best-effort preload of `lang/<locale>/pilotic.json` overrides into the
  * `@rudderjs/localization` cache so `getPanelI18n()` can resolve them sync.
- * No-ops if `@rudderjs/localization` isn't installed.
+ * Also wires the `LocalizationRegistry` reference into the panels i18n
+ * module so `getOverride()` can read the cache via a typed API instead of
+ * reaching into `globalThis`. No-ops if `@rudderjs/localization` isn't
+ * installed — panels keeps working with bundled defaults.
  */
 async function preloadPanelTranslations(): Promise<void> {
   try {
     const loc = await import('@rudderjs/localization') as {
       preloadNamespace?: (locale: string, namespace: string) => Promise<void>
-      LocalizationRegistry?: { getConfig(): { locale: string; fallback: string } }
+      LocalizationRegistry?: {
+        getConfig(): { locale: string; fallback: string }
+        getCached(locale: string, namespace: string): Record<string, unknown> | undefined
+      }
     }
     if (!loc.preloadNamespace || !loc.LocalizationRegistry) return
     const { locale, fallback } = loc.LocalizationRegistry.getConfig()
-    await loc.preloadNamespace(locale, 'panels')
+    await loc.preloadNamespace(locale, 'pilotic')
     if (fallback && fallback !== locale) {
-      await loc.preloadNamespace(fallback, 'panels')
+      await loc.preloadNamespace(fallback, 'pilotic')
     }
+    // Wire the typed registry for sync reads from `getOverride()`.
+    _setLocalizationRegistry(loc.LocalizationRegistry)
     // Drop any merged result computed before the override landed in cache.
     _clearI18nCache()
   } catch {
@@ -66,13 +74,13 @@ export class PanelServiceProvider extends ServiceProvider {
       { from: `${schemaDir}/panels.drizzle.mysql.ts`,  to: 'database/schema', tag: 'panels-schema', orm: 'drizzle' as const, driver: 'mysql' as const },
     ])
 
-    // Translation override starter — `lang/en/panels.json` (empty by default).
+    // Translation override starter — `lang/en/pilotic.json` (empty by default).
     // Users edit it to override bundled UI strings; missing keys fall back to
-    // bundled defaults. Add a `lang/<locale>/panels.json` to introduce a new
+    // bundled defaults. Add a `lang/<locale>/pilotic.json` to introduce a new
     // locale. See `getPanelI18n()` for the resolution chain.
     const langDir = new URL(/* @vite-ignore */ '../lang/en', import.meta.url).pathname
     this.publishes([
-      { from: langDir, to: 'lang/en', tag: 'panels-translations' },
+      { from: langDir, to: 'lang/en', tag: 'pilotic-translations' },
     ])
   }
 
@@ -83,7 +91,7 @@ export class PanelServiceProvider extends ServiceProvider {
       tag:  'panels-pages',
     })
 
-    // Pre-load panel translation overrides from `lang/<locale>/panels.json`
+    // Pre-load panel translation overrides from `lang/<locale>/pilotic.json`
     // (if `@rudderjs/localization` is installed). `getPanelI18n()` is sync,
     // so the override has to be in the localization cache before any panel
     // request is served. Silently no-ops if localization isn't present.

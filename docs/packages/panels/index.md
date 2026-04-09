@@ -354,10 +354,10 @@ If `.locale()` is not called, the panel reads the active locale from `@rudderjs/
 
 ### Overriding bundled strings
 
-The bundled `en` and `ar` translations cover every UI string out of the box. To change individual strings — or to add a new locale entirely — drop a JSON file at `lang/<locale>/panels.json`:
+The bundled `en` and `ar` translations cover every UI string out of the box. To change individual strings — or to add a new locale entirely — drop a JSON file at `lang/<locale>/pilotic.json`:
 
 ```json
-// lang/en/panels.json
+// lang/en/pilotic.json
 {
   "signOut":     "Logout",
   "newButton":   "Create :label",
@@ -365,24 +365,24 @@ The bundled `en` and `ar` translations cover every UI string out of the box. To 
 }
 ```
 
-Only the keys you specify are overridden; everything else falls back to the bundled defaults. Add `lang/es/panels.json`, `lang/fr/panels.json`, etc. to introduce new locales without forking the package — keys missing from your file fall back to bundled `en`.
+Only the keys you specify are overridden; everything else falls back to the bundled defaults. Add `lang/es/pilotic.json`, `lang/fr/pilotic.json`, etc. to introduce new locales without forking the package — keys missing from your file fall back to bundled `en`.
 
 Scaffold an empty starter file via the CLI:
 
 ```bash
-pnpm rudder vendor:publish --tag=panels-translations
+pnpm rudder vendor:publish --tag=pilotic-translations
 ```
 
-> Requires `@rudderjs/localization` to be installed and registered. Panels eagerly preloads the `panels` namespace during boot, so `getPanelI18n()` resolves overrides synchronously at render time. Without `@rudderjs/localization`, panels still works using the bundled defaults only.
+> Requires `@rudderjs/localization` to be installed and registered. Panels eagerly preloads the `pilotic` namespace during boot, so `getPanelI18n()` resolves overrides synchronously at render time. Without `@rudderjs/localization`, panels still works using the bundled defaults only.
 
 The full list of override keys is the `PanelI18n` type in `@rudderjs/panels` — open `node_modules/@rudderjs/panels/dist/i18n/en.d.ts` for an authoritative reference, or browse the [bundled `en.ts` source on GitHub](https://github.com/rudderjs/rudder/blob/main/packages/panels/src/i18n/en.ts).
 
 ### Adding a new locale
 
-Only `en` and `ar` ship bundled. To add Spanish, French, German, or any other language without forking the package, drop a JSON file at `lang/<locale>/panels.json`:
+Only `en` and `ar` ship bundled. To add Spanish, French, German, or any other language without forking the package, drop a JSON file at `lang/<locale>/pilotic.json`:
 
 ```json
-// lang/es/panels.json
+// lang/es/pilotic.json
 {
   "signOut":         "Cerrar sesión",
   "search":          "Buscar :label…",
@@ -421,7 +421,7 @@ export default {
 
 For RTL languages (`ar`, `he`, `fa`, `ur`, `ps`, `sd`, `ug`), the panel auto-sets `dir="rtl"` and uses CSS logical properties — no extra config.
 
-> Translation overrides are loaded at panel boot. After editing `lang/<locale>/panels.json`, restart `pnpm dev` to pick up the changes.
+> Translation overrides are loaded at panel boot. After editing `lang/<locale>/pilotic.json`, restart `pnpm dev` to pick up the changes.
 
 ---
 

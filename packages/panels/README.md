@@ -1142,10 +1142,10 @@ The panel UI ships with bundled English (`en`) and Arabic (`ar`) translations an
 
 ### Overriding bundled strings
 
-To change a few strings — or to add a brand-new locale without forking the package — drop a JSON file at `lang/<locale>/panels.json`:
+To change a few strings — or to add a brand-new locale without forking the package — drop a JSON file at `lang/<locale>/pilotic.json`:
 
 ```json
-// lang/en/panels.json
+// lang/en/pilotic.json
 {
   "signOut":     "Logout",
   "newButton":   "Create :label",
@@ -1153,24 +1153,24 @@ To change a few strings — or to add a brand-new locale without forking the pac
 }
 ```
 
-Only the keys you specify are overridden; missing keys fall back to the bundled defaults. Add `lang/es/panels.json` to introduce Spanish — keys you don't translate fall back to bundled `en`.
+Only the keys you specify are overridden; missing keys fall back to the bundled defaults. Add `lang/es/pilotic.json` to introduce Spanish — keys you don't translate fall back to bundled `en`.
 
 Scaffold an empty starter file:
 
 ```bash
-pnpm rudder vendor:publish --tag=panels-translations
+pnpm rudder vendor:publish --tag=pilotic-translations
 ```
 
-> **Requires `@rudderjs/localization`** (optional peer dependency). Panels eagerly preloads the `panels` namespace during boot via `preloadNamespace()`, so `getPanelI18n()` resolves overrides synchronously at render time. Without `@rudderjs/localization`, panels still works using the bundled defaults — overrides are silently ignored.
+> **Requires `@rudderjs/localization`** (optional peer dependency). Panels eagerly preloads the `pilotic` namespace during boot via `preloadNamespace()`, so `getPanelI18n()` resolves overrides synchronously at render time. Without `@rudderjs/localization`, panels still works using the bundled defaults — overrides are silently ignored.
 
 The full list of override keys is the `PanelI18n` type — see [`src/i18n/en.ts`](./src/i18n/en.ts) for the canonical schema.
 
 ### Adding a new locale
 
-Bundled translations exist for `en` and `ar`. To ship a panel in any other language (Spanish, French, German, etc.), drop a JSON file at `lang/<locale>/panels.json` with the strings you want to translate:
+Bundled translations exist for `en` and `ar`. To ship a panel in any other language (Spanish, French, German, etc.), drop a JSON file at `lang/<locale>/pilotic.json` with the strings you want to translate:
 
 ```json
-// lang/es/panels.json
+// lang/es/pilotic.json
 {
   "signOut":         "Cerrar sesión",
   "search":          "Buscar :label…",
@@ -1226,7 +1226,7 @@ export default [
 
 For **RTL languages** (`ar`, `he`, `fa`, `ur`, `ps`, `sd`, `ug`), the panel automatically sets `dir="rtl"` on the layout root and uses CSS logical properties so paddings, borders, and alignments flip correctly — no extra config needed.
 
-> **Note:** Translation overrides are loaded at panel boot. If you edit `lang/<locale>/panels.json` while the dev server is running, restart `pnpm dev` to pick up changes.
+> **Note:** Translation overrides are loaded at panel boot. If you edit `lang/<locale>/pilotic.json` while the dev server is running, restart `pnpm dev` to pick up changes.
 
 ---
 

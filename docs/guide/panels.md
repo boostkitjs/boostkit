@@ -1115,6 +1115,49 @@ All panel data is driven by the `/_meta` API endpoint — adding a new resource 
 
 ---
 
+## Localization
+
+Panels ships with bundled English (`en`) and Arabic (`ar`) translations and automatic RTL handling for Arabic, Hebrew, Persian, Urdu, Pashto, Sindhi, and Uyghur. Set the locale per panel via `.locale('ar')`, or rely on `@rudderjs/localization`'s active locale.
+
+```ts
+Panel.make('admin')
+  .path('/admin')
+  .locale('ar')   // RTL automatically — `dir="rtl"` on the layout root
+```
+
+### Overriding strings
+
+To change a few strings — or add an entirely new locale — drop a JSON file at `lang/<locale>/pilotic.json`:
+
+```json
+// lang/en/pilotic.json
+{
+  "signOut":     "Logout",
+  "newButton":   "Create :label",
+  "noResultsHint": "Try a different query."
+}
+```
+
+Only the keys you specify are overridden; missing keys fall back to the bundled defaults. Add `lang/es/pilotic.json` to introduce Spanish — keys you don't translate fall back to bundled `en`.
+
+Scaffold an empty starter file:
+
+```bash
+pnpm rudder vendor:publish --tag=pilotic-translations
+```
+
+::: tip Requires `@rudderjs/localization`
+The override mechanism uses `@rudderjs/localization` (an optional peer dependency) to load namespace JSON files at panel boot. Without it, panels still works using the bundled defaults — overrides are silently ignored.
+
+If you edit `lang/<locale>/pilotic.json` while the dev server is running, restart `pnpm dev` to pick up the changes.
+:::
+
+The full list of override keys is the `PanelI18n` type — see [`src/i18n/en.ts`](https://github.com/rudderjs/rudder/blob/main/packages/panels/src/i18n/en.ts) for the canonical schema.
+
+For the underlying mechanism (`preloadNamespace`, `LocalizationRegistry.getCached`, etc.) see the [`@rudderjs/localization`](../packages/localization.md#typed-cache-access) reference.
+
+---
+
 ## AI Features
 
 Panels has built-in AI capabilities powered by `@rudderjs/ai`. Requires the AI package to be installed and configured.
