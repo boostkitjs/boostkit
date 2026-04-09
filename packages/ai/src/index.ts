@@ -74,7 +74,15 @@ export { MistralProvider, type MistralConfig } from './providers/mistral.js'
 export { AzureOpenAIProvider, type AzureOpenAIConfig } from './providers/azure.js'
 
 // Tools
-export { toolDefinition, dynamicTool, ToolBuilder, toolToSchema, PauseLoopForClientTools } from './tool.js'
+export {
+  toolDefinition,
+  dynamicTool,
+  ToolBuilder,
+  toolToSchema,
+  pauseForClientTools,
+  isPauseForClientToolsChunk,
+} from './tool.js'
+export type { PauseForClientToolsChunk } from './tool.js'
 export { zodToJsonSchema } from './zod-to-json-schema.js'
 
 // Agent

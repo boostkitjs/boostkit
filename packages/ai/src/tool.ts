@@ -9,40 +9,88 @@ import type {
   ToolExecuteFn,
 } from './types.js'
 
+// ─── Control chunks ───────────────────────────────────────
+
 /**
- * Typed error a server tool can throw to pause the enclosing agent loop
- * and surface a set of CLIENT tool calls to the caller — as if the model
- * itself had emitted them.
+ * Control chunk a server tool can `yield` from an `async function*`
+ * execute to pause the enclosing agent loop and surface a set of CLIENT
+ * tool calls to the caller — as if the model itself had emitted them.
  *
- * This is the one sanctioned way for a server tool to inject client-tool
- * calls into the parent loop's pending list. The agent loop's tool-execute
- * catch recognizes the error (via `instanceof PauseLoopForClientTools`),
- * appends `toolCalls` to the parent's `pendingClientToolCalls`, sets the
- * stop-for-client-tools flag, and — critically — does NOT push an error
- * tool result / tool message for the throwing tool call. The throwing
- * tool's own call remains orphaned in the parent's message history until
- * the caller resolves it on continuation (typically by computing a final
- * result from whatever the client-side tool execution returned).
+ * This is the sanctioned way for a server tool to inject client-tool
+ * calls into the parent loop's pending list. The agent loop iterating
+ * the execute generator recognizes the shape via the reserved `__rudderjs`
+ * discriminator, appends `toolCalls` to the parent's
+ * `pendingClientToolCalls`, sets the stop-for-client-tools flag, and —
+ * critically — does NOT push an error tool_result / tool message for the
+ * yielding tool call. The yielding tool's own call remains orphaned in
+ * the parent's message history until the caller resolves it on
+ * continuation (typically by computing a final result from whatever the
+ * client-side tool execution returned).
  *
- * **Primary use case:** nested agent runners. A `run_agent`-style tool
- * that streams a sub-agent server-side can hit a pause point when the
- * sub-agent's model calls a client tool. Those client calls have to be
- * executed in the browser, not server-side, so the parent loop must
- * surface them to its own caller. Throwing this error is how.
+ * Why a yield instead of a throw:
+ * - Symmetry with the existing `tool-update` yield protocol — no parallel
+ *   catch-based control path.
+ * - Middleware can observe pauses through `runOnChunk`; a thrown error
+ *   would route through `onError` and muddle telemetry.
+ * - Exceptions signal "something went wrong"; this is not an error.
+ * - Platform-level feature: any server tool can yield this, not just
+ *   nested agent runners. E.g., a tool that wants the browser's
+ *   geolocation, clipboard, or a user file upload.
  *
- * Tools that throw this error are responsible for persisting any state
+ * **Primary use case today:** nested agent runners (`run_agent` in
+ * panels). A runner that streams a sub-agent server-side can hit a pause
+ * point when the sub-agent's model calls a client tool. Those calls have
+ * to execute in the browser, not server-side, so the parent loop must
+ * surface them to its own caller.
+ *
+ * Tools that yield this chunk are responsible for persisting any state
  * they need to resume the inner work on continuation (usually in a cache
  * or runStore). `@rudderjs/ai` does not know or care about that state —
- * it just propagates the pause.
+ * it just propagates the pause. The optional `resumeHandle` is an opaque
+ * string the tool author owns; the agent loop never inspects it.
+ *
+ * Tool authors should construct this via {@link pauseForClientTools},
+ * not by hand, so future shape changes stay source-compatible.
  */
-export class PauseLoopForClientTools extends Error {
-  readonly toolCalls: ToolCall[]
+export interface PauseForClientToolsChunk {
+  /** Reserved discriminator. Namespaced to avoid colliding with user data. */
+  readonly __rudderjs: 'pause_for_client_tools'
+  readonly toolCalls:  ToolCall[]
+  readonly resumeHandle?: string
+}
 
-  constructor(toolCalls: ToolCall[], message?: string) {
-    super(message ?? 'Agent loop paused for nested client tool calls')
-    this.name = 'PauseLoopForClientTools'
-    this.toolCalls = toolCalls
-  }
+/**
+ * Construct a pause control chunk for `yield`ing from a server tool's
+ * async-generator execute.
+ *
+ * @example
+ * .server(async function* (input, ctx) {
+ *   const subRunId = await persistSubRunState(...)
+ *   yield pauseForClientTools(subAgentPending, subRunId)
+ *   // Unreachable — the loop halts iteration after the pause chunk.
+ *   return undefined as never
+ * })
+ */
+export function pauseForClientTools(
+  toolCalls: ToolCall[],
+  resumeHandle?: string,
+): PauseForClientToolsChunk {
+  const chunk: PauseForClientToolsChunk = resumeHandle !== undefined
+    ? { __rudderjs: 'pause_for_client_tools', toolCalls, resumeHandle }
+    : { __rudderjs: 'pause_for_client_tools', toolCalls }
+  return chunk
+}
+
+/**
+ * Structural typeguard for a pause chunk. Used by the agent loop to
+ * detect pauses mid-execute without requiring tool authors to import any
+ * `@rudderjs/ai` symbol at the yield site — they can yield via
+ * {@link pauseForClientTools} or construct the object literal directly.
+ */
+export function isPauseForClientToolsChunk(value: unknown): value is PauseForClientToolsChunk {
+  if (value === null || typeof value !== 'object') return false
+  const v = value as { __rudderjs?: unknown; toolCalls?: unknown }
+  return v.__rudderjs === 'pause_for_client_tools' && Array.isArray(v.toolCalls)
 }
 
 /**

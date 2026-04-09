@@ -340,16 +340,21 @@ describe('Agent', () => {
     assert.strictEqual(response.usage.totalTokens, 45)
   })
 
-  it('PauseLoopForClientTools bubbles nested client tool calls to parent pending list', async () => {
-    // Phase 2 of subagent-client-tools-plan. A server tool that throws
-    // PauseLoopForClientTools must cause the enclosing agent loop to:
-    //   1. Append err.toolCalls to pendingClientToolCalls
+  it('yielded pauseForClientTools chunk bubbles nested client tool calls to parent pending list', async () => {
+    // Phase 2 of subagent-client-tools-plan (control-chunk revision). A
+    // server tool's async-generator execute that yields a pause control
+    // chunk must cause the enclosing agent loop to:
+    //   1. Append chunk.toolCalls to pendingClientToolCalls
     //   2. Set finishReason = 'client_tool_calls'
-    //   3. NOT push an error tool_result or tool message for the throwing
-    //      tool call — the run_agent call stays orphaned until its caller
+    //   3. NOT push a tool_result or tool message for the yielding tool
+    //      call — the run_agent call stays orphaned until its caller
     //      resolves it on continuation.
     //   4. Break the loop cleanly.
-    const { PauseLoopForClientTools } = await import('./tool.js')
+    //
+    // Yield-based instead of throw-based so the pause is a first-class
+    // control signal in the same protocol as `tool-update`, observable by
+    // middleware's `runOnChunk`, without exception-abuse.
+    const { pauseForClientTools } = await import('./tool.js')
 
     const toolAdapter: import('./types.js').ProviderAdapter = {
       async generate() {
@@ -380,8 +385,10 @@ describe('Agent', () => {
       name: 'fake_run_agent',
       description: 'Simulates run_agent pausing on a nested client tool',
       inputSchema: z.object({}),
-    }).server(async (): Promise<string> => {
-      throw new PauseLoopForClientTools([nestedClientCall])
+    }).server(async function* () {
+      yield pauseForClientTools([nestedClientCall], 'sub-run-id-42')
+      // Unreachable: the agent loop halts iteration after the pause chunk.
+      return 'unreachable'
     })
 
     const response = await agent({
@@ -402,7 +409,7 @@ describe('Agent', () => {
     assert.strictEqual(
       toolResultForRunAgent,
       undefined,
-      'no tool_result should be recorded for the throwing tool call',
+      'no tool_result should be recorded for the yielding tool call',
     )
   })
 

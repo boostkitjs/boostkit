@@ -1,5 +1,5 @@
 import { AiRegistry } from './registry.js'
-import { PauseLoopForClientTools, toolToSchema } from './tool.js'
+import { isPauseForClientToolsChunk, toolToSchema } from './tool.js'
 import { attachmentsToContentParts, getMessageText } from './attachment.js'
 import { QueuedPromptBuilder } from './queue-job.js'
 import {
@@ -546,12 +546,29 @@ async function runAgentLoop(a: Agent, input: string, options?: AgentPromptOption
           try {
             // Drain generator yields silently in the non-streaming loop —
             // the same tool definition must work in both prompt() and stream().
+            // Exception: a `pause_for_client_tools` control chunk yield
+            // halts iteration, propagates the nested calls to the parent's
+            // pending list, and skips tool_result recording (see tool.ts
+            // `pauseForClientTools` for rationale).
             const execGen = executeMaybeStreaming(tool, toolArgs, { toolCallId: tc.id })
             let result: unknown
+            let paused = false
             while (true) {
               const step = await execGen.next()
               if (step.done) { result = step.value; break }
+              if (isPauseForClientToolsChunk(step.value)) {
+                for (const pending of step.value.toolCalls) {
+                  pendingClientToolCalls.push(pending)
+                }
+                loopFinishReason = 'client_tool_calls'
+                stopForClientTools = true
+                paused = true
+                break
+              }
+              // Plain tool-update yields are silently dropped in the
+              // non-streaming loop — only the final return value matters.
             }
+            if (paused) continue   // skip toolResults + message push for this tc
             // toolResults preserves the ORIGINAL value; only the tool message
             // pushed onto `messages` (what the next model step sees) is
             // narrowed by toModelOutput.
@@ -566,21 +583,6 @@ async function runAgentLoop(a: Agent, input: string, options?: AgentPromptOption
             // onAfterToolCall
             if (middlewares.length > 0) await runOnAfterToolCall(middlewares, ctx, tc.name, toolArgs, result)
           } catch (err: unknown) {
-            // A server tool can throw PauseLoopForClientTools to surface a
-            // set of nested client-tool calls to the parent loop's caller
-            // — used by panels' run_agent tool when a sub-agent paused on
-            // its own client tool and needs the browser to execute it.
-            // The throwing tool's own call stays orphaned in messages
-            // (no error result pushed); the caller is responsible for
-            // filling it in on continuation.
-            if (err instanceof PauseLoopForClientTools) {
-              for (const pending of err.toolCalls) {
-                pendingClientToolCalls.push(pending)
-              }
-              loopFinishReason = 'client_tool_calls'
-              stopForClientTools = true
-              continue
-            }
             const msg = err instanceof Error ? err.message : String(err)
             toolResults.push({ toolCallId: tc.id, result: `Error: ${msg}` })
             messages.push({ role: 'tool', content: `Error: ${msg}`, toolCallId: tc.id })
@@ -880,13 +882,29 @@ function runAgentLoopStreaming(a: Agent, input: string, options?: AgentPromptOpt
               // tool-call → tool-update* → tool-result in order. Async-
               // generator executes stream their yields as tool-update chunks
               // live; plain executes yield nothing here.
+              //
+              // Pause detection: a yielded `pause_for_client_tools` control
+              // chunk halts iteration, propagates the nested calls to the
+              // parent's pending list, and SKIPS the tool_result emission
+              // — the yielding tool's own call stays orphaned in the parent
+              // message history until the caller resolves it on resume.
               yield { type: 'tool-call' as const, toolCall: tc }
               const execGen = executeMaybeStreaming(tool, toolArgs, { toolCallId: tc.id })
               let result: unknown
+              let paused = false
               while (true) {
                 const step = await execGen.next()
                 if (step.done) {
                   result = step.value
+                  break
+                }
+                if (isPauseForClientToolsChunk(step.value)) {
+                  for (const pending of step.value.toolCalls) {
+                    pendingClientToolCalls.push(pending)
+                  }
+                  loopFinishReason = 'client_tool_calls'
+                  stopForClientTools = true
+                  paused = true
                   break
                 }
                 const updateChunk: StreamChunk = { type: 'tool-update', toolCall: tc, update: step.value }
@@ -897,6 +915,7 @@ function runAgentLoopStreaming(a: Agent, input: string, options?: AgentPromptOpt
                   yield updateChunk
                 }
               }
+              if (paused) continue   // skip tool_result emission + message push for this tc
               // The streamed `tool-result` chunk and `step.toolResults`
               // both carry the ORIGINAL value; only the message content
               // pushed onto `messages` (next-step model input) is narrowed
@@ -913,20 +932,6 @@ function runAgentLoopStreaming(a: Agent, input: string, options?: AgentPromptOpt
               // onAfterToolCall
               if (middlewares.length > 0) await runOnAfterToolCall(middlewares, ctx, tc.name, toolArgs, result)
             } catch (err: unknown) {
-              // PauseLoopForClientTools — sub-agent nested pause. See the
-              // matching block in runAgentLoop (non-streaming) for
-              // rationale. Same semantics: append to pendingClientToolCalls,
-              // set stop flag, no error tool_result/tool message pushed.
-              // The post-loop emission at :949 will surface the appended
-              // calls as a `pending-client-tools` chunk.
-              if (err instanceof PauseLoopForClientTools) {
-                for (const pending of err.toolCalls) {
-                  pendingClientToolCalls.push(pending)
-                }
-                loopFinishReason = 'client_tool_calls'
-                stopForClientTools = true
-                continue
-              }
               const msg = err instanceof Error ? err.message : String(err)
               const errResult = `Error: ${msg}`
               toolResults.push({ toolCallId: tc.id, result: errResult })

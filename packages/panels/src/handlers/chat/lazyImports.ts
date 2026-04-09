@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let _ai: { agent: any; toolDefinition: any; z: any; PauseLoopForClientTools: any } | undefined
+let _ai: { agent: any; toolDefinition: any; z: any; pauseForClientTools: any } | undefined
 
 export async function loadAi() {
   if (!_ai) {
     const ai  = await import(/* @vite-ignore */ '@rudderjs/ai') as any
     const zod = await import(/* @vite-ignore */ 'zod') as any
     _ai = {
-      agent:          ai.agent,
-      toolDefinition: ai.toolDefinition,
-      z:              zod.z,
-      PauseLoopForClientTools: ai.PauseLoopForClientTools,
+      agent:               ai.agent,
+      toolDefinition:      ai.toolDefinition,
+      z:                   zod.z,
+      pauseForClientTools: ai.pauseForClientTools,
     }
   }
   return _ai!
