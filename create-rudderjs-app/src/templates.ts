@@ -24,6 +24,7 @@ export interface TemplateContext {
     broadcast:     boolean
     live:          boolean
     ai:            boolean
+    localization:  boolean
   }
 }
 
@@ -80,6 +81,7 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   }
   files['tsconfig.json']        = tsconfigJson(ctx)
   files['vite.config.ts']       = viteConfig(ctx)
+  files['+server.ts']           = serverTs()
   files['.env']                 = dotenv(ctx)
   files['.env.example']         = dotenvExample(ctx)
   files['.gitignore']           = gitignore()
@@ -104,11 +106,13 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   // Config files — always generated
   files['config/app.ts']      = configApp()
   files['config/server.ts']   = configServer()
+  files['config/log.ts']      = configLog()
 
   // Config files — conditional on selected packages
   if (ctx.orm)                    files['config/database.ts'] = configDatabase(ctx)
   if (ctx.packages.auth)         files['config/auth.ts']     = configAuth(ctx)
   if (ctx.packages.auth)         files['config/session.ts']  = configSession()
+  if (ctx.packages.auth)         files['config/hash.ts']     = configHash()
   if (ctx.packages.queue)        files['config/queue.ts']    = configQueue()
   if (ctx.packages.mail)         files['config/mail.ts']     = configMail()
   if (ctx.packages.cache)        files['config/cache.ts']    = configCache()
@@ -221,14 +225,15 @@ function packageJson(ctx: TemplateContext): string {
     '@rudderjs/vite':         'latest',
     '@rudderjs/contracts':    'latest',
     '@rudderjs/core':         'latest',
+    '@rudderjs/log':          'latest',
     '@rudderjs/middleware':   'latest',
     '@rudderjs/router':       'latest',
     '@rudderjs/server-hono':  'latest',
     '@rudderjs/support':      'latest',
+    '@vikejs/hono':           '^0.2.0',
     'dotenv':                 '^16.4.0',
     'reflect-metadata':       '^0.2.2',
-    'vike':                   '^0.4.239',
-    'vike-photon':            '^0.1.24',
+    'vike':                   '^0.4.257',
     'zod':                    '^4.0.0',
     ...frameworkDeps,
     ...tailwindDeps,
@@ -247,7 +252,7 @@ function packageJson(ctx: TemplateContext): string {
   }
 
   // Optional package deps
-  if (ctx.packages.auth)         { deps['@rudderjs/auth'] = 'latest'; deps['@rudderjs/session'] = 'latest' }
+  if (ctx.packages.auth)         { deps['@rudderjs/auth'] = 'latest'; deps['@rudderjs/session'] = 'latest'; deps['@rudderjs/hash'] = 'latest' }
   if (ctx.packages.cache)         deps['@rudderjs/cache']        = 'latest'
   if (ctx.packages.queue)         deps['@rudderjs/queue']        = 'latest'
   if (ctx.packages.storage)       deps['@rudderjs/storage']      = 'latest'
@@ -256,7 +261,8 @@ function packageJson(ctx: TemplateContext): string {
   if (ctx.packages.scheduler)     deps['@rudderjs/schedule']     = 'latest'
   if (ctx.packages.broadcast)     deps['@rudderjs/broadcast']    = 'latest'
   if (ctx.packages.live)          deps['@rudderjs/live']         = 'latest'
-  if (ctx.packages.ai)          deps['@rudderjs/ai']           = 'latest'
+  if (ctx.packages.ai)            deps['@rudderjs/ai']           = 'latest'
+  if (ctx.packages.localization)  deps['@rudderjs/localization'] = 'latest'
   const devDeps: Record<string, string> = {
     '@rudderjs/cli': 'latest',
     '@types/node':   '^20.0.0',
@@ -396,6 +402,18 @@ export default defineConfig({
 ${pluginsStr}
   ],
 })
+`
+}
+
+// ─── +server.ts ───────────────────────────────────────────
+
+function serverTs(): string {
+  return `import type { Server } from 'vike/types'
+import app from './bootstrap/app.js'
+
+export default {
+  fetch: app.fetch,
+} satisfies Server
 `
 }
 
@@ -777,24 +795,39 @@ export default Application.configure({
 function bootstrapProviders(ctx: TemplateContext): string {
   const imports: string[] = [
     "import type { Application, ServiceProvider } from '@rudderjs/core'",
+    "import { events } from '@rudderjs/core'",
+    "import { log } from '@rudderjs/log'",
   ]
-  const providers: string[] = []
+  const providers: string[] = [
+    '// ── Infrastructure (order matters) ──────────────────────',
+    'log(configs.log),',
+  ]
 
   if (ctx.orm === 'prisma') {
     imports.push("import { database } from '@rudderjs/orm-prisma'")
-    providers.push("database(configs.database),  // boots first — binds PrismaClient to DI as 'prisma'")
+    providers.push('database(configs.database),')
   } else if (ctx.orm === 'drizzle') {
     imports.push("import { database } from '@rudderjs/orm-drizzle'")
-    providers.push("database(configs.database),  // boots first — binds Drizzle to DI as 'drizzle'")
+    providers.push('database(configs.database),')
   }
 
+  if (ctx.packages.auth) {
+    imports.push("import { session } from '@rudderjs/session'")
+    imports.push("import { hash } from '@rudderjs/hash'")
+    providers.push('session(configs.session),')
+    providers.push('hash(configs.hash),')
+  }
+  if (ctx.packages.cache) {
+    imports.push("import { cache } from '@rudderjs/cache'")
+    providers.push('cache(configs.cache),')
+  }
   if (ctx.packages.auth) {
     imports.push("import { auth } from '@rudderjs/auth'")
     providers.push('auth(configs.auth),')
   }
 
-  // events is from core — always available
-  imports.push("import { events } from '@rudderjs/core'")
+  providers.push('')
+  providers.push('// ── Features ────────────────────────────────────────────')
   providers.push('events({}),')
 
   if (ctx.packages.queue) {
@@ -805,31 +838,44 @@ function bootstrapProviders(ctx: TemplateContext): string {
     imports.push("import { mail } from '@rudderjs/mail'")
     providers.push('mail(configs.mail),')
   }
-  if (ctx.packages.notifications) {
-    imports.push("import { notifications } from '@rudderjs/notification'")
-    providers.push('notifications(),')
-  }
-  if (ctx.packages.cache) {
-    imports.push("import { cache } from '@rudderjs/cache'")
-    providers.push('cache(configs.cache),')
-  }
   if (ctx.packages.storage) {
     imports.push("import { storage } from '@rudderjs/storage'")
     providers.push('storage(configs.storage),')
   }
-  if (ctx.packages.auth) {
-    imports.push("import { session } from '@rudderjs/session'")
-    providers.push('session(configs.session),')
+  if (ctx.packages.localization) {
+    imports.push("import { resolve } from 'node:path'")
+    imports.push("import { localization } from '@rudderjs/localization'")
   }
   if (ctx.packages.scheduler) {
     imports.push("import { scheduler } from '@rudderjs/schedule'")
     providers.push('scheduler(),')
+  }
+  if (ctx.packages.notifications) {
+    imports.push("import { notifications } from '@rudderjs/notification'")
+    providers.push('notifications(),')
+  }
+  if (ctx.packages.broadcast) {
+    imports.push("import { broadcasting } from '@rudderjs/broadcast'")
+    providers.push('broadcasting(),')
+  }
+  if (ctx.packages.live) {
+    imports.push("import { live } from '@rudderjs/live'")
+    providers.push('live({}),')
+  }
+  if (ctx.packages.localization) {
+    providers.push(`localization({
+    locale:   'en',
+    fallback: 'en',
+    path:     resolve(process.cwd(), 'lang'),
+  }),`)
   }
   if (ctx.packages.ai) {
     imports.push("import { ai } from '@rudderjs/ai'")
     providers.push('ai(configs.ai),')
   }
 
+  providers.push('')
+  providers.push('// ── Application ─────────────────────────────────────────')
   imports.push("import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'")
   providers.push('AppServiceProvider,')
 
@@ -874,6 +920,58 @@ export default {
     headers: Env.get('CORS_HEADERS', 'Content-Type,Authorization'),
   },
 }
+`
+}
+
+function configLog(): string {
+  return `import { Env } from '@rudderjs/support'
+import type { LogConfig } from '@rudderjs/log'
+
+export default {
+  default: Env.get('LOG_CHANNEL', 'console'),
+
+  channels: {
+    stack: {
+      driver:           'stack',
+      channels:         ['console', 'daily'],
+      ignoreExceptions: false,
+    },
+
+    console: {
+      driver: 'console',
+      level:  Env.get('LOG_LEVEL', 'debug') as 'debug',
+    },
+
+    single: {
+      driver: 'single',
+      path:   'storage/logs/rudderjs.log',
+      level:  Env.get('LOG_LEVEL', 'debug') as 'debug',
+    },
+
+    daily: {
+      driver: 'daily',
+      path:   'storage/logs/rudderjs.log',
+      days:   14,
+      level:  Env.get('LOG_LEVEL', 'debug') as 'debug',
+    },
+
+    null: {
+      driver: 'null',
+    },
+  },
+} satisfies LogConfig
+`
+}
+
+function configHash(): string {
+  return `import { Env } from '@rudderjs/support'
+import type { HashConfig } from '@rudderjs/hash'
+
+export default {
+  driver: Env.get('HASH_DRIVER', 'bcrypt') as 'bcrypt' | 'argon2',
+  bcrypt: { rounds: 12 },
+  argon2: { memory: 65536, time: 3, threads: 4 },
+} satisfies HashConfig
 `
 }
 
@@ -1035,8 +1133,9 @@ function configIndex(ctx: TemplateContext): string {
   const imports: string[] = [
     "import app      from './app.js'",
     "import server   from './server.js'",
+    "import log      from './log.js'",
   ]
-  const keys: string[] = ['app', 'server']
+  const keys: string[] = ['app', 'server', 'log']
 
   if (ctx.orm) {
     imports.push("import database from './database.js'")
@@ -1045,7 +1144,8 @@ function configIndex(ctx: TemplateContext): string {
   if (ctx.packages.auth) {
     imports.push("import auth     from './auth.js'")
     imports.push("import session  from './session.js'")
-    keys.push('auth', 'session')
+    imports.push("import hash     from './hash.js'")
+    keys.push('auth', 'session', 'hash')
   }
   if (ctx.packages.queue) {
     imports.push("import queue    from './queue.js'")
@@ -1309,27 +1409,18 @@ function pagesRootConfig(ctx: TemplateContext): string {
         : `import vikeReact from 'vike-react/config'`
     const rendererVar = ctx.primary === 'vue' ? 'vikeVue' : ctx.primary === 'solid' ? 'vikeSolid' : 'vikeReact'
     return `import type { Config } from 'vike/types'
-import vikePhoton from 'vike-photon/config'
 ${rendererImport}
 
 export default {
-  extends: [vikePhoton, ${rendererVar}],
-  photon: {
-    server: 'bootstrap/app.ts',
-  },
-} as unknown as Config
+  extends: [${rendererVar}],
+} satisfies Config
 `
   }
 
+  // Multi-framework: no renderer in root config — each page picks its own
   return `import type { Config } from 'vike/types'
-import vikePhoton from 'vike-photon/config'
 
-export default {
-  extends: [vikePhoton],
-  photon: {
-    server: 'bootstrap/app.ts',
-  },
-} as unknown as Config
+export default {} satisfies Config
 `
 }
 
@@ -1341,7 +1432,7 @@ import vikeVue from 'vike-vue/config'
 
 export default {
   extends: vikeVue,
-} as unknown as Config
+} satisfies Config
 `
     case 'solid':
       return `import type { Config } from 'vike/types'
@@ -1349,7 +1440,7 @@ import vikeSolid from 'vike-solid/config'
 
 export default {
   extends: vikeSolid,
-} as unknown as Config
+} satisfies Config
 `
     default: // react
       return `import type { Config } from 'vike/types'
@@ -1357,7 +1448,7 @@ import vikeReact from 'vike-react/config'
 
 export default {
   extends: vikeReact,
-} as unknown as Config
+} satisfies Config
 `
   }
 }
@@ -1585,7 +1676,7 @@ import vikeVue from 'vike-vue/config'
 
 export default {
   extends: vikeVue,
-} as unknown as Config
+} satisfies Config
 `
     case 'solid':
       return `import type { Config } from 'vike/types'
@@ -1593,7 +1684,7 @@ import vikeSolid from 'vike-solid/config'
 
 export default {
   extends: vikeSolid,
-} as unknown as Config
+} satisfies Config
 `
     default:
       return `import type { Config } from 'vike/types'
@@ -1601,7 +1692,7 @@ import vikeReact from 'vike-react/config'
 
 export default {
   extends: vikeReact,
-} as unknown as Config
+} satisfies Config
 `
   }
 }
@@ -1846,7 +1937,7 @@ import vikeVue from 'vike-vue/config'
 
 export default {
   extends: vikeVue,
-} as unknown as Config
+} satisfies Config
 `
     case 'solid':
       return `import type { Config } from 'vike/types'
@@ -1854,7 +1945,7 @@ import vikeSolid from 'vike-solid/config'
 
 export default {
   extends: vikeSolid,
-} as unknown as Config
+} satisfies Config
 `
     default:
       return `import type { Config } from 'vike/types'
@@ -1862,7 +1953,7 @@ import vikeReact from 'vike-react/config'
 
 export default {
   extends: vikeReact,
-} as unknown as Config
+} satisfies Config
 `
   }
 }
@@ -2171,7 +2262,7 @@ import vikeVue from 'vike-vue/config'
 
 export default {
   extends: vikeVue,
-} as unknown as Config
+} satisfies Config
 `
     case 'solid':
       return `import type { Config } from 'vike/types'
@@ -2179,7 +2270,7 @@ import vikeSolid from 'vike-solid/config'
 
 export default {
   extends: vikeSolid,
-} as unknown as Config
+} satisfies Config
 `
     default:
       return `import type { Config } from 'vike/types'
@@ -2187,7 +2278,7 @@ import vikeReact from 'vike-react/config'
 
 export default {
   extends: vikeReact,
-} as unknown as Config
+} satisfies Config
 `
   }
 }
@@ -2489,7 +2580,7 @@ import vikeVue from 'vike-vue/config'
 
 export default {
   extends: vikeVue,
-} as unknown as Config
+} satisfies Config
 `
     case 'solid':
       return `import type { Config } from 'vike/types'
@@ -2497,7 +2588,7 @@ import vikeSolid from 'vike-solid/config'
 
 export default {
   extends: vikeSolid,
-} as unknown as Config
+} satisfies Config
 `
     default: // react
       return `import type { Config } from 'vike/types'
@@ -2505,7 +2596,7 @@ import vikeReact from 'vike-react/config'
 
 export default {
   extends: vikeReact,
-} as unknown as Config
+} satisfies Config
 `
   }
 }
