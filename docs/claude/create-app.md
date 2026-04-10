@@ -9,17 +9,15 @@
 1. Project name
 2. Database ORM — Prisma · Drizzle · None
 3. Database driver — SQLite · PostgreSQL · MySQL (if ORM selected)
-4. Select packages — **multiselect**: auth, cache, queue, storage, mail, notifications, scheduler, broadcast, live, **ai**, panels (defaults: auth + cache)
-5. Add media library plugin? — yes/no (only shown when panels + storage selected)
-6. Add AI workspaces plugin? — yes/no (only shown when panels + ai selected)
-7. Include Todo module? — yes/no (only if ORM selected)
-8. Frontend frameworks — **multiselect**: React · Vue · Solid (default: React)
-9. Primary framework — single select, only shown when >1 framework selected
-10. Add Tailwind CSS? — yes/no (default: yes)
-11. Add shadcn/ui? — yes/no (default: yes), **only shown when React + Tailwind are both selected**
-12. Install dependencies? — yes/no
+4. Select packages — **multiselect**: auth, cache, queue, storage, mail, notifications, scheduler, broadcast, live, **ai**, localization (defaults: auth + cache)
+5. Include Todo module? — yes/no (only if ORM selected)
+6. Frontend frameworks — **multiselect**: React · Vue · Solid (default: React)
+7. Primary framework — single select, only shown when >1 framework selected
+8. Add Tailwind CSS? — yes/no (default: yes)
+9. Add shadcn/ui? — yes/no (default: yes), **only shown when React + Tailwind are both selected**
+10. Install dependencies? — yes/no
 
-When `panels` is selected, scaffolds `app/Panels/AdminPanel.ts` with `Panel.make()`, wires `panels()` provider, and generates `UserResource` (if auth+orm) and `TodoResource` (if todo). Media and workspaces are wired via `Panel.use()`. When `ai` is selected, generates `config/ai.ts`, `ai()` provider, AI chat demo page at `/ai-chat`, and `POST /api/ai/chat` route.
+When `auth` is selected, `@rudderjs/hash` and `@rudderjs/session` are automatically included (not prompted). `@rudderjs/log` is always included. When `ai` is selected, generates `config/ai.ts`, `ai()` provider, AI chat demo page at `/ai-chat`, and `POST /api/ai/chat` route.
 
 ---
 
@@ -48,13 +46,27 @@ Helpers: `detectPackageManager()`, `pmExec(pm, bin)`, `pmRun(pm, script)`, `pmIn
 - React + Solid together: Vite plugins use `include`/`exclude` to disambiguate `.tsx` files
 - Secondary frameworks get demo pages at `pages/{fw}-demo/` (each with its own `+config.ts`)
 - `@rudderjs/session` is in deps (providers.ts imports it)
+- `@rudderjs/log` is always a base dep — `config/log.ts` + `log()` provider always generated
+- `@rudderjs/hash` is auto-included with auth — `config/hash.ts` + `hash()` provider wired when auth selected
 
 ---
 
-## Vike +config.ts Strategy
-- **All apps**: `+server.ts` is generated at the project root, wiring `bootstrap/app.ts` to Vike via `@vikejs/hono`.
+## Vike +server.ts Strategy
+- **All apps**: `+server.ts` is generated at the **project root**, wiring `bootstrap/app.ts` to Vike via `@vikejs/hono`. The file exports `{ fetch: app.fetch }` satisfying Vike's `Server` type.
 - **Single framework**: renderer (`vike-react`/`vike-vue`/`vike-solid`) included in root `pages/+config.ts`. No `pages/index/+config.ts` generated.
 - **Multi-framework**: root `pages/+config.ts` has no renderer. Each page/folder has its own `+config.ts` extending the correct renderer. `pages/index/+config.ts` is generated for the primary framework.
+- **Config style**: All `+config.ts` files use `satisfies Config` (not `as unknown as Config`).
+- **No vike-photon**: The old `vike-photon` package is no longer used. `@vikejs/hono` replaces it.
+
+---
+
+## Provider Ordering
+
+Providers follow the playground pattern — infrastructure boots first, features second, app last:
+
+```
+log → database → session → hash → cache → auth → events → queue → mail → storage → localization → scheduler → notifications → broadcast → live → ai → AppServiceProvider → TodoServiceProvider
+```
 
 ---
 

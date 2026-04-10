@@ -7,25 +7,25 @@ import { getTemplates, pmExec, pmRun, pmInstall, type TemplateContext } from './
 const defaultPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false,
+  broadcast: false, live: false, ai: false, localization: false,
 }
 
 const noPkgs: TemplateContext['packages'] = {
   auth: false, cache: false, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false,
+  broadcast: false, live: false, ai: false, localization: false,
 }
 
 const noAuth: TemplateContext['packages'] = {
   auth: false, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false,
+  broadcast: false, live: false, ai: false, localization: false,
 }
 
 const allPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: true, storage: true,
   mail: true, notifications: true, scheduler: true,
-  broadcast: true, live: true, ai: true,
+  broadcast: true, live: true, ai: true, localization: true,
 }
 
 function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
@@ -57,6 +57,8 @@ describe('getTemplates() — core files always present', () => {
   it('generates .env', () => assert.ok('.env' in files))
   it('generates .env.example', () => assert.ok('.env.example' in files))
   it('generates .gitignore', () => assert.ok('.gitignore' in files))
+  it('generates +server.ts', () => assert.ok('+server.ts' in files))
+  it('generates config/log.ts', () => assert.ok('config/log.ts' in files))
   it('generates prisma/schema/base.prisma when orm=prisma', () => assert.ok('prisma/schema/base.prisma' in files))
   it('generates bootstrap/app.ts', () => assert.ok('bootstrap/app.ts' in files))
   it('generates bootstrap/providers.ts', () => assert.ok('bootstrap/providers.ts' in files))
@@ -516,5 +518,85 @@ describe('getTemplates() — package checklist', () => {
   it('prisma config uses schema directory', () => {
     const files = getTemplates(ctx({ orm: 'prisma' }))
     assert.ok(files['prisma.config.ts']!.includes("schema: 'prisma/schema'"))
+  })
+})
+
+// ─── +server.ts + vike-photon removal ─────────────────────
+
+describe('getTemplates() — +server.ts and vike-photon removal', () => {
+  it('+server.ts wires bootstrap/app fetch to Vike', () => {
+    const files = getTemplates(ctx())
+    const server = files['+server.ts']!
+    assert.ok(server.includes("import app from './bootstrap/app.js'"))
+    assert.ok(server.includes('fetch: app.fetch'))
+    assert.ok(server.includes('satisfies Server'))
+  })
+
+  it('package.json includes @vikejs/hono, not vike-photon', () => {
+    const files = getTemplates(ctx())
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@vikejs/hono' in pkg.dependencies)
+    assert.ok(!('vike-photon' in pkg.dependencies))
+  })
+
+  it('pages/+config.ts does not reference vike-photon', () => {
+    const files = getTemplates(ctx())
+    const config = files['pages/+config.ts']!
+    assert.ok(!config.includes('vike-photon'))
+    assert.ok(!config.includes('photon'))
+    assert.ok(config.includes('satisfies Config'))
+  })
+})
+
+// ─── log + hash configs ──────────────────────────────────
+
+describe('getTemplates() — log and hash configs', () => {
+  it('config/log.ts always generated', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok('config/log.ts' in files)
+    assert.ok(files['config/log.ts']!.includes('LogConfig'))
+  })
+
+  it('config/hash.ts generated when auth selected', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
+    assert.ok('config/hash.ts' in files)
+    assert.ok(files['config/hash.ts']!.includes('HashConfig'))
+  })
+
+  it('config/hash.ts not generated when auth not selected', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(!('config/hash.ts' in files))
+  })
+
+  it('@rudderjs/log always in base deps', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@rudderjs/log' in pkg.dependencies)
+  })
+
+  it('@rudderjs/hash in deps when auth selected', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@rudderjs/hash' in pkg.dependencies)
+  })
+
+  it('providers.ts includes log provider always', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(files['bootstrap/providers.ts']!.includes('@rudderjs/log'))
+  })
+
+  it('providers.ts includes hash provider when auth selected', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
+    assert.ok(files['bootstrap/providers.ts']!.includes('@rudderjs/hash'))
+  })
+
+  it('config/index.ts includes log', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(files['config/index.ts']!.includes("from './log.js'"))
+  })
+
+  it('config/index.ts includes hash when auth selected', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
+    assert.ok(files['config/index.ts']!.includes("from './hash.js'"))
   })
 })

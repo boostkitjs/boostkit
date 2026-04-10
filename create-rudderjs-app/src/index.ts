@@ -77,6 +77,7 @@ async function main(): Promise<void> {
       { value: 'broadcast',     label: 'WebSocket',        hint: 'real-time channels' },
       { value: 'live',          label: 'Real-time Collab',  hint: 'Yjs CRDT sync' },
       { value: 'ai',            label: 'AI',               hint: 'LLM providers (Anthropic, OpenAI, Google, Ollama)' },
+      { value: 'localization',  label: 'Localization',     hint: 'i18n — trans(), setLocale()' },
     ],
     initialValues: ['auth', 'cache'],
     required: false,
@@ -95,6 +96,7 @@ async function main(): Promise<void> {
     broadcast:     selectedPackages.includes('broadcast'),
     live:          selectedPackages.includes('live'),
     ai:            selectedPackages.includes('ai'),
+    localization:  selectedPackages.includes('localization'),
   }
 
   // ── Todo module ────────────────────────────────────────
