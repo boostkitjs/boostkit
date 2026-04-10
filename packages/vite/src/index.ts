@@ -83,35 +83,27 @@ export function rudderjs(): Promise<Plugin[]> {
       ...vikePlugins,
       {
         name: 'rudderjs:ws',
-        configureServer() {
-          // Intercept http.createServer so we attach our WebSocket upgrade handler to
-          // whatever Node.js HTTP server gets created next (srvx creates it when
-          // initializing the dev server entry).
+        configureServer(server) {
+          // Attach the WebSocket upgrade handler to Vite's own HTTP server.
+          // @rudderjs/broadcast and @rudderjs/live register their handlers on
+          // globalThis['__rudderjs_ws_upgrade__'] during provider boot. We listen
+          // for 'upgrade' events and forward them to that handler.
           //
-          // We use createRequire to get the mutable CJS http module — ESM named exports
-          // are read-only and cannot be reassigned.
-          //
-          // Set a sentinel flag so @rudderjs/server-hono's module-load patch knows to
-          // skip — otherwise both would attach upgrade listeners and handleUpgrade()
-          // would be called twice for the same socket.
+          // Set a sentinel flag so @rudderjs/server-hono's module-load patch knows
+          // to skip — otherwise both would attach upgrade listeners and
+          // handleUpgrade() would be called twice for the same socket.
           const _G = globalThis as Record<string, unknown>
           if (_G['__rudderjs_http_upgrade_patched__']) return
           _G['__rudderjs_http_upgrade_patched__'] = true
 
-          const http = _require('http') as typeof import('http')
-          const orig = http.createServer.bind(http) as typeof http.createServer
-          // Keep the monkey-patch active (don't restore) so that program reloads
-          // (which create a new HTTP server) also get the upgrade handler.
-          http.createServer = ((...args: Parameters<typeof http.createServer>) => {
-            const srv = (orig as (...a: unknown[]) => import('node:http').Server)(...args)
-            srv.on('upgrade', (req, socket, head) => {
-              const handler = _G['__rudderjs_ws_upgrade__'] as
-                | ((req: unknown, socket: unknown, head: unknown) => void)
-                | undefined
-              handler?.(req, socket, head)
-            })
-            return srv
-          }) as typeof http.createServer
+          server.httpServer?.on('upgrade', (req, socket, head) => {
+            // Skip Vite's own HMR WebSocket (handled by Vite internally)
+            if (req.headers['sec-websocket-protocol'] === 'vite-hmr') return
+            const handler = _G['__rudderjs_ws_upgrade__'] as
+              | ((req: unknown, socket: unknown, head: unknown) => void)
+              | undefined
+            handler?.(req, socket, head)
+          })
         },
       },
       {
