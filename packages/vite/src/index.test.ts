@@ -43,11 +43,13 @@ describe('@rudderjs/vite', () => {
     const configPlugin = plugins.find(p => p.name === 'rudderjs:config')!
     const config = (configPlugin.config as () => Record<string, unknown>)()
 
-    // Check resolve alias
+    // Check resolve alias (array format: [{ find, replacement }])
     assert.ok(config.resolve, 'should have resolve')
-    const resolve = config.resolve as { alias: Record<string, string> }
-    assert.ok(resolve.alias['@'], 'should have @ alias')
-    assert.ok(resolve.alias['@'].endsWith('/src'), '@ alias should point to src/')
+    const resolve = config.resolve as { alias: Array<{ find: string | RegExp; replacement: string }> }
+    assert.ok(Array.isArray(resolve.alias), 'alias should be an array')
+    const atAlias = resolve.alias.find(a => a.find === '@')
+    assert.ok(atAlias, 'should have @ alias')
+    assert.ok(atAlias.replacement.endsWith('/src'), '@ alias should point to src/')
 
     // Check ssr config
     assert.ok(config.ssr, 'should have ssr config')
