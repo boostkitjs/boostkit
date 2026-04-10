@@ -120,7 +120,8 @@ export function livePrisma(config: PrismaPersistenceConfig = {}): LivePersistenc
       if (prisma) { cachedClient = prisma; return cachedClient }
     } catch { /* DI not available — fall back to direct instantiation */ }
     // Fall back to creating a new PrismaClient
-    const { PrismaClient } = await import(/* @vite-ignore */ '@prisma/client') as { PrismaClient: new () => unknown }
+    const mod = await import(/* @vite-ignore */ '@prisma/client') as unknown as Record<string, unknown>
+    const PrismaClient = (mod['PrismaClient'] ?? (mod['default'] as Record<string, unknown>)?.['PrismaClient'] ?? mod['default']) as new () => unknown
     cachedClient = new PrismaClient() as unknown as PrismaLikeClient
     return cachedClient
   }
