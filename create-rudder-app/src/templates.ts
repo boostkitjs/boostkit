@@ -1325,7 +1325,9 @@ function routesApi(ctx: TemplateContext): string {
     imports.push("import { app } from '@rudderjs/core'")
   }
   if (ctx.packages.auth) {
-    imports.push("import { Auth, AuthManager, runWithAuth } from '@rudderjs/auth'")
+    imports.push("import { Auth, AuthManager, runWithAuth, toAuthenticatable } from '@rudderjs/auth'")
+    imports.push("import { Hash } from '@rudderjs/hash'")
+    imports.push("import { User } from '../app/Models/User.ts'")
     imports.push("import { RateLimit } from '@rudderjs/middleware'")
     lines.push('')
     lines.push("const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.')")
@@ -1360,24 +1362,54 @@ router.get('/api/me', async (req, res) => {
 
   if (ctx.packages.auth) {
     lines.push('')
-    lines.push(`// POST /api/auth/login
-router.post('/api/auth/login', async (req, res) => {
+    lines.push(`// POST /api/auth/sign-in/email
+router.post('/api/auth/sign-in/email', async (req, res) => {
   const { email, password } = req.body as { email: string; password: string }
   const manager = app().make<AuthManager>('auth.manager')
   let success = false
   await runWithAuth(manager, async () => {
     success = await Auth.attempt({ email, password })
   })
-  if (!success) return res.status(401).json({ message: 'Invalid credentials' })
+  if (!success) return res.status(401).json({ message: 'Invalid email or password.' })
   res.json({ ok: true })
 }, [authLimit])
 
-// POST /api/auth/logout
-router.post('/api/auth/logout', async (_req, res) => {
+// POST /api/auth/sign-up/email
+router.post('/api/auth/sign-up/email', async (req, res) => {
+  const { name, email, password } = req.body as { name: string; email: string; password: string }
+  if (!email || !password) return res.status(422).json({ message: 'Email and password are required.' })
+
+  const existing = await User.query().where('email', email).first()
+  if (existing) return res.status(422).json({ message: 'An account with this email already exists.' })
+
+  const hashed = await Hash.make(password)
+  const user   = await User.create({ name: name ?? '', email, password: hashed })
+
+  const manager = app().make<AuthManager>('auth.manager')
+  await runWithAuth(manager, async () => {
+    await Auth.login(toAuthenticatable(user as unknown as Record<string, unknown>))
+  })
+  res.json({ ok: true })
+}, [authLimit])
+
+// POST /api/auth/sign-out
+router.post('/api/auth/sign-out', async (_req, res) => {
   const manager = app().make<AuthManager>('auth.manager')
   await runWithAuth(manager, async () => { await Auth.logout() })
   res.json({ ok: true })
-})`)
+})
+
+// POST /api/auth/request-password-reset — stub (implement email sending)
+router.post('/api/auth/request-password-reset', async (_req, res) => {
+  // TODO: integrate @rudderjs/mail to send reset link
+  res.json({ ok: true })
+}, [authLimit])
+
+// POST /api/auth/reset-password — stub (implement token verification)
+router.post('/api/auth/reset-password', async (_req, res) => {
+  // TODO: verify token and update password
+  res.json({ ok: true })
+}, [authLimit])`)
   }
 
   if (ctx.packages.ai) {
@@ -1553,7 +1585,7 @@ export default function Page() {
       <p className="text-muted-foreground">Built with RudderJS — Laravel-inspired Node.js framework.</p>
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <a href="/api/health" className="underline hover:text-foreground">API Health</a>\${extraLinksStr}
+        <a href="/api/health" className="underline hover:text-foreground">API Health</a>${extraLinksStr}
       </div>
     </div>
   )
@@ -1612,7 +1644,7 @@ ${todosLink}
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
         <a href="/api/health" className="underline hover:text-foreground">API Health</a>
-        <a href="/api/me" className="underline hover:text-foreground">Session Info</a>\${extraLinksStr}
+        <a href="/api/me" className="underline hover:text-foreground">Session Info</a>${extraLinksStr}
       </div>
     </div>
   )
@@ -1719,7 +1751,7 @@ export default function Page() {
       <p class="text-muted-foreground">Built with RudderJS — Laravel-inspired Node.js framework.</p>
 
       <div class="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <a href="/api/health" class="underline hover:text-foreground">API Health</a>\${extraStr}
+        <a href="/api/health" class="underline hover:text-foreground">API Health</a>${extraStr}
       </div>
     </div>
   )
@@ -1776,7 +1808,7 @@ export default function Page() {
 
       <div class="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
         <a href="/api/health" class="underline hover:text-foreground">API Health</a>
-        <a href="/api/me" class="underline hover:text-foreground">Session Info</a>\${extraStr}
+        <a href="/api/me" class="underline hover:text-foreground">Session Info</a>${extraStr}
       </div>
     </div>
   )
