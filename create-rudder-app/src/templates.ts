@@ -1121,14 +1121,17 @@ export default {
 }
 
 function configAuth(_ctx: TemplateContext): string {
-  return `import { Env } from '@rudderjs/support'
-import type { BetterAuthConfig } from '@rudderjs/auth'
+  return `import type { AuthConfig } from '@rudderjs/auth'
 
 export default {
-  secret:           Env.get('AUTH_SECRET', 'please-set-AUTH_SECRET-min-32-chars!!'),
-  baseUrl:          Env.get('APP_URL', 'http://localhost:3000'),
-  emailAndPassword: { enabled: true },
-} satisfies BetterAuthConfig
+  defaults: { guard: 'web' },
+  guards: {
+    web: { driver: 'session', provider: 'users' },
+  },
+  providers: {
+    users: { driver: 'eloquent', model: 'User' },
+  },
+} satisfies AuthConfig
 `
 }
 
@@ -1310,7 +1313,7 @@ function routesApi(ctx: TemplateContext): string {
     imports.push("import { app } from '@rudderjs/core'")
   }
   if (ctx.packages.auth) {
-    imports.push("import type { BetterAuthInstance } from '@rudderjs/auth'")
+    imports.push("import { Auth, AuthManager, runWithAuth } from '@rudderjs/auth'")
     imports.push("import { RateLimit } from '@rudderjs/middleware'")
     lines.push('')
     lines.push("const authLimit = RateLimit.perMinute(10).message('Too many auth attempts. Try again later.')")
@@ -1324,13 +1327,17 @@ function routesApi(ctx: TemplateContext): string {
 
   if (ctx.packages.auth) {
     lines.push('')
-    lines.push(`// GET /api/me — returns current session or null
-router.get('/api/me', async (req) => {
-  const auth = app().make<BetterAuthInstance>('auth')
-  const session = await auth.api.getSession({
-    headers: new Headers(req.headers as Record<string, string>),
+    lines.push(`// GET /api/me — returns current user or null
+router.get('/api/me', async (req, res) => {
+  const manager = app().make<AuthManager>('auth.manager')
+  let user: Record<string, unknown> | null = null
+  await runWithAuth(manager, async () => {
+    const authUser = await Auth.user()
+    if (authUser) {
+      user = { id: authUser.getAuthIdentifier() }
+    }
   })
-  return Response.json(session ?? { user: null, session: null })
+  res.json({ user })
 })`)
   }
 
@@ -1341,12 +1348,24 @@ router.get('/api/me', async (req) => {
 
   if (ctx.packages.auth) {
     lines.push('')
-    lines.push(`// All /api/auth/* requests are handled by better-auth
-router.all('/api/auth/*', (req) => {
-  const auth    = app().make<BetterAuthInstance>('auth')
-  const honoCtx = req.raw as { req: { raw: Request } }
-  return auth.handler(honoCtx.req.raw)
-}, [authLimit])`)
+    lines.push(`// POST /api/auth/login
+router.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body as { email: string; password: string }
+  const manager = app().make<AuthManager>('auth.manager')
+  let success = false
+  await runWithAuth(manager, async () => {
+    success = await Auth.attempt({ email, password })
+  })
+  if (!success) return res.status(401).json({ message: 'Invalid credentials' })
+  res.json({ ok: true })
+}, [authLimit])
+
+// POST /api/auth/logout
+router.post('/api/auth/logout', async (_req, res) => {
+  const manager = app().make<AuthManager>('auth.manager')
+  await runWithAuth(manager, async () => { await Auth.logout() })
+  res.json({ ok: true })
+})`)
   }
 
   if (ctx.packages.ai) {
@@ -1469,19 +1488,27 @@ export async function data(): Promise<Data> {
   }
 
   return `import { app } from '@rudderjs/core'
-import type { BetterAuthInstance } from '@rudderjs/auth'
+import { AuthManager, Auth, runWithAuth } from '@rudderjs/auth'
 
 export type Data = {
   user: { id: string; name: string; email: string } | null
 }
 
-export async function data(pageContext: unknown): Promise<Data> {
-  const auth    = app().make<BetterAuthInstance>('auth')
-  const ctx     = pageContext as { headers?: Record<string, string> }
-  const session = await auth.api.getSession({
-    headers: new Headers(ctx.headers ?? {}),
+export async function data(): Promise<Data> {
+  const manager = app().make<AuthManager>('auth.manager')
+  let user: Data['user'] = null
+  await runWithAuth(manager, async () => {
+    const authUser = await Auth.user()
+    if (authUser) {
+      const record = authUser as unknown as Record<string, unknown>
+      user = {
+        id:    String(authUser.getAuthIdentifier()),
+        name:  String(record['name'] ?? ''),
+        email: String(record['email'] ?? ''),
+      }
+    }
   })
-  return { user: session?.user ?? null }
+  return { user }
 }
 `
 }
