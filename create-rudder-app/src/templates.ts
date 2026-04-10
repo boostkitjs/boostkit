@@ -100,7 +100,7 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
     files['src/index.css'] = indexCss(ctx)
   }
 
-  files['bootstrap/app.ts']       = bootstrapApp()
+  files['bootstrap/app.ts']       = bootstrapApp(ctx)
   files['bootstrap/providers.ts'] = bootstrapProviders(ctx)
 
   // Config files — always generated
@@ -765,15 +765,28 @@ function indexCss(ctx: TemplateContext): string {
 
 // ─── bootstrap/app.ts ──────────────────────────────────────
 
-function bootstrapApp(): string {
-  return `import 'reflect-metadata'
-import 'dotenv/config'
-import { Application } from '@rudderjs/core'
-import { hono } from '@rudderjs/server-hono'
-import { RateLimit, fromClass } from '@rudderjs/middleware'
-import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.ts'
-import configs from '../config/index.ts'
-import providers from './providers.ts'
+function bootstrapApp(ctx: TemplateContext): string {
+  const imports: string[] = [
+    "import 'reflect-metadata'",
+    "import 'dotenv/config'",
+    "import { Application } from '@rudderjs/core'",
+    "import { hono } from '@rudderjs/server-hono'",
+    "import { RateLimit, fromClass } from '@rudderjs/middleware'",
+  ]
+  if (ctx.packages.auth) {
+    imports.push("import { sessionMiddleware } from '@rudderjs/session'")
+  }
+  imports.push("import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.ts'")
+  imports.push("import configs from '../config/index.ts'")
+  imports.push("import providers from './providers.ts'")
+
+  const middlewareLines = ['    m.use(RateLimit.perMinute(60))']
+  if (ctx.packages.auth) {
+    middlewareLines.push('    m.use(sessionMiddleware(configs.session))')
+  }
+  middlewareLines.push('    m.use(fromClass(RequestIdMiddleware))')
+
+  return `${imports.join('\n')}
 
 export default Application.configure({
   server:    hono(configs.server),
@@ -786,8 +799,7 @@ export default Application.configure({
     commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    m.use(RateLimit.perMinute(60))
-    m.use(fromClass(RequestIdMiddleware))
+${middlewareLines.join('\n')}
   })
   .create()
 `
