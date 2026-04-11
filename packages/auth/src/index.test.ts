@@ -253,12 +253,41 @@ describe('AuthManager', () => {
     assert.ok(guard instanceof SessionGuard)
   })
 
-  it('guard() returns same instance on repeat calls', () => {
+  it('guard() returns a fresh instance each call (no cross-request _user leak)', () => {
+    // AuthManager is a process-wide DI singleton. Caching guards on it would
+    // pin SessionGuard._user across requests — once any request signs in,
+    // every subsequent request would see that user as "still logged in" even
+    // against an empty session. Fresh instances scope _user to the local
+    // variable the caller stores, which is request-natural.
     const sess = fakeSession()
     const config = makeConfig(fakeModel([]))
     const manager = new AuthManager(config, alwaysTrue, () => sess.instance)
 
-    assert.strictEqual(manager.guard('web'), manager.guard('web'))
+    assert.notStrictEqual(manager.guard('web'), manager.guard('web'))
+  })
+
+  it('guard() does not leak user state across simulated requests', async () => {
+    // Regression test for the pre-fix bug: a cached SessionGuard would hold
+    // `_user` from a prior request, and the next request would see that user
+    // as still logged in even after logout / fresh cookie / different user.
+    const sess = fakeSession()
+    const model = fakeModel([fakeUser()])
+    const config = makeConfig(model)
+    const manager = new AuthManager(config, alwaysTrue, () => sess.instance)
+
+    // Request 1: user is signed in (session has auth_user_id).
+    sess.store['auth_user_id'] = '1'
+    const guard1 = manager.guard()
+    const user1 = await guard1.user()
+    assert.ok(user1)
+    assert.strictEqual(user1.getAuthIdentifier(), '1')
+
+    // Request 2: session is cleared (like a fresh browser with no cookie).
+    // A leaked cache would return user 1 here; the fix returns null.
+    delete sess.store['auth_user_id']
+    const guard2 = manager.guard()
+    const user2 = await guard2.user()
+    assert.strictEqual(user2, null)
   })
 
   it('guard() throws for unknown guard', () => {

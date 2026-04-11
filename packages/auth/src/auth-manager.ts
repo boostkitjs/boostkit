@@ -26,33 +26,33 @@ export interface AuthConfig {
 // ─── Auth Manager ─────────────────────────────────────────
 
 export class AuthManager {
-  private readonly _guards = new Map<string, Guard>()
-
   constructor(
     private readonly config: AuthConfig,
     private readonly hashCheck: (plain: string, hashed: string) => Promise<boolean>,
     private readonly getSession: () => SessionStore,
   ) {}
 
+  /**
+   * Build a fresh Guard each call. We deliberately do NOT cache guards on
+   * the manager: AuthManager is a process-wide DI singleton, and a cached
+   * SessionGuard would keep `_user` populated across requests — once any
+   * request signs in, every subsequent request would see that user as
+   * "still logged in" even with an empty session. A new instance per call
+   * scopes `_user` to the local that the handler stores, which is the
+   * request-natural lifetime.
+   */
   guard(name?: string): Guard {
     const guardName = name ?? this.config.defaults.guard
-    const existing = this._guards.get(guardName)
-    if (existing) return existing
 
     const guardConfig = this.config.guards[guardName]
     if (!guardConfig) throw new Error(`[RudderJS Auth] Guard "${guardName}" is not defined.`)
 
-    const provider = this.createProvider(guardConfig.provider)
-    let guard: Guard
-
     if (guardConfig.driver === 'session') {
-      guard = new SessionGuard(provider, this.getSession())
-    } else {
-      throw new Error(`[RudderJS Auth] Guard driver "${guardConfig.driver}" is not supported.`)
+      const provider = this.createProvider(guardConfig.provider)
+      return new SessionGuard(provider, this.getSession())
     }
 
-    this._guards.set(guardName, guard)
-    return guard
+    throw new Error(`[RudderJS Auth] Guard driver "${guardConfig.driver}" is not supported.`)
   }
 
   private createProvider(name: string): UserProvider {
