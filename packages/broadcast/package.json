@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/broadcast",
   "version": "0.0.1",
+  "rudderjs": {
+    "provider": "BroadcastingProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

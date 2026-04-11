@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/schedule",
   "version": "0.0.6",
+  "rudderjs": {
+    "provider": "ScheduleProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

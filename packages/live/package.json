@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/live",
   "version": "0.0.1",
+  "rudderjs": {
+    "provider": "LiveProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -2,6 +2,10 @@
   "name": "@rudderjs/pennant",
   "version": "0.0.1",
   "description": "Feature flags for RudderJS — define, check, scope, Lottery rollout, database/memory drivers",
+  "rudderjs": {
+    "provider": "PennantProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

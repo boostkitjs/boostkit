@@ -16,6 +16,7 @@ node_modules/
 .turbo/
 *.log
 dev.db
+bootstrap/cache/
 
 # Storage uploads
 storage/app/

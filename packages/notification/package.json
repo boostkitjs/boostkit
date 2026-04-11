@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/notification",
   "version": "0.0.5",
+  "rudderjs": {
+    "provider": "NotificationProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/mail",
   "version": "0.0.5",
+  "rudderjs": {
+    "provider": "MailProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

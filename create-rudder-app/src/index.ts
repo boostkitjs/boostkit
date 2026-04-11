@@ -226,13 +226,28 @@ async function main(): Promise<void> {
       child.on('error', () => resolve(false))
     })
     s2.stop(ok ? 'Dependencies installed' : `${pmInstall(pm)} failed — run it manually`)
+
+    // Generate the provider manifest so the app boots on first `dev`
+    if (ok) {
+      const s3 = spinner()
+      s3.start('Discovering framework providers...')
+      const [rcmd, ...rargs] = `${pmRun(pm, 'rudder')} providers:discover`.split(' ')
+      const discovered = await new Promise<boolean>((resolve) => {
+        const child = spawn(rcmd!, rargs, { cwd: target, stdio: 'pipe' })
+        child.on('close', (code) => resolve(code === 0))
+        child.on('error', () => resolve(false))
+      })
+      s3.stop(discovered
+        ? 'Provider manifest generated'
+        : `providers:discover failed — run \`${pmRun(pm, 'rudder')} providers:discover\` manually`)
+    }
   }
 
   // ── Done ───────────────────────────────────────────────
 
   const nextSteps = [
     `  cd ${name}`,
-    ...(!install ? [`  ${pmInstall(pm)}`] : []),
+    ...(!install ? [`  ${pmInstall(pm)}`, `  ${pmRun(pm, 'rudder')} providers:discover`] : []),
     ...(orm === 'prisma' ? [
       `  ${pmExec(pm, 'prisma generate')}`,
       `  ${pmExec(pm, 'prisma db push')}`,
