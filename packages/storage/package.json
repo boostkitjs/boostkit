@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/storage",
   "version": "0.0.6",
+  "rudderjs": {
+    "provider": "StorageProvider",
+    "stage": "feature"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

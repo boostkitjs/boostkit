@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/telescope",
   "version": "0.0.1",
+  "rudderjs": {
+    "provider": "TelescopeProvider",
+    "stage": "monitoring"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

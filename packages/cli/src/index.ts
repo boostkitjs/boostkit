@@ -126,8 +126,14 @@ async function main(): Promise<void> {
   migrateCommands(program)
   providersDiscoverCommand(program)
 
+  // Commands that scan files / manage tooling state must work even when the
+  // app cannot boot (e.g. fresh clone, missing manifest, broken provider config).
+  // List them here to skip the bootApp() phase entirely.
+  const NO_BOOT_COMMANDS = new Set(['providers:discover'])
+  const skipBoot = process.argv.slice(2).some(arg => NO_BOOT_COMMANDS.has(arg))
+
   // Boot the app (providers + route files) so commands can use DB, etc.
-  await bootApp()
+  if (!skipBoot) await bootApp()
 
   // ── Built-in framework commands ───────────────────────────
 

@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/pulse",
   "version": "0.0.1",
+  "rudderjs": {
+    "provider": "PulseProvider",
+    "stage": "monitoring"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -530,6 +530,7 @@ dist/
 *.db
 *.db-journal
 prisma/generated/
+bootstrap/cache/
 `
 }
 
@@ -821,94 +822,31 @@ ${middlewareLines.join('\n')}
 function bootstrapProviders(ctx: TemplateContext): string {
   const imports: string[] = [
     "import type { Application, ServiceProvider } from '@rudderjs/core'",
-    "import { eventsProvider } from '@rudderjs/core'",
-    "import { LogProvider } from '@rudderjs/log'",
+    "import { defaultProviders, eventsProvider } from '@rudderjs/core'",
+    "import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'",
   ]
+
   const providers: string[] = [
-    '// ── Infrastructure (order matters) ──────────────────────',
-    'LogProvider,',
+    '...(await defaultProviders()),',
+    'eventsProvider({}),',
+    'AppServiceProvider,',
   ]
-
-  if (ctx.orm === 'prisma') {
-    imports.push("import { DatabaseProvider } from '@rudderjs/orm-prisma'")
-    providers.push('DatabaseProvider,')
-  } else if (ctx.orm === 'drizzle') {
-    imports.push("import { DatabaseProvider } from '@rudderjs/orm-drizzle'")
-    providers.push('DatabaseProvider,')
-  }
-
-  if (ctx.packages.auth) {
-    imports.push("import { SessionProvider } from '@rudderjs/session'")
-    imports.push("import { HashProvider } from '@rudderjs/hash'")
-    providers.push('SessionProvider,')
-    providers.push('HashProvider,')
-  }
-  if (ctx.packages.cache) {
-    imports.push("import { CacheProvider } from '@rudderjs/cache'")
-    providers.push('CacheProvider,')
-  }
-  if (ctx.packages.auth) {
-    imports.push("import { AuthProvider } from '@rudderjs/auth'")
-    providers.push('AuthProvider,')
-  }
-
-  providers.push('')
-  providers.push('// ── Features ────────────────────────────────────────────')
-  providers.push('eventsProvider({}),')
-
-  if (ctx.packages.queue) {
-    imports.push("import { QueueProvider } from '@rudderjs/queue'")
-    providers.push('QueueProvider,')
-  }
-  if (ctx.packages.mail) {
-    imports.push("import { MailProvider } from '@rudderjs/mail'")
-    providers.push('MailProvider,')
-  }
-  if (ctx.packages.storage) {
-    imports.push("import { StorageProvider } from '@rudderjs/storage'")
-    providers.push('StorageProvider,')
-  }
-  if (ctx.packages.localization) {
-    imports.push("import { LocalizationProvider } from '@rudderjs/localization'")
-  }
-  if (ctx.packages.scheduler) {
-    imports.push("import { ScheduleProvider } from '@rudderjs/schedule'")
-    providers.push('ScheduleProvider,')
-  }
-  if (ctx.packages.notifications) {
-    imports.push("import { NotificationProvider } from '@rudderjs/notification'")
-    providers.push('NotificationProvider,')
-  }
-  if (ctx.packages.broadcast) {
-    imports.push("import { BroadcastingProvider } from '@rudderjs/broadcast'")
-    providers.push('BroadcastingProvider,')
-  }
-  if (ctx.packages.live) {
-    imports.push("import { LiveProvider } from '@rudderjs/live'")
-    providers.push('LiveProvider,')
-  }
-  if (ctx.packages.localization) {
-    providers.push('LocalizationProvider,')
-  }
-  if (ctx.packages.ai) {
-    imports.push("import { AiProvider } from '@rudderjs/ai'")
-    providers.push('AiProvider,')
-  }
-
-  providers.push('')
-  providers.push('// ── Application ─────────────────────────────────────────')
-  imports.push("import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'")
-  providers.push('AppServiceProvider,')
 
   if (ctx.withTodo) {
     imports.push("import { TodoServiceProvider } from '../app/Modules/Todo/TodoServiceProvider.js'")
     providers.push('TodoServiceProvider,')
   }
 
-  imports.push("import configs from '../config/index.js'")
-
   return `${imports.join('\n')}
 
+// All framework providers are auto-discovered from package.json metadata.
+// Run \`pnpm rudder providers:discover\` after installing or removing packages.
+//
+// To skip a specific framework provider:
+//   ...(await defaultProviders({ skip: ['@rudderjs/horizon'] })),
+//
+// To turn off auto-discovery entirely, replace \`...(await defaultProviders())\`
+// with explicit class imports — see the framework docs.
 export default [
   ${providers.join('\n  ')}
 ] satisfies (new (app: Application) => ServiceProvider)[]

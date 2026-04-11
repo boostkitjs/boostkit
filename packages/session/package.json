@@ -1,6 +1,10 @@
 {
   "name": "@rudderjs/session",
   "version": "0.0.5",
+  "rudderjs": {
+    "provider": "SessionProvider",
+    "stage": "infrastructure"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

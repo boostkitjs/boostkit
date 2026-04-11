@@ -1,6 +1,11 @@
 {
   "name": "@rudderjs/orm-prisma",
   "version": "0.0.11",
+  "rudderjs": {
+    "provider": "DatabaseProvider",
+    "stage": "infrastructure",
+    "optional": true
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

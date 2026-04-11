@@ -2,6 +2,10 @@
   "name": "@rudderjs/log",
   "version": "0.0.1",
   "description": "Structured logging for RudderJS — channels, levels, formatters, context propagation",
+  "rudderjs": {
+    "provider": "LogProvider",
+    "stage": "foundation"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

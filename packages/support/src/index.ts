@@ -177,19 +177,88 @@ export function config<T = unknown>(key: string, fallback?: T): T {
  * Dynamically import an optional peer package installed in the user's app
  * (process.cwd()), not inside node_modules/@rudderjs/*.
  *
- * Uses createRequire anchored to the app root so optional peers installed
- * in the user's project are resolvable regardless of where @rudderjs/* lives.
+ * Resolution strategy (in order):
+ *   1. CJS resolver via createRequire — works for packages that ship a
+ *      `require` or `default` exports condition.
+ *   2. ESM-aware fallback — walks node_modules from cwd up, reads the
+ *      package's `exports['.']['import']` (or `exports.import`) field,
+ *      resolves to an absolute path, and dynamic-imports it. Required
+ *      for packages that only expose an `import` condition.
  *
- * All optional peer packages must include `"default": "./dist/index.js"`
- * in their exports field so the CJS resolver can find them.
- *
- * `node:module` is imported lazily to stay out of browser bundles.
+ * `node:module` and `node:fs` are imported lazily to stay out of browser bundles.
  */
 export async function resolveOptionalPeer<T = Record<string, unknown>>(specifier: string): Promise<T> {
   const { createRequire } = await import('node:module')
   const appRequire = createRequire(process.cwd() + '/package.json')
-  const resolved   = appRequire.resolve(specifier)
-  return import(/* @vite-ignore */ resolved) as Promise<T>
+
+  // Fast path — works when the package has a `require` or `default` condition.
+  try {
+    const resolved = appRequire.resolve(specifier)
+    return import(/* @vite-ignore */ resolved) as Promise<T>
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    // Only fall through for the specific exports-condition mismatch.
+    // Other errors (MODULE_NOT_FOUND etc.) re-throw immediately.
+    if (!message.includes('No "exports" main defined') && !message.includes('Package subpath')) {
+      throw err
+    }
+  }
+
+  // ESM-aware fallback — read the package's exports field manually.
+  const fs = await import('node:fs/promises')
+  const path = await import('node:path')
+  const { pathToFileURL } = await import('node:url')
+
+  const pkgInfo = await findPackageJson(specifier, process.cwd(), fs, path)
+  if (!pkgInfo) {
+    throw new Error(`Cannot find package "${specifier}" from ${process.cwd()}`)
+  }
+
+  const entry = readImportEntry(pkgInfo.data)
+  if (!entry) {
+    throw new Error(`Package "${specifier}" has no resolvable ESM entry point in its exports field`)
+  }
+
+  const absolute = path.resolve(path.dirname(pkgInfo.path), entry)
+  return import(/* @vite-ignore */ pathToFileURL(absolute).href) as Promise<T>
+}
+
+async function findPackageJson(
+  name: string,
+  startDir: string,
+  fs:   typeof import('node:fs/promises'),
+  path: typeof import('node:path'),
+): Promise<{ path: string; data: Record<string, unknown> } | null> {
+  let dir = startDir
+  while (true) {
+    const candidate = path.join(dir, 'node_modules', name, 'package.json')
+    try {
+      const raw = await fs.readFile(candidate, 'utf-8')
+      return { path: candidate, data: JSON.parse(raw) as Record<string, unknown> }
+    } catch { /* not here, walk up */ }
+    const parent = path.dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+function readImportEntry(pkg: Record<string, unknown>): string | null {
+  const exports = pkg['exports']
+  if (typeof exports === 'string') return exports
+
+  if (exports && typeof exports === 'object') {
+    const root = (exports as Record<string, unknown>)['.'] ?? exports
+    if (typeof root === 'string') return root
+    if (root && typeof root === 'object') {
+      const r = root as Record<string, unknown>
+      const candidate = r['import'] ?? r['default'] ?? r['node']
+      if (typeof candidate === 'string') return candidate
+    }
+  }
+
+  // Fall back to legacy `main` field
+  const main = pkg['main']
+  return typeof main === 'string' ? main : null
 }
 
 // ─── validateSerializable ──────────────────────────────────

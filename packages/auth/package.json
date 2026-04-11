@@ -1,6 +1,11 @@
 {
   "name": "@rudderjs/auth",
   "version": "0.2.0",
+  "rudderjs": {
+    "provider": "AuthProvider",
+    "stage": "infrastructure",
+    "depends": ["@rudderjs/session", "@rudderjs/hash"]
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
