@@ -21,6 +21,14 @@ export { Container, ContextualBindingBuilder, container, Injectable, Inject } fr
 export { ServiceProvider, getPublishGroups } from './service-provider.js'
 export type { PublishGroup } from './service-provider.js'
 
+// ─── Provider Auto-Discovery ───────────────────────────────
+
+export { defaultProviders, getLastLoadedProviderEntries } from './default-providers.js'
+export type { DefaultProvidersOptions } from './default-providers.js'
+export { BUILTIN_REGISTRY } from './provider-registry.js'
+export type { ProviderEntry, ProviderManifest, ProviderStage } from './provider-registry.js'
+export { sortByStageAndDepends } from './provider-sort.js'
+
 // ─── Events ────────────────────────────────────────────────
 
 export { Listener, EventDispatcher, dispatcher, dispatch, eventsProvider } from './events.js'

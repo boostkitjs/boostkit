@@ -11,6 +11,7 @@ import {
   report,
   setExceptionReporter,
 } from './exceptions.js'
+import { getLastLoadedProviderEntries } from './default-providers.js'
 
 // ─── Config ────────────────────────────────────────────────
 
@@ -458,7 +459,35 @@ export class RudderJS {
     }
     await this._app.bootstrap()
     await Promise.all(this._loaders.map(l => l()))
+    if (this._app.isDevelopment()) this._printDevBootLog()
     console.log('[RudderJS] ready')
+  }
+
+  /**
+   * Dev-only — print the auto-discovered providers grouped by stage so a missing
+   * package is visible at every boot instead of failing silently when first used.
+   */
+  private _printDevBootLog(): void {
+    const entries = getLastLoadedProviderEntries()
+    if (entries.length === 0) return
+
+    const grouped = new Map<string, string[]>()
+    for (const e of entries) {
+      const list = grouped.get(e.stage) ?? []
+      list.push(e.package)
+      grouped.set(e.stage, list)
+    }
+
+    const order: Array<'foundation' | 'infrastructure' | 'feature' | 'monitoring'> =
+      ['foundation', 'infrastructure', 'feature', 'monitoring']
+
+    console.log(`[RudderJS] booted ${entries.length} provider${entries.length === 1 ? '' : 's'}:`)
+    const labelWidth = 14
+    for (const stage of order) {
+      const list = grouped.get(stage)
+      if (!list || list.length === 0) continue
+      console.log(`  ${stage.padEnd(labelWidth)} → ${list.join(', ')}`)
+    }
   }
 
   /** Phase 2 — create the HTTP fetch handler. Requires Vite context (virtual: URLs). */

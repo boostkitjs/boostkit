@@ -6,6 +6,7 @@ import { makeCommand } from './commands/make.js'
 import { moduleCommand } from './commands/module.js'
 import { vendorPublishCommand } from './commands/vendor-publish.js'
 import { migrateCommands } from './commands/migrate.js'
+import { providersDiscoverCommand } from './commands/providers-discover.js'
 import { rudder, parseSignature } from '@rudderjs/rudder'
 
 const C = {
@@ -123,6 +124,7 @@ async function main(): Promise<void> {
   moduleCommand(program)
   vendorPublishCommand(program)
   migrateCommands(program)
+  providersDiscoverCommand(program)
 
   // Boot the app (providers + route files) so commands can use DB, etc.
   await bootApp()
