@@ -123,3 +123,29 @@ export function isViewResponse(value: unknown): value is ViewResponse {
  * in user views via `usePageContext()` from vike-react).
  */
 export const VIEW_URL_PREFIX_INTERNAL = VIEW_URL_PREFIX
+
+/**
+ * HTML-escape a value for interpolation into a vanilla view's returned string.
+ *
+ * **Vanilla views do NOT auto-escape** — unlike JSX, raw template literals
+ * will happily emit unescaped markup. Any user-supplied value interpolated
+ * into a vanilla view MUST go through `escapeHtml()` or be proven safe.
+ *
+ * ```ts
+ * // app/Views/AdminReport.ts
+ * import { escapeHtml } from '@rudderjs/view'
+ *
+ * export default function AdminReport({ title }: { title: string }): string {
+ *   return `<h1>${escapeHtml(title)}</h1>`
+ * }
+ * ```
+ */
+export function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
