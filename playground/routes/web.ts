@@ -4,7 +4,6 @@ import { view } from '@rudderjs/view'
 import { app, config } from '@rudderjs/core'
 import { CsrfMiddleware } from '@rudderjs/middleware'
 import { SessionMiddleware } from '@rudderjs/session'
-import { registerAuthRoutes } from '@rudderjs/auth/routes'
 import { AuthManager, Auth, runWithAuth } from '@rudderjs/auth'
 
 // Web middleware — session + CSRF apply to all web routes (not API)
@@ -12,10 +11,6 @@ const webMw = [
   SessionMiddleware(),
   CsrfMiddleware(),
 ]
-
-// Auth UI routes — login/register/forgot-password/reset-password
-// Views live in app/Views/Auth/ (vendored from @rudderjs/auth/views/react/)
-registerAuthRoutes(Route, { middleware: webMw })
 
 // Read RudderJS version from @rudderjs/core's package.json at boot time.
 const _require = createRequire(import.meta.url)
