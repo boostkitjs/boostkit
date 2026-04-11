@@ -1,7 +1,7 @@
-import { SocialiteProvider } from '../provider.js'
+import { SocialiteDriver } from '../driver.js'
 import { SocialUser } from '../social-user.js'
 
-export class AppleProvider extends SocialiteProvider {
+export class AppleProvider extends SocialiteDriver {
   protected defaultScopes(): string[] { return ['name', 'email'] }
   protected authUrl():  string { return 'https://appleid.apple.com/auth/authorize' }
   protected tokenUrl(): string { return 'https://appleid.apple.com/auth/token' }

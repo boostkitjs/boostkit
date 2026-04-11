@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { MemoryStorage, SqliteStorage } from './storage.js'
 import { RequestCollector } from './collectors/request.js'
 import { QueryCollector } from './collectors/query.js'
@@ -83,8 +83,18 @@ export class Telescope {
  *   import { telescope } from '@rudderjs/telescope'
  *   export default [..., telescope(configs.telescope), ...]
  */
-export function telescopeProvider(config: TelescopeConfig = {}): new (app: Application) => ServiceProvider {
-  const merged = { ...defaultConfig, ...config }
+export class TelescopeProvider extends ServiceProvider {
+  register(): void {
+    this.publishes({
+      from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
+      to:   'boost',
+      tag:  'telescope-boost',
+    })
+  }
+
+  async boot(): Promise<void> {
+    const cfg = config<TelescopeConfig>('telescope', {})
+    const merged = { ...defaultConfig, ...cfg }
   // Strip undefined values introduced by exactOptionalPropertyTypes spread
   const resolved = {
     enabled:             merged.enabled             ?? defaultConfig.enabled,
@@ -107,19 +117,9 @@ export function telescopeProvider(config: TelescopeConfig = {}): new (app: Appli
     ignoreRequests:      merged.ignoreRequests      ?? defaultConfig.ignoreRequests,
     slowQueryThreshold:  merged.slowQueryThreshold  ?? defaultConfig.slowQueryThreshold,
     auth:                merged.auth                ?? defaultConfig.auth,
-  }
-
-  class TelescopeServiceProvider extends ServiceProvider {
-    register(): void {
-      this.publishes({
-        from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
-        to:   'boost',
-        tag:  'telescope-boost',
-      })
     }
 
-    async boot(): Promise<void> {
-      if (!resolved.enabled) return
+    if (!resolved.enabled) return
 
       // ── Create storage ────────────────────────────────────
       let storage: TelescopeStorage
@@ -175,10 +175,7 @@ export function telescopeProvider(config: TelescopeConfig = {}): new (app: Appli
         }
       }
 
-      // ── Register API routes ───────────────────────────────
-      await registerRoutes(storage, resolved)
-    }
+    // ── Register API routes ───────────────────────────────
+    await registerRoutes(storage, resolved)
   }
-
-  return TelescopeServiceProvider
 }

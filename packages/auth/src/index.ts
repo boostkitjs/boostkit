@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application, app } from '@rudderjs/core'
+import { ServiceProvider, app, config } from '@rudderjs/core'
 import type { MiddlewareHandler } from '@rudderjs/contracts'
 import { AuthManager, Auth, runWithAuth, type AuthConfig } from './auth-manager.js'
 import type { AuthUser } from './contracts.js'
@@ -111,59 +111,57 @@ export function RequireAuth(guardName?: string): MiddlewareHandler {
  * Note: the lowercase `auth()` helper is a different export — it returns the
  * current request's AuthManager (Laravel's `auth()->user()` ergonomics).
  */
-export function authProvider(config: AuthConfig): new (app: Application) => ServiceProvider {
-  class AuthServiceProvider extends ServiceProvider {
-    register(): void {
-      // Auth views — vendored into the consumer's `app/Views/Auth/` directory.
-      // Consumers then wire routes via `registerAuthRoutes(Route)` from `@rudderjs/auth/routes`.
-      this.publishes({ from: new URL(/* @vite-ignore */ '../views/react', import.meta.url).pathname, to: 'app/Views/Auth', tag: 'auth-views' })
-      this.publishes({ from: new URL(/* @vite-ignore */ '../views/react', import.meta.url).pathname, to: 'app/Views/Auth', tag: 'auth-views-react' })
+export class AuthProvider extends ServiceProvider {
+  register(): void {
+    // Auth views — vendored into the consumer's `app/Views/Auth/` directory.
+    // Consumers then wire routes via `registerAuthRoutes(Route)` from `@rudderjs/auth/routes`.
+    this.publishes({ from: new URL(/* @vite-ignore */ '../views/react', import.meta.url).pathname, to: 'app/Views/Auth', tag: 'auth-views' })
+    this.publishes({ from: new URL(/* @vite-ignore */ '../views/react', import.meta.url).pathname, to: 'app/Views/Auth', tag: 'auth-views-react' })
 
-      // Auth schema (ORM + driver-specific)
-      const schemaDir = new URL(/* @vite-ignore */ '../schema', import.meta.url).pathname
-      this.publishes([
-        { from: `${schemaDir}/auth.prisma`,            to: 'prisma/schema',   tag: 'auth-schema', orm: 'prisma' as const },
-        { from: `${schemaDir}/auth.drizzle.sqlite.ts`, to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'sqlite' as const },
-        { from: `${schemaDir}/auth.drizzle.pg.ts`,     to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'postgresql' as const },
-        { from: `${schemaDir}/auth.drizzle.mysql.ts`,  to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'mysql' as const },
-      ])
-    }
-
-    async boot(): Promise<void> {
-      // Resolve Hash.check from DI
-      let hashCheck: (plain: string, hashed: string) => Promise<boolean>
-      try {
-        const hashDriver = this.app.make<{ check(v: string, h: string): Promise<boolean> }>('hash')
-        hashCheck = (plain, hashed) => hashDriver.check(plain, hashed)
-      } catch {
-        throw new Error(
-          '[RudderJS Auth] No hash driver found. Register hash() provider before auth().',
-        )
-      }
-
-      // Resolve session facade — bound by @rudderjs/session as 'session.facade'
-      const getSession = (): SessionStore => {
-        return this.app.make<SessionStore>('session.facade')
-      }
-
-      const manager = new AuthManager(config, hashCheck, getSession)
-      this.app.instance('auth.manager', manager)
-      this.app.instance('auth', Auth)
-
-      // Install AuthMiddleware as a global router middleware so every request
-      // runs inside `runWithAuth(manager, …)`. User code can then call
-      // `auth().user()`, `Auth.user()`, or read `req.user` without manual
-      // context wrapping — matching Laravel's `auth()->user()` ergonomics.
-      try {
-        const { router } = await import('@rudderjs/router') as { router: { use(m: MiddlewareHandler): unknown } }
-        router.use(AuthMiddleware())
-      } catch {
-        // Router peer not installed — skip global registration. Callers can
-        // still wrap manually with runWithAuth if they're running in a
-        // non-HTTP context (CLI, worker).
-      }
-    }
+    // Auth schema (ORM + driver-specific)
+    const schemaDir = new URL(/* @vite-ignore */ '../schema', import.meta.url).pathname
+    this.publishes([
+      { from: `${schemaDir}/auth.prisma`,            to: 'prisma/schema',   tag: 'auth-schema', orm: 'prisma' as const },
+      { from: `${schemaDir}/auth.drizzle.sqlite.ts`, to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'sqlite' as const },
+      { from: `${schemaDir}/auth.drizzle.pg.ts`,     to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'postgresql' as const },
+      { from: `${schemaDir}/auth.drizzle.mysql.ts`,  to: 'database/schema', tag: 'auth-schema', orm: 'drizzle' as const, driver: 'mysql' as const },
+    ])
   }
 
-  return AuthServiceProvider
+  async boot(): Promise<void> {
+    const cfg = config<AuthConfig>('auth')
+
+    // Resolve Hash.check from DI
+    let hashCheck: (plain: string, hashed: string) => Promise<boolean>
+    try {
+      const hashDriver = this.app.make<{ check(v: string, h: string): Promise<boolean> }>('hash')
+      hashCheck = (plain, hashed) => hashDriver.check(plain, hashed)
+    } catch {
+      throw new Error(
+        '[RudderJS Auth] No hash driver found. Register HashProvider before AuthProvider.',
+      )
+    }
+
+    // Resolve session facade — bound by @rudderjs/session as 'session.facade'
+    const getSession = (): SessionStore => {
+      return this.app.make<SessionStore>('session.facade')
+    }
+
+    const manager = new AuthManager(cfg, hashCheck, getSession)
+    this.app.instance('auth.manager', manager)
+    this.app.instance('auth', Auth)
+
+    // Install AuthMiddleware as a global router middleware so every request
+    // runs inside `runWithAuth(manager, …)`. User code can then call
+    // `auth().user()`, `Auth.user()`, or read `req.user` without manual
+    // context wrapping — matching Laravel's `auth()->user()` ergonomics.
+    try {
+      const { router } = await import('@rudderjs/router') as { router: { use(m: MiddlewareHandler): unknown } }
+      router.use(AuthMiddleware())
+    } catch {
+      // Router peer not installed — skip global registration. Callers can
+      // still wrap manually with runWithAuth if they're running in a
+      // non-HTTP context (CLI, worker).
+    }
+  }
 }

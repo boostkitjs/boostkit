@@ -9,7 +9,7 @@ import {
   Notifier,
   Notification,
   notify,
-  notifications,
+  NotificationProvider,
   type Notifiable,
   type NotificationChannel,
 } from './index.js'
@@ -310,27 +310,24 @@ describe('notify()', () => {
   })
 })
 
-// ─── notifications() provider ──────────────────────────────
+// ─── NotificationProvider ──────────────────────────────────
 
-describe('notifications() provider', () => {
+describe('NotificationProvider', () => {
   beforeEach(() => ChannelRegistry.reset())
 
   it('registers mail and database channels', () => {
-    const Provider = notifications()
-    new Provider(fakeApp).boot?.()
+    new NotificationProvider(fakeApp).boot?.()
     assert.ok(ChannelRegistry.get('mail') instanceof MailChannel)
     assert.ok(ChannelRegistry.get('database') instanceof DatabaseChannel)
   })
 
-  it('register() is a no-op', () => {
-    const Provider = notifications()
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+  it('register() does not throw', () => {
+    assert.doesNotThrow(() => new NotificationProvider(fakeApp).register?.())
   })
 
   it('channels are replaced on subsequent boots', () => {
-    const Provider = notifications()
-    new Provider(fakeApp).boot?.()
-    new Provider(fakeApp).boot?.()
+    new NotificationProvider(fakeApp).boot?.()
+    new NotificationProvider(fakeApp).boot?.()
     assert.ok(ChannelRegistry.has('mail'))
     assert.ok(ChannelRegistry.has('database'))
   })

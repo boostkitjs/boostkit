@@ -50,6 +50,8 @@ export {
   omit,
   defineEnv,
   ConfigRepository,
+  setConfigRepository,
+  getConfigRepository,
   resolveOptionalPeer,
   dump,
   dd,

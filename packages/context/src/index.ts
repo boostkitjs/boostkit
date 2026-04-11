@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { ServiceProvider, resolveOptionalPeer } from '@rudderjs/core'
-import type { Application, MiddlewareHandler } from '@rudderjs/core'
+import type { MiddlewareHandler } from '@rudderjs/core'
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -194,30 +194,27 @@ export function ContextMiddleware(): MiddlewareHandler {
   }
 }
 
-// ─── Service Provider factory ─────────────────────────────
+// ─── Service Provider ─────────────────────────────────────
 
-export function contextProvider(): new (app: Application) => ServiceProvider {
-  class ContextServiceProvider extends ServiceProvider {
-    register(): void {}
+export class ContextProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      this.app.instance('context', Context)
+  async boot(): Promise<void> {
+    this.app.instance('context', Context)
 
-      // Integrate with @rudderjs/log if available — merge Context.all() into every log entry
-      try {
-        const logMod = await resolveOptionalPeer<{
-          Log: { listen(fn: (entry: { context: Record<string, unknown> }) => void): void }
-        }>('@rudderjs/log')
-        logMod.Log.listen((entry) => {
-          const ctx = Context.all()
-          if (Object.keys(ctx).length > 0) {
-            Object.assign(entry.context, ctx)
-          }
-        })
-      } catch {
-        // @rudderjs/log not installed — skip integration
-      }
+    // Integrate with @rudderjs/log if available — merge Context.all() into every log entry
+    try {
+      const logMod = await resolveOptionalPeer<{
+        Log: { listen(fn: (entry: { context: Record<string, unknown> }) => void): void }
+      }>('@rudderjs/log')
+      logMod.Log.listen((entry) => {
+        const ctx = Context.all()
+        if (Object.keys(ctx).length > 0) {
+          Object.assign(entry.context, ctx)
+        }
+      })
+    } catch {
+      // @rudderjs/log not installed — skip integration
     }
   }
-  return ContextServiceProvider
 }

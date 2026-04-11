@@ -1,15 +1,23 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
 import {
   Mail,
   MailPendingSend,
   MailRegistry,
   LogAdapter,
   Mailable,
-  mail,
+  MailProvider,
   type MailAdapter,
+  type MailConfig,
   type SendOptions,
 } from './index.js'
+
+function withMailConfig(cfg: MailConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ mail: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -230,79 +238,81 @@ describe('LogAdapter', () => {
   })
 })
 
-// ─── mail() provider ───────────────────────────────────────
+// ─── MailProvider ──────────────────────────────────────────
 
-describe('mail() provider', () => {
+describe('MailProvider', () => {
+  let restore: () => void
   beforeEach(() => MailRegistry.reset())
+  afterEach(() => restore?.())
 
   it('boots with log driver and registers adapter', async () => {
-    const Provider = mail(defaultConfig)
-    await new Provider(fakeApp).boot?.()
+    restore = withMailConfig(defaultConfig)
+    await new MailProvider(fakeApp).boot?.()
     assert.ok(MailRegistry.get() !== null)
   })
 
   it('sets the from address on the registry', async () => {
-    const Provider = mail(defaultConfig)
-    await new Provider(fakeApp).boot?.()
+    restore = withMailConfig(defaultConfig)
+    await new MailProvider(fakeApp).boot?.()
     assert.deepStrictEqual(MailRegistry.getFrom(), { address: 'noreply@example.com', name: 'RudderJS' })
   })
 
   it('falls back to log driver when mailer config is missing', async () => {
-    const Provider = mail({ ...defaultConfig, default: 'missing', mailers: {} })
-    await new Provider(fakeApp).boot?.()
+    restore = withMailConfig({ ...defaultConfig, default: 'missing', mailers: {} })
+    await new MailProvider(fakeApp).boot?.()
     assert.ok(MailRegistry.get() instanceof LogAdapter)
   })
 
   it('boots log driver explicitly', async () => {
-    const Provider = mail(defaultConfig)
-    await new Provider(fakeApp).boot?.()
+    restore = withMailConfig(defaultConfig)
+    await new MailProvider(fakeApp).boot?.()
     assert.ok(MailRegistry.get() instanceof LogAdapter)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = mail({
+    restore = withMailConfig({
       ...defaultConfig,
       default: 'bad',
       mailers: { bad: { driver: 'unsupported' } },
     })
     await assert.rejects(
-      async () => new Provider(fakeApp).boot?.(),
+      async () => new MailProvider(fakeApp).boot?.(),
       /Unknown driver "unsupported"/
     )
   })
 
   it('throws on smtp driver with missing host', async () => {
-    const Provider = mail({
+    restore = withMailConfig({
       ...defaultConfig,
       default: 'smtp',
       mailers: { smtp: { driver: 'smtp', port: 587 } },
     })
     await assert.rejects(
-      async () => new Provider(fakeApp).boot?.(),
+      async () => new MailProvider(fakeApp).boot?.(),
       /Invalid SMTP config/
     )
   })
 
   it('throws on smtp driver with missing port', async () => {
-    const Provider = mail({
+    restore = withMailConfig({
       ...defaultConfig,
       default: 'smtp',
       mailers: { smtp: { driver: 'smtp', host: 'smtp.example.com' } },
     })
     await assert.rejects(
-      async () => new Provider(fakeApp).boot?.(),
+      async () => new MailProvider(fakeApp).boot?.(),
       /Invalid SMTP config/
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = mail(defaultConfig)
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withMailConfig(defaultConfig)
+    assert.doesNotThrow(() => new MailProvider(fakeApp).register?.())
   })
 
   it('booted log adapter can send mail end-to-end', async () => {
-    const Provider = mail(defaultConfig)
-    await new Provider(fakeApp).boot?.()
+    restore = withMailConfig(defaultConfig)
+    await new MailProvider(fakeApp).boot?.()
     await assert.doesNotReject(() => Mail.to('user@example.com').send(new SimpleMail()))
   })
 })

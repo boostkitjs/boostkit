@@ -1,6 +1,13 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { cacheProvider, Cache, CacheRegistry, MemoryAdapter } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { CacheProvider, Cache, CacheRegistry, MemoryAdapter, type CacheConfig } from './index.js'
+
+function withCacheConfig(cfg: CacheConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ cache: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -110,11 +117,15 @@ describe('CacheRegistry', () => {
 // ─── Cache facade ──────────────────────────────────────────
 
 describe('Cache facade', () => {
+  let restore: () => void
+
   beforeEach(async () => {
     CacheRegistry.reset()
-    const Provider = cacheProvider({ default: 'memory', stores: { memory: { driver: 'memory' } } })
-    await new Provider({ instance: () => undefined } as never).boot?.()
+    restore = withCacheConfig({ default: 'memory', stores: { memory: { driver: 'memory' } } })
+    await new CacheProvider({ instance: () => undefined } as never).boot()
   })
+
+  afterEach(() => restore())
 
   it('throws when no adapter is registered', async () => {
     CacheRegistry.reset()
@@ -237,35 +248,38 @@ describe('Cache facade', () => {
   })
 })
 
-// ─── cacheProvider() provider ──────────────────────────────────────
+// ─── CacheProvider class ───────────────────────────────────────────
 
-describe('cacheProvider() provider', () => {
+describe('CacheProvider', () => {
+  let restore: () => void
+
   beforeEach(() => CacheRegistry.reset())
+  afterEach(() => restore?.())
 
   const fakeApp = { instance: () => undefined } as never
 
   it('boots with memory driver and registers adapter', async () => {
-    const Provider = cacheProvider({ default: 'memory', stores: { memory: { driver: 'memory' } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withCacheConfig({ default: 'memory', stores: { memory: { driver: 'memory' } } })
+    await new CacheProvider(fakeApp).boot()
     assert.ok(CacheRegistry.get() !== null)
   })
 
   it('falls back to memory driver when store config is missing', async () => {
-    const Provider = cacheProvider({ default: 'missing', stores: {} })
-    await new Provider(fakeApp).boot?.()
+    restore = withCacheConfig({ default: 'missing', stores: {} })
+    await new CacheProvider(fakeApp).boot()
     assert.ok(CacheRegistry.get() !== null)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = cacheProvider({ default: 'bad', stores: { bad: { driver: 'unsupported' } } })
+    restore = withCacheConfig({ default: 'bad', stores: { bad: { driver: 'unsupported' } } })
     await assert.rejects(
-      () => new Provider(fakeApp).boot?.() as Promise<void>,
+      () => new CacheProvider(fakeApp).boot(),
       /Unknown driver "unsupported"/
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = cacheProvider({ default: 'memory', stores: { memory: { driver: 'memory' } } })
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withCacheConfig({ default: 'memory', stores: { memory: { driver: 'memory' } } })
+    assert.doesNotThrow(() => new CacheProvider(fakeApp).register())
   })
 })

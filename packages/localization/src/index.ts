@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 
 export interface LocalizationConfig {
 	locale: string
@@ -202,12 +202,9 @@ export function LocalizationMiddleware() {
 	}
 }
 
-export function localizationProvider(config: LocalizationConfig): new (app: Application) => ServiceProvider {
-	class LocalizationServiceProvider extends ServiceProvider {
-		register(): void {
-			LocalizationRegistry.configure(config)
-		}
+export class LocalizationProvider extends ServiceProvider {
+	register(): void {
+		const cfg = config<LocalizationConfig>('localization')
+		LocalizationRegistry.configure(cfg)
 	}
-
-	return LocalizationServiceProvider
 }

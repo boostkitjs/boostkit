@@ -1,4 +1,4 @@
-import { ServiceProvider, rudder, type Application } from '@rudderjs/core'
+import { ServiceProvider, rudder } from '@rudderjs/core'
 import { Cron } from 'croner'
 
 // ─── Scheduled Task ────────────────────────────────────────
@@ -269,13 +269,12 @@ function formatNextRun(date: Date | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-// ─── Service Provider Factory ──────────────────────────────
+// ─── Service Provider ──────────────────────────────────────
 
-export function scheduleProvider(): new (app: Application) => ServiceProvider {
-  class ScheduleServiceProvider extends ServiceProvider {
-    register(): void {}
+export class ScheduleProvider extends ServiceProvider {
+  register(): void {}
 
-    boot(): void {
+  boot(): void {
       rudder.command('schedule:run', async () => {
         const tasks = schedule.getTasks()
         if (tasks.length === 0) {
@@ -339,9 +338,6 @@ export function scheduleProvider(): new (app: Application) => ServiceProvider {
           console.log(`  ${cron} ${desc} ${next}`)
         }
         console.log()
-      }).description('List all registered scheduled tasks')
-    }
+    }).description('List all registered scheduled tasks')
   }
-
-  return ScheduleServiceProvider
 }

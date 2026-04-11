@@ -1,4 +1,4 @@
-import { ServiceProvider, rudder, type Application } from '@rudderjs/core'
+import { ServiceProvider, rudder, config } from '@rudderjs/core'
 import { resolveOptionalPeer } from '@rudderjs/core'
 
 // ─── Job Contract ──────────────────────────────────────────
@@ -207,13 +207,13 @@ export interface QueueConfig {
  *   import configs from '../config/index.js'
  *   export default [..., queue(configs.queue), ...]
  */
-export function queueProvider(config: QueueConfig): new (app: Application) => ServiceProvider {
-  class QueueServiceProvider extends ServiceProvider {
-    register(): void {}
+export class QueueProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      const connectionName   = config.default
-      const connectionConfig = config.connections[connectionName] ?? { driver: 'sync' }
+  async boot(): Promise<void> {
+    const cfg              = config<QueueConfig>('queue')
+    const connectionName   = cfg.default
+    const connectionConfig = cfg.connections[connectionName] ?? { driver: 'sync' }
       const driver           = connectionConfig['driver'] as string
 
       let adapter: QueueAdapter
@@ -295,17 +295,14 @@ export function queueProvider(config: QueueConfig): new (app: Application) => Se
         console.log(`Re-enqueued ${count} failed job(s) from queue "${queueName}".`)
       }).description('Retry all failed jobs — pnpm rudder queue:retry [queue=default]')
 
-      // Cloud adapters (Inngest etc.) expose a serve endpoint.
-      // Mount it automatically — no user config needed.
-      if (typeof adapter.serveHandler === 'function') {
-        const { router } = await import('@rudderjs/router')
-        const handler = adapter.serveHandler()
-        router.all('/api/inngest', (req) => handler(req.raw))
-      }
+    // Cloud adapters (Inngest etc.) expose a serve endpoint.
+    // Mount it automatically — no user config needed.
+    if (typeof adapter.serveHandler === 'function') {
+      const { router } = await import('@rudderjs/router')
+      const handler = adapter.serveHandler()
+      router.all('/api/inngest', (req) => handler(req.raw))
     }
   }
-
-  return QueueServiceProvider
 }
 
 // ─── Queue Facade ─────────────────────────────────────────

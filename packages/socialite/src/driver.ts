@@ -1,18 +1,18 @@
 import { SocialUser } from './social-user.js'
 
-// ─── Provider Contract ────────────────────────────────────
+// ─── Driver Contract ──────────────────────────────────────
 
-export interface SocialiteProviderConfig {
+export interface SocialiteDriverConfig {
   clientId:     string
   clientSecret: string
   redirectUrl:  string
   scopes?:      string[]
 }
 
-export abstract class SocialiteProvider {
+export abstract class SocialiteDriver {
   protected scopes: string[]
 
-  constructor(protected readonly config: SocialiteProviderConfig) {
+  constructor(protected readonly config: SocialiteDriverConfig) {
     this.scopes = config.scopes ?? this.defaultScopes()
   }
 

@@ -1,4 +1,4 @@
-import { ServiceProvider, rudder, type Application } from '@rudderjs/core'
+import { ServiceProvider, rudder, config } from '@rudderjs/core'
 import { WebSocketServer, type WebSocket as WsSocket } from 'ws'
 import * as Y                                          from 'yjs'
 
@@ -434,22 +434,28 @@ export const LIVE_UPGRADE_KEY = '__rudderjs_live_upgrade__'
  *   live({ persistence: liveRedis() }),  // redis (production)
  * ]
  */
-export function liveProvider(config: LiveConfig = {}): new (app: Application) => ServiceProvider {
-  const path        = config.path        ?? '/ws-live'
-  const persistence = config.persistence ?? new MemoryPersistence()
+export class LiveProvider extends ServiceProvider {
+  private _persistence!: LivePersistence
+  private _path!:        string
 
-  return class LiveServiceProvider extends ServiceProvider {
-    register(): void {
-      this.app.bind('live.persistence', () => persistence)
-    }
+  register(): void {
+    const cfg         = config<LiveConfig>('live', {})
+    this._path        = cfg.path        ?? '/ws-live'
+    this._persistence = cfg.persistence ?? new MemoryPersistence()
+    const persistence = this._persistence
+    this.app.bind('live.persistence', () => persistence)
+  }
 
-    async boot(): Promise<void> {
-      g[PERSIST_KEY] = persistence
+  async boot(): Promise<void> {
+    const path        = this._path
+    const persistence = this._persistence
+    const cfg         = config<LiveConfig>('live', {})
+    g[PERSIST_KEY] = persistence
 
       const wss = new WebSocketServer({ noServer: true })
 
       wss.on('connection', (ws, req) => {
-        void handleConnection(ws as WsSocket, req, persistence, config.onChange)
+        void handleConnection(ws as WsSocket, req, persistence, cfg.onChange)
       })
 
       // Chain into the broadcast-specific handler (not the combined handler)
@@ -579,8 +585,7 @@ export function liveProvider(config: LiveConfig = {}): new (app: Application) =>
         } else {
           console.log('  (root is empty)\n')
         }
-      }).description('Inspect the Y.Doc tree structure of a Live document')
-    }
+    }).description('Inspect the Y.Doc tree structure of a Live document')
   }
 }
 

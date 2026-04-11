@@ -1,7 +1,14 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { cryptProvider, Crypt, CryptRegistry, parseKey } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { CryptProvider, Crypt, CryptRegistry, parseKey, type CryptConfig } from './index.js'
+
+function withCryptConfig(cfg: CryptConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ crypt: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 const TEST_KEY = `base64:${randomBytes(32).toString('base64')}`
 const TEST_KEY_2 = `base64:${randomBytes(32).toString('base64')}`
@@ -210,43 +217,45 @@ describe('CryptRegistry', () => {
   })
 })
 
-// ─── cryptProvider() provider ─────────────────────────────────────
+// ─── CryptProvider ────────────────────────────────────────
 
-describe('cryptProvider() provider', () => {
+describe('CryptProvider', () => {
+  let restore: () => void
   beforeEach(() => CryptRegistry.reset())
+  afterEach(() => restore?.())
 
   const fakeApp = { instance: () => undefined } as never
 
   it('boots and registers the key', async () => {
-    const Provider = cryptProvider({ key: TEST_KEY })
-    await new Provider(fakeApp).boot?.()
+    restore = withCryptConfig({ key: TEST_KEY })
+    await new CryptProvider(fakeApp).boot?.()
     assert.ok(CryptRegistry.getKey().length === 32)
   })
 
   it('boots with previous keys', async () => {
-    const Provider = cryptProvider({ key: TEST_KEY, previousKeys: [TEST_KEY_2] })
-    await new Provider(fakeApp).boot?.()
+    restore = withCryptConfig({ key: TEST_KEY, previousKeys: [TEST_KEY_2] })
+    await new CryptProvider(fakeApp).boot?.()
     assert.strictEqual(CryptRegistry.getPreviousKeys().length, 1)
   })
 
   it('throws when key is empty', async () => {
-    const Provider = cryptProvider({ key: '' })
+    restore = withCryptConfig({ key: '' })
     await assert.rejects(
-      () => new Provider(fakeApp).boot?.() as Promise<void>,
+      () => new CryptProvider(fakeApp).boot?.() as Promise<void>,
       /APP_KEY is not set/,
     )
   })
 
   it('throws when key is wrong length', async () => {
-    const Provider = cryptProvider({ key: 'too-short' })
+    restore = withCryptConfig({ key: 'too-short' })
     await assert.rejects(
-      () => new Provider(fakeApp).boot?.() as Promise<void>,
+      () => new CryptProvider(fakeApp).boot?.() as Promise<void>,
       /must be 32 bytes/,
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = cryptProvider({ key: TEST_KEY })
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withCryptConfig({ key: TEST_KEY })
+    assert.doesNotThrow(() => new CryptProvider(fakeApp).register?.())
   })
 })

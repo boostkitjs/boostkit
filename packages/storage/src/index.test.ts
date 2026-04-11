@@ -3,7 +3,14 @@ import assert from 'node:assert/strict'
 import os from 'node:os'
 import fs from 'node:fs/promises'
 import nodePath from 'node:path'
-import { LocalAdapter, Storage, StorageRegistry, storageProvider } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { LocalAdapter, Storage, StorageRegistry, StorageProvider, type StorageConfig } from './index.js'
+
+function withStorageConfig(cfg: StorageConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ storage: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -267,39 +274,41 @@ describe('Storage facade', () => {
 describe('storage() provider', () => {
   let root: string
 
+  let restore: () => void
   beforeEach(async () => {
     root = await makeTmpDir()
     StorageRegistry.reset()
   })
 
   afterEach(async () => {
+    restore?.()
     StorageRegistry.reset()
     await fs.rm(root, { recursive: true, force: true })
   })
 
   it('boots with local driver and registers the disk', async () => {
-    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withStorageConfig({ default: 'local', disks: { local: { driver: 'local', root } } })
+    await new StorageProvider(fakeApp).boot?.()
     assert.ok(StorageRegistry.get('local') instanceof LocalAdapter)
   })
 
   it('sets the default disk', async () => {
-    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withStorageConfig({ default: 'local', disks: { local: { driver: 'local', root } } })
+    await new StorageProvider(fakeApp).boot?.()
     assert.doesNotThrow(() => StorageRegistry.get())
   })
 
   it('registers multiple disks', async () => {
     const root2 = await makeTmpDir()
     try {
-      const Provider = storageProvider({
+      restore = withStorageConfig({
         default: 'local',
         disks: {
           local:  { driver: 'local', root },
           backup: { driver: 'local', root: root2 },
         },
       })
-      await new Provider(fakeApp).boot?.()
+      await new StorageProvider(fakeApp).boot?.()
       assert.ok(StorageRegistry.get('local')  instanceof LocalAdapter)
       assert.ok(StorageRegistry.get('backup') instanceof LocalAdapter)
     } finally {
@@ -308,21 +317,21 @@ describe('storage() provider', () => {
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = storageProvider({ default: 'bad', disks: { bad: { driver: 'unsupported' } } })
+    restore = withStorageConfig({ default: 'bad', disks: { bad: { driver: 'unsupported' } } })
     await assert.rejects(
-      async () => new Provider(fakeApp).boot?.(),
+      async () => new StorageProvider(fakeApp).boot?.(),
       /Unknown driver "unsupported"/
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withStorageConfig({ default: 'local', disks: { local: { driver: 'local', root } } })
+    assert.doesNotThrow(() => new StorageProvider(fakeApp).register?.())
   })
 
   it('booted local disk can put and retrieve files', async () => {
-    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withStorageConfig({ default: 'local', disks: { local: { driver: 'local', root } } })
+    await new StorageProvider(fakeApp).boot?.()
     await Storage.put('test.txt', 'provider works')
     assert.strictEqual(await Storage.text('test.txt'), 'provider works')
   })

@@ -1,5 +1,5 @@
 import { ServiceProvider } from '@rudderjs/core'
-import type { Application, MiddlewareHandler } from '@rudderjs/core'
+import type { MiddlewareHandler } from '@rudderjs/core'
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -316,16 +316,13 @@ export function FeatureMiddleware(featureName: string): MiddlewareHandler {
 
 // ─── Service Provider factory ─────────────────────────────
 
-export function pennantProvider(config: PennantConfig = {}): new (app: Application) => ServiceProvider {
-  class PennantServiceProvider extends ServiceProvider {
-    register(): void {}
+export class PennantProvider extends ServiceProvider {
+  register(): void {}
 
-    boot(): void {
-      const driver = new MemoryDriver()
-      const manager = new PennantManager(driver)
-      PennantRegistry.set(manager)
-      this.app.instance('pennant', Feature)
-    }
+  boot(): void {
+    const driver = new MemoryDriver()
+    const manager = new PennantManager(driver)
+    PennantRegistry.set(manager)
+    this.app.instance('pennant', Feature)
   }
-  return PennantServiceProvider
 }

@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { ServiceProvider, type Application, app } from '@rudderjs/core'
+import { ServiceProvider, app, config } from '@rudderjs/core'
 import type { AppRequest, AppResponse, MiddlewareHandler } from '@rudderjs/contracts'
 
 // ─── Module Augmentation ───────────────────────────────────
@@ -398,16 +398,13 @@ export function SessionMiddleware(): MiddlewareHandler {
  *   import { sessionMiddleware } from '@rudderjs/session'
  *   .withMiddleware((m) => { m.use(sessionMiddleware(configs.session)) })
  */
-export function sessionProvider(config: SessionConfig): new (app: Application) => ServiceProvider {
-  class SessionServiceProvider extends ServiceProvider {
-    register(): void {}
+export class SessionProvider extends ServiceProvider {
+  register(): void {}
 
-    boot(): void {
-      this.app.instance('session.config', config)
-      this.app.instance('session.middleware', sessionMiddleware(config))
-      this.app.instance('session.facade', Session)
-    }
+  boot(): void {
+    const cfg = config<SessionConfig>('session')
+    this.app.instance('session.config', cfg)
+    this.app.instance('session.middleware', sessionMiddleware(cfg))
+    this.app.instance('session.facade', Session)
   }
-
-  return SessionServiceProvider
 }

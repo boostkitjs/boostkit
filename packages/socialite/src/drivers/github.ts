@@ -1,7 +1,7 @@
-import { SocialiteProvider } from '../provider.js'
+import { SocialiteDriver } from '../driver.js'
 import { SocialUser } from '../social-user.js'
 
-export class GitHubProvider extends SocialiteProvider {
+export class GitHubProvider extends SocialiteDriver {
   protected defaultScopes(): string[] { return ['read:user', 'user:email'] }
   protected authUrl():  string { return 'https://github.com/login/oauth/authorize' }
   protected tokenUrl(): string { return 'https://github.com/login/oauth/access_token' }

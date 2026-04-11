@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 
 // ─── Crypt Registry ───────────────────────────────────────
 
@@ -163,25 +163,23 @@ export interface CryptConfig {
  *   import configs from '../config/index.js'
  *   export default [..., crypt(configs.crypt), ...]
  */
-export function cryptProvider(config: CryptConfig): new (app: Application) => ServiceProvider {
-  class CryptServiceProvider extends ServiceProvider {
-    register(): void {}
+export class CryptProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      if (!config.key) {
-        throw new Error('[RudderJS Crypt] APP_KEY is not set. Run `Crypt.generateKey()` and add it to .env.')
-      }
+  async boot(): Promise<void> {
+    const cfg = config<CryptConfig>('crypt')
 
-      const key = parseKey(config.key)
-      if (key.length !== 32) {
-        throw new Error(`[RudderJS Crypt] APP_KEY must be 32 bytes for AES-256. Got ${key.length} bytes.`)
-      }
-
-      const previousKeys = (config.previousKeys ?? []).map(parseKey)
-      CryptRegistry.set(key, previousKeys)
-      this.app.instance('crypt', Crypt)
+    if (!cfg.key) {
+      throw new Error('[RudderJS Crypt] APP_KEY is not set. Run `Crypt.generateKey()` and add it to .env.')
     }
-  }
 
-  return CryptServiceProvider
+    const key = parseKey(cfg.key)
+    if (key.length !== 32) {
+      throw new Error(`[RudderJS Crypt] APP_KEY must be 32 bytes for AES-256. Got ${key.length} bytes.`)
+    }
+
+    const previousKeys = (cfg.previousKeys ?? []).map(parseKey)
+    CryptRegistry.set(key, previousKeys)
+    this.app.instance('crypt', Crypt)
+  }
 }

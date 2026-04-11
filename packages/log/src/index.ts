@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application, setExceptionReporter } from '@rudderjs/core'
+import { ServiceProvider, config, setExceptionReporter } from '@rudderjs/core'
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { EOL } from 'node:os'
@@ -627,40 +627,38 @@ function resolveAdapter(config: LogChannelConfig, allChannels: Record<string, Lo
  *   import { log } from '@rudderjs/log'
  *   export default [..., log(configs.log), ...]
  */
-export function logProvider(config: LogConfig): new (app: Application) => ServiceProvider {
-  class LogServiceProvider extends ServiceProvider {
-    register(): void {}
+export class LogProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      // Register all channels
-      for (const [name, chConfig] of Object.entries(config.channels)) {
-        // Skip stack channels — they'll be resolved on demand
-        if (chConfig.driver === 'stack') continue
-        const adapter = resolveAdapter(chConfig, config.channels)
-        LogRegistry.register(name, adapter, chConfig.level ?? 'debug')
-      }
+  async boot(): Promise<void> {
+    const cfg = config<LogConfig>('log')
 
-      // Register stack channels (after all others are available)
-      for (const [name, chConfig] of Object.entries(config.channels)) {
-        if (chConfig.driver !== 'stack') continue
-        const adapter = resolveAdapter(chConfig, config.channels)
-        LogRegistry.register(name, adapter, chConfig.level ?? 'debug')
-      }
-
-      LogRegistry.setDefault(config.default)
-      this.app.instance('log', Log)
-
-      // Wire unhandled exceptions through the log channel
-      setExceptionReporter((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err)
-        const context: Record<string, unknown> = {}
-        if (err instanceof Error && err.stack) context['stack'] = err.stack
-        void Log.error(message, context)
-      })
+    // Register all channels
+    for (const [name, chConfig] of Object.entries(cfg.channels)) {
+      // Skip stack channels — they'll be resolved on demand
+      if (chConfig.driver === 'stack') continue
+      const adapter = resolveAdapter(chConfig, cfg.channels)
+      LogRegistry.register(name, adapter, chConfig.level ?? 'debug')
     }
-  }
 
-  return LogServiceProvider
+    // Register stack channels (after all others are available)
+    for (const [name, chConfig] of Object.entries(cfg.channels)) {
+      if (chConfig.driver !== 'stack') continue
+      const adapter = resolveAdapter(chConfig, cfg.channels)
+      LogRegistry.register(name, adapter, chConfig.level ?? 'debug')
+    }
+
+    LogRegistry.setDefault(cfg.default)
+    this.app.instance('log', Log)
+
+    // Wire unhandled exceptions through the log channel
+    setExceptionReporter((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err)
+      const context: Record<string, unknown> = {}
+      if (err instanceof Error && err.stack) context['stack'] = err.stack
+      void Log.error(message, context)
+    })
+  }
 }
 
 /**

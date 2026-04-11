@@ -4,7 +4,7 @@ import * as Y from 'yjs'
 import {
   MemoryPersistence,
   Live,
-  live,
+  LiveProvider,
   type LivePersistence,
   type LiveConfig,
 } from './index.js'
@@ -154,29 +154,10 @@ describe('MemoryPersistence', () => {
 
 // ─── LiveConfig interface ─────────────────────────────────────
 
-describe('LiveConfig defaults', () => {
-  it('live() with empty config returns a ServiceProvider class', () => {
-    const Provider = live()
-    assert.strictEqual(typeof Provider, 'function')
-    assert.strictEqual(Provider.name, 'LiveServiceProvider')
-  })
-
-  it('live() with custom path returns a class', () => {
-    const Provider = live({ path: '/custom-ws' })
-    assert.strictEqual(typeof Provider, 'function')
-  })
-
-  it('live() with custom persistence uses the provided adapter', () => {
-    const custom: LivePersistence = {
-      getYDoc:       async () => new Y.Doc(),
-      storeUpdate:   async () => {},
-      getStateVector: async () => new Uint8Array(),
-      getDiff:       async () => new Uint8Array(),
-      clearDocument: async () => {},
-      destroy:       async () => {},
-    }
-    const Provider = live({ persistence: custom })
-    assert.strictEqual(typeof Provider, 'function')
+describe('LiveProvider', () => {
+  it('is a ServiceProvider class', () => {
+    assert.strictEqual(typeof LiveProvider, 'function')
+    assert.strictEqual(LiveProvider.name, 'LiveProvider')
   })
 })
 

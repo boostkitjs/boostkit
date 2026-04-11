@@ -1,6 +1,13 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { hashProvider, Hash, HashRegistry, BcryptDriver } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { HashProvider, Hash, HashRegistry, BcryptDriver, type HashConfig } from './index.js'
+
+function withHashConfig(cfg: HashConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ hash: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 // ─── BcryptDriver (direct) ───────────────────────────────
 
@@ -70,11 +77,15 @@ describe('HashRegistry', () => {
 // ─── Hash facade ──────────────────────────────────────────
 
 describe('Hash facade', () => {
+  let restore: () => void
+
   beforeEach(async () => {
     HashRegistry.reset()
-    const Provider = hashProvider({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
-    await new Provider({ instance: () => undefined } as never).boot?.()
+    restore = withHashConfig({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
+    await new HashProvider({ instance: () => undefined } as never).boot?.()
   })
+
+  afterEach(() => restore())
 
   it('throws when no driver is registered', async () => {
     HashRegistry.reset()
@@ -102,35 +113,38 @@ describe('Hash facade', () => {
   })
 })
 
-// ─── hashProvider() provider ─────────────────────────────────────
+// ─── HashProvider ─────────────────────────────────────────
 
-describe('hashProvider() provider', () => {
+describe('HashProvider', () => {
+  let restore: () => void
+
   beforeEach(() => HashRegistry.reset())
+  afterEach(() => restore?.())
 
   const fakeApp = { instance: () => undefined } as never
 
   it('boots with bcrypt driver and registers', async () => {
-    const Provider = hashProvider({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
-    await new Provider(fakeApp).boot?.()
+    restore = withHashConfig({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
+    await new HashProvider(fakeApp).boot?.()
     assert.ok(HashRegistry.get() !== null)
   })
 
   it('boots with default bcrypt config when no options given', async () => {
-    const Provider = hashProvider({ driver: 'bcrypt' })
-    await new Provider(fakeApp).boot?.()
+    restore = withHashConfig({ driver: 'bcrypt' })
+    await new HashProvider(fakeApp).boot?.()
     assert.ok(HashRegistry.get() !== null)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = hashProvider({ driver: 'scrypt' as 'bcrypt' })
+    restore = withHashConfig({ driver: 'scrypt' as 'bcrypt' })
     await assert.rejects(
-      () => new Provider(fakeApp).boot?.() as Promise<void>,
+      () => new HashProvider(fakeApp).boot?.() as Promise<void>,
       /Unknown driver "scrypt"/,
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = hashProvider({ driver: 'bcrypt' })
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withHashConfig({ driver: 'bcrypt' })
+    assert.doesNotThrow(() => new HashProvider(fakeApp).register?.())
   })
 })

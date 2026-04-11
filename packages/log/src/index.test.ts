@@ -5,7 +5,7 @@ import {
   ConsoleAdapter, FileAdapter, DailyAdapter, StackAdapter, NullAdapter,
   LineFormatter, JsonFormatter,
   type LogEntry, type LogLevel, type LogAdapter,
-  logger, log as logProvider, extendLog,
+  logger, extendLog,
 } from './index.js'
 
 // ─── Helpers ───────────────────────────────────────────────
