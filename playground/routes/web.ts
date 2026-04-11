@@ -1,10 +1,10 @@
 import { createRequire } from 'node:module'
 import { Route } from '@rudderjs/router'
 import { view } from '@rudderjs/view'
-import { app, config } from '@rudderjs/core'
+import { config } from '@rudderjs/core'
 import { CsrfMiddleware } from '@rudderjs/middleware'
 import { SessionMiddleware } from '@rudderjs/session'
-import { AuthManager, Auth, runWithAuth } from '@rudderjs/auth'
+import { auth } from '@rudderjs/auth'
 
 // Web middleware — session + CSRF apply to all web routes (not API)
 const webMw = [
@@ -19,22 +19,11 @@ const rudderCorePkg = _require('@rudderjs/core/package.json') as { version: stri
 // Welcome page — replaces the pages/index/ Vike page with a controller view.
 // Delete this route and app/Views/Welcome.tsx to swap in your own landing page.
 Route.get('/', async () => {
-  let user: { name: string; email: string } | null = null
-  try {
-    const manager = app().make<AuthManager>('auth.manager')
-    await runWithAuth(manager, async () => {
-      const authUser = await Auth.user()
-      if (authUser) {
-        const record = authUser as unknown as Record<string, unknown>
-        user = {
-          name:  String(record['name']  ?? ''),
-          email: String(record['email'] ?? ''),
-        }
-      }
-    })
-  } catch {
-    // auth provider not registered — welcome page just won't show user info
-  }
+  const current = await auth().user() as Record<string, unknown> | null
+  const user = current
+    ? { name: String(current['name'] ?? ''), email: String(current['email'] ?? '') }
+    : null
+
   return view('welcome', {
     appName:       config<string>('app.name', 'RudderJS'),
     rudderVersion: rudderCorePkg.version,

@@ -55,6 +55,38 @@ export class AuthManager {
     throw new Error(`[RudderJS Auth] Guard driver "${guardConfig.driver}" is not supported.`)
   }
 
+  // Default-guard convenience methods — match Laravel's AuthManager, which
+  // proxies these through to the default guard so `auth()->user()` works
+  // without an explicit `->guard()` call.
+
+  attempt(credentials: Record<string, unknown>, remember?: boolean): Promise<boolean> {
+    return this.guard().attempt(credentials, remember)
+  }
+
+  login(user: Authenticatable, remember?: boolean): Promise<void> {
+    return this.guard().login(user, remember)
+  }
+
+  logout(): Promise<void> {
+    return this.guard().logout()
+  }
+
+  user(): Promise<Authenticatable | null> {
+    return this.guard().user()
+  }
+
+  id(): Promise<string | null> {
+    return this.guard().id()
+  }
+
+  check(): Promise<boolean> {
+    return this.guard().check()
+  }
+
+  guest(): Promise<boolean> {
+    return this.guard().guest()
+  }
+
   private createProvider(name: string): UserProvider {
     const providerConfig = this.config.providers[name]
     if (!providerConfig) throw new Error(`[RudderJS Auth] User provider "${name}" is not defined.`)
@@ -82,6 +114,24 @@ export function currentAuth(): AuthManager {
   const m = _als.getStore()
   if (!m) throw new Error('[RudderJS Auth] No auth context. Use AuthMiddleware.')
   return m
+}
+
+/**
+ * Laravel-style helper — returns the current request's AuthManager.
+ *
+ * Mirrors Laravel's `auth()->user()`, `auth()->check()`, `auth()->guard('api')`.
+ * Inside an HTTP handler (after AuthMiddleware has run) you can call:
+ *
+ *   await auth().user()
+ *   await auth().check()
+ *   await auth().guard('api').user()
+ *
+ * In non-HTTP contexts (CLI, queue, scheduler) you must still wrap the call
+ * in `runWithAuth(manager, …)` yourself — there is no request pipeline to
+ * populate the ALS context for you.
+ */
+export function auth(): AuthManager {
+  return currentAuth()
 }
 
 // ─── Auth Facade ──────────────────────────────────────────

@@ -14,8 +14,8 @@ declare module '@rudderjs/contracts' {
 
 // ─── Re-exports ───────────────────────────────────────────
 
-export { Auth } from './auth-manager.js'
-export { AuthManager, runWithAuth } from './auth-manager.js'
+export { Auth, auth } from './auth-manager.js'
+export { AuthManager, runWithAuth, currentAuth } from './auth-manager.js'
 export { SessionGuard } from './session-guard.js'
 export { EloquentUserProvider, toAuthenticatable } from './providers.js'
 export { Gate, Policy, AuthorizationError } from './gate.js'
@@ -105,10 +105,13 @@ export function RequireAuth(guardName?: string): MiddlewareHandler {
  * Requires: @rudderjs/session (session middleware), @rudderjs/hash
  *
  * Usage in bootstrap/providers.ts:
- *   import { auth } from '@rudderjs/auth'
- *   export default [session(configs.session), hash(configs.hash), auth(configs.auth), ...]
+ *   import { authProvider } from '@rudderjs/auth'
+ *   export default [session(configs.session), hash(configs.hash), authProvider(configs.auth), ...]
+ *
+ * Note: the lowercase `auth()` helper is a different export — it returns the
+ * current request's AuthManager (Laravel's `auth()->user()` ergonomics).
  */
-export function auth(config: AuthConfig): new (app: Application) => ServiceProvider {
+export function authProvider(config: AuthConfig): new (app: Application) => ServiceProvider {
   class AuthServiceProvider extends ServiceProvider {
     register(): void {
       // Auth views — vendored into the consumer's `app/Views/Auth/` directory.
@@ -146,6 +149,19 @@ export function auth(config: AuthConfig): new (app: Application) => ServiceProvi
       const manager = new AuthManager(config, hashCheck, getSession)
       this.app.instance('auth.manager', manager)
       this.app.instance('auth', Auth)
+
+      // Install AuthMiddleware as a global router middleware so every request
+      // runs inside `runWithAuth(manager, …)`. User code can then call
+      // `auth().user()`, `Auth.user()`, or read `req.user` without manual
+      // context wrapping — matching Laravel's `auth()->user()` ergonomics.
+      try {
+        const { router } = await import('@rudderjs/router') as { router: { use(m: MiddlewareHandler): unknown } }
+        router.use(AuthMiddleware())
+      } catch {
+        // Router peer not installed — skip global registration. Callers can
+        // still wrap manually with runWithAuth if they're running in a
+        // non-HTTP context (CLI, worker).
+      }
     }
   }
 

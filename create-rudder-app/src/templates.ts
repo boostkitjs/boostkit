@@ -847,8 +847,8 @@ function bootstrapProviders(ctx: TemplateContext): string {
     providers.push('cache(configs.cache),')
   }
   if (ctx.packages.auth) {
-    imports.push("import { auth } from '@rudderjs/auth'")
-    providers.push('auth(configs.auth),')
+    imports.push("import { authProvider } from '@rudderjs/auth'")
+    providers.push('authProvider(configs.auth),')
   }
 
   providers.push('')

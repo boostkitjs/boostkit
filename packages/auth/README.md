@@ -29,50 +29,92 @@ export default {
 // bootstrap/providers.ts
 import { session } from '@rudderjs/session'
 import { hash } from '@rudderjs/hash'
-import { auth } from '@rudderjs/auth'
+import { authProvider } from '@rudderjs/auth'
 
 export default [
   session(configs.session),
   hash(configs.hash),
-  auth(configs.auth),
+  authProvider(configs.auth),
 ]
 ```
 
+> `authProvider()` is the service-provider factory.
+> `auth()` (lowercase) is the per-request helper — see below.
+
 ## Usage
 
-### Auth Facade
+### Reading the current user
+
+Three equivalent shapes, pick whichever reads best at the call site:
 
 ```ts
-import { Auth } from '@rudderjs/auth'
+import { auth, Auth } from '@rudderjs/auth'
 
-// Attempt login
+// 1. `auth()` helper — Laravel's `auth()->user()`
+const user = await auth().user()
+const ok   = await auth().check()
+const user = await auth().guard('api').user()  // non-default guard
+
+// 2. `Auth` facade — same thing, static methods
+const user = await Auth.user()
+const ok   = await Auth.check()
+
+// 3. `req.user` — populated on every request, zero await
+Route.get('/profile', async (req) => {
+  return { user: req.user ?? null }
+})
+```
+
+None of these require attaching any middleware per-route. The `authProvider()`
+service provider installs `AuthMiddleware` as a global router middleware at
+boot, so every request has the auth context ready before your handler runs.
+
+### Login / logout
+
+```ts
+// Attempt with credentials
 const success = await Auth.attempt({ email, password })
 
-// Manual login/logout
-Auth.login(user)
-Auth.logout()
+// Manual login (after a sign-up flow, social login, etc.)
+await Auth.login(user)
 
-// Current user
-const user = await Auth.user()    // Authenticatable | null
-const id = await Auth.id()        // string | null
-const ok = await Auth.check()     // boolean
-const no = await Auth.guest()     // boolean
-
-// Switch guard
-Auth.guard('api').user()
+// Logout
+await Auth.logout()
 ```
 
-### Middleware
+### Route protection
 
 ```ts
-import { AuthMiddleware, RequireAuth } from '@rudderjs/auth'
+import { RequireAuth, RequireGuest } from '@rudderjs/auth'
 
-// Attach user to request (non-blocking)
-Route.get('/profile', handler, [AuthMiddleware()])
-
-// Require authentication (returns 401 if not logged in)
+// 401 if not logged in
 Route.post('/posts', handler, [RequireAuth()])
+
+// Bounce already-logged-in users away (e.g. /login, /register)
+Route.get('/login', showLoginPage, [RequireGuest('/')])
 ```
+
+### `AuthMiddleware` — advanced only
+
+```ts
+import { AuthMiddleware } from '@rudderjs/auth'
+```
+
+**You don't normally attach this.** The `authProvider()` service provider
+already installs `AuthMiddleware()` globally, so `req.user` and `auth()` work
+on every route without wiring. The only time to reach for it manually is to
+run a **non-default guard** on a specific route — the RudderJS equivalent of
+Laravel's `->middleware('auth:api')`:
+
+```ts
+Route.get('/api/admin/stats', handler, [
+  AuthMiddleware('api'),   // populate req.user using the 'api' guard
+  RequireAuth('api'),      // 401 if not authenticated against 'api'
+])
+```
+
+In normal app code you can forget `AuthMiddleware` exists — use `auth()`,
+`Auth`, or `req.user` directly.
 
 ### Authenticatable Contract
 

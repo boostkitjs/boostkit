@@ -1,14 +1,12 @@
 import { Controller, Post, Middleware } from '@rudderjs/router'
 import { RateLimit } from '@rudderjs/middleware'
-import { app, dispatch } from '@rudderjs/core'
+import { dispatch } from '@rudderjs/core'
 import type { AppRequest, AppResponse } from '@rudderjs/contracts'
 import {
   Auth,
-  AuthManager,
   EloquentUserProvider,
   MemoryTokenRepository,
   PasswordBroker,
-  runWithAuth,
 } from '@rudderjs/auth'
 import { Hash } from '@rudderjs/hash'
 import { User } from '../Models/User.js'
@@ -47,15 +45,11 @@ export class AuthController {
     const hashed = await Hash.make(password)
     const user   = await User.create({ name, email, password: hashed })
 
-    const manager = app().make<AuthManager>('auth.manager')
-    await runWithAuth(manager, async () => {
-      const authenticatable = {
-        getAuthIdentifier: () => String(user.id),
-        getAuthPassword:   () => hashed,
-        getRememberToken:  () => null,
-        setRememberToken:  () => {},
-      }
-      await Auth.login(authenticatable)
+    await Auth.login({
+      getAuthIdentifier: () => String(user.id),
+      getAuthPassword:   () => hashed,
+      getRememberToken:  () => null,
+      setRememberToken:  () => {},
     })
 
     await dispatch(new UserRegistered(user.id as string, user.name as string, user.email as string))
@@ -68,22 +62,14 @@ export class AuthController {
     const { email, password } = req.body as { email: string; password: string }
     if (!email || !password) return res.status(422).json({ message: 'Email and password are required.' })
 
-    const manager = app().make<AuthManager>('auth.manager')
-    let success = false
-    await runWithAuth(manager, async () => {
-      success = await Auth.attempt({ email, password })
-    })
-
+    const success = await Auth.attempt({ email, password })
     if (!success) return res.status(401).json({ message: 'Invalid email or password.' })
     return res.json({ ok: true })
   }
 
   @Post('/sign-out')
   async signOut(_req: AppRequest, res: AppResponse) {
-    const manager = app().make<AuthManager>('auth.manager')
-    await runWithAuth(manager, async () => {
-      await Auth.logout()
-    })
+    await Auth.logout()
     return res.json({ ok: true })
   }
 
