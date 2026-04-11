@@ -129,8 +129,17 @@ async function main(): Promise<void> {
   // Commands that scan files / manage tooling state must work even when the
   // app cannot boot (e.g. fresh clone, missing manifest, broken provider config).
   // List them here to skip the bootApp() phase entirely.
-  const NO_BOOT_COMMANDS = new Set(['providers:discover'])
-  const skipBoot = process.argv.slice(2).some(arg => NO_BOOT_COMMANDS.has(arg))
+  //
+  // - Anything starting with `make:` is a scaffolder — reads templates from
+  //   disk, writes new files, doesn't touch the running app.
+  // - `providers:discover` regenerates the manifest the app needs to boot,
+  //   so it has to work when the app can't.
+  // - `module:publish` copies static assets out of node_modules; no app state.
+  const NO_BOOT_EXACT  = new Set(['providers:discover', 'module:publish'])
+  const NO_BOOT_PREFIX = ['make:']
+  const skipBoot = process.argv.slice(2).some(arg =>
+    NO_BOOT_EXACT.has(arg) || NO_BOOT_PREFIX.some(p => arg.startsWith(p)),
+  )
 
   // Boot the app (providers + route files) so commands can use DB, etc.
   if (!skipBoot) await bootApp()
