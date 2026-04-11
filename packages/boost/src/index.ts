@@ -17,7 +17,7 @@ export { boostUpdate } from './commands/update.js'
  *   import { boost } from '@rudderjs/boost'
  *   export default [..., boost()]
  */
-export function boost(): new (app: Application) => ServiceProvider {
+export function boostProvider(): new (app: Application) => ServiceProvider {
   class BoostServiceProvider extends ServiceProvider {
     register(): void {}
 

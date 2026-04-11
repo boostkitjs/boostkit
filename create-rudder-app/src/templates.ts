@@ -820,31 +820,31 @@ ${middlewareLines.join('\n')}
 function bootstrapProviders(ctx: TemplateContext): string {
   const imports: string[] = [
     "import type { Application, ServiceProvider } from '@rudderjs/core'",
-    "import { events } from '@rudderjs/core'",
-    "import { log } from '@rudderjs/log'",
+    "import { eventsProvider } from '@rudderjs/core'",
+    "import { logProvider } from '@rudderjs/log'",
   ]
   const providers: string[] = [
     '// ── Infrastructure (order matters) ──────────────────────',
-    'log(configs.log),',
+    'logProvider(configs.log),',
   ]
 
   if (ctx.orm === 'prisma') {
-    imports.push("import { database } from '@rudderjs/orm-prisma'")
-    providers.push('database(configs.database),')
+    imports.push("import { databaseProvider } from '@rudderjs/orm-prisma'")
+    providers.push('databaseProvider(configs.database),')
   } else if (ctx.orm === 'drizzle') {
-    imports.push("import { database } from '@rudderjs/orm-drizzle'")
-    providers.push('database(configs.database),')
+    imports.push("import { databaseProvider } from '@rudderjs/orm-drizzle'")
+    providers.push('databaseProvider(configs.database),')
   }
 
   if (ctx.packages.auth) {
-    imports.push("import { session } from '@rudderjs/session'")
-    imports.push("import { hash } from '@rudderjs/hash'")
-    providers.push('session(configs.session),')
-    providers.push('hash(configs.hash),')
+    imports.push("import { sessionProvider } from '@rudderjs/session'")
+    imports.push("import { hashProvider } from '@rudderjs/hash'")
+    providers.push('sessionProvider(configs.session),')
+    providers.push('hashProvider(configs.hash),')
   }
   if (ctx.packages.cache) {
-    imports.push("import { cache } from '@rudderjs/cache'")
-    providers.push('cache(configs.cache),')
+    imports.push("import { cacheProvider } from '@rudderjs/cache'")
+    providers.push('cacheProvider(configs.cache),')
   }
   if (ctx.packages.auth) {
     imports.push("import { authProvider } from '@rudderjs/auth'")
@@ -853,50 +853,50 @@ function bootstrapProviders(ctx: TemplateContext): string {
 
   providers.push('')
   providers.push('// ── Features ────────────────────────────────────────────')
-  providers.push('events({}),')
+  providers.push('eventsProvider({}),')
 
   if (ctx.packages.queue) {
-    imports.push("import { queue } from '@rudderjs/queue'")
-    providers.push('queue(configs.queue),')
+    imports.push("import { queueProvider } from '@rudderjs/queue'")
+    providers.push('queueProvider(configs.queue),')
   }
   if (ctx.packages.mail) {
-    imports.push("import { mail } from '@rudderjs/mail'")
-    providers.push('mail(configs.mail),')
+    imports.push("import { mailProvider } from '@rudderjs/mail'")
+    providers.push('mailProvider(configs.mail),')
   }
   if (ctx.packages.storage) {
-    imports.push("import { storage } from '@rudderjs/storage'")
-    providers.push('storage(configs.storage),')
+    imports.push("import { storageProvider } from '@rudderjs/storage'")
+    providers.push('storageProvider(configs.storage),')
   }
   if (ctx.packages.localization) {
     imports.push("import { resolve } from 'node:path'")
-    imports.push("import { localization } from '@rudderjs/localization'")
+    imports.push("import { localizationProvider } from '@rudderjs/localization'")
   }
   if (ctx.packages.scheduler) {
-    imports.push("import { scheduler } from '@rudderjs/schedule'")
-    providers.push('scheduler(),')
+    imports.push("import { scheduleProvider } from '@rudderjs/schedule'")
+    providers.push('scheduleProvider(),')
   }
   if (ctx.packages.notifications) {
-    imports.push("import { notifications } from '@rudderjs/notification'")
-    providers.push('notifications(),')
+    imports.push("import { notificationProvider } from '@rudderjs/notification'")
+    providers.push('notificationProvider(),')
   }
   if (ctx.packages.broadcast) {
-    imports.push("import { broadcasting } from '@rudderjs/broadcast'")
-    providers.push('broadcasting(),')
+    imports.push("import { broadcastingProvider } from '@rudderjs/broadcast'")
+    providers.push('broadcastingProvider(),')
   }
   if (ctx.packages.live) {
-    imports.push("import { live } from '@rudderjs/live'")
-    providers.push('live({}),')
+    imports.push("import { liveProvider } from '@rudderjs/live'")
+    providers.push('liveProvider({}),')
   }
   if (ctx.packages.localization) {
-    providers.push(`localization({
+    providers.push(`localizationProvider({
     locale:   'en',
     fallback: 'en',
     path:     resolve(process.cwd(), 'lang'),
   }),`)
   }
   if (ctx.packages.ai) {
-    imports.push("import { ai } from '@rudderjs/ai'")
-    providers.push('ai(configs.ai),')
+    imports.push("import { aiProvider } from '@rudderjs/ai'")
+    providers.push('aiProvider(configs.ai),')
   }
 
   providers.push('')

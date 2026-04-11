@@ -141,7 +141,7 @@ export interface HashConfig {
  *   import configs from '../config/index.js'
  *   export default [..., hash(configs.hash), ...]
  */
-export function hash(config: HashConfig): new (app: Application) => ServiceProvider {
+export function hashProvider(config: HashConfig): new (app: Application) => ServiceProvider {
   class HashServiceProvider extends ServiceProvider {
     register(): void {}
 

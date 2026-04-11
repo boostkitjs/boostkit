@@ -250,7 +250,7 @@ export interface CacheConfig {
  *   import configs from '../config/index.js'
  *   export default [..., cache(configs.cache), ...]
  */
-export function cache(config: CacheConfig): new (app: Application) => ServiceProvider {
+export function cacheProvider(config: CacheConfig): new (app: Application) => ServiceProvider {
   class CacheServiceProvider extends ServiceProvider {
     register(): void {}
 

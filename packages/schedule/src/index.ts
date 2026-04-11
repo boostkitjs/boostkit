@@ -271,7 +271,7 @@ function formatNextRun(date: Date | null): string {
 
 // ─── Service Provider Factory ──────────────────────────────
 
-export function scheduler(): new (app: Application) => ServiceProvider {
+export function scheduleProvider(): new (app: Application) => ServiceProvider {
   class ScheduleServiceProvider extends ServiceProvider {
     register(): void {}
 

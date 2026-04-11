@@ -262,7 +262,7 @@ export function nodemailer(
  *   import configs from '../config/index.js'
  *   export default [..., mail(configs.mail), ...]
  */
-export function mail(config: MailConfig): new (app: Application) => ServiceProvider {
+export function mailProvider(config: MailConfig): new (app: Application) => ServiceProvider {
   class MailServiceProvider extends ServiceProvider {
     register(): void {}
 

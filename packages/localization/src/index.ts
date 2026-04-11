@@ -202,7 +202,7 @@ export function LocalizationMiddleware() {
 	}
 }
 
-export function localization(config: LocalizationConfig): new (app: Application) => ServiceProvider {
+export function localizationProvider(config: LocalizationConfig): new (app: Application) => ServiceProvider {
 	class LocalizationServiceProvider extends ServiceProvider {
 		register(): void {
 			LocalizationRegistry.configure(config)

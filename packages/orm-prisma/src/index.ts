@@ -321,7 +321,7 @@ export function prisma(config: PrismaConfig = {}): OrmAdapterProvider {
 import { ServiceProvider, type Application } from '@rudderjs/core'
 import { ModelRegistry } from '@rudderjs/orm'
 
-export function database(config?: DatabaseConfig): new (app: Application) => ServiceProvider {
+export function databaseProvider(config?: DatabaseConfig): new (app: Application) => ServiceProvider {
   class PrismaServiceProvider extends ServiceProvider {
     register(): void {}
 

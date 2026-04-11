@@ -83,7 +83,7 @@ export class Telescope {
  *   import { telescope } from '@rudderjs/telescope'
  *   export default [..., telescope(configs.telescope), ...]
  */
-export function telescope(config: TelescopeConfig = {}): new (app: Application) => ServiceProvider {
+export function telescopeProvider(config: TelescopeConfig = {}): new (app: Application) => ServiceProvider {
   const merged = { ...defaultConfig, ...config }
   // Strip undefined values introduced by exactOptionalPropertyTypes spread
   const resolved = {

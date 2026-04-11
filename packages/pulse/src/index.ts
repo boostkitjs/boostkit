@@ -75,7 +75,7 @@ export class Pulse {
  *   import { pulse } from '@rudderjs/pulse'
  *   export default [..., pulse(configs.pulse), ...]
  */
-export function pulse(config: PulseConfig = {}): new (app: Application) => ServiceProvider {
+export function pulseProvider(config: PulseConfig = {}): new (app: Application) => ServiceProvider {
   const resolved = {
     enabled:              config.enabled              ?? defaultConfig.enabled,
     path:                 config.path                 ?? defaultConfig.path,

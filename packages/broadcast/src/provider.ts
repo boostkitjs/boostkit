@@ -50,7 +50,7 @@ export const Broadcast = {
 
 // ─── Factory ────────────────────────────────────────────────
 
-export function broadcasting(config: BroadcastConfig = {}): new (app: Application) => ServiceProvider {
+export function broadcastingProvider(config: BroadcastConfig = {}): new (app: Application) => ServiceProvider {
   const path = config.path ?? '/ws'
 
   return class BroadcastServiceProvider extends ServiceProvider {

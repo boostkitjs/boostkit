@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { rudder } from '@rudderjs/core'
-import { Job, DispatchBuilder, QueueRegistry, SyncAdapter, queue, type QueueAdapter, type DispatchOptions } from './index.js'
+import { Job, DispatchBuilder, QueueRegistry, SyncAdapter, queueProvider, type QueueAdapter, type DispatchOptions } from './index.js'
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -176,19 +176,19 @@ describe('queue() provider', () => {
   beforeEach(() => QueueRegistry.reset())
 
   it('boots with sync driver and registers the adapter', async () => {
-    const Provider = queue({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
     await new Provider(fakeApp).boot?.()
     assert.ok(QueueRegistry.get() instanceof SyncAdapter)
   })
 
   it('falls back to sync driver when connection config is missing', async () => {
-    const Provider = queue({ default: 'missing', connections: {} })
+    const Provider = queueProvider({ default: 'missing', connections: {} })
     await new Provider(fakeApp).boot?.()
     assert.ok(QueueRegistry.get() instanceof SyncAdapter)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = queue({ default: 'bad', connections: { bad: { driver: 'unsupported' } } })
+    const Provider = queueProvider({ default: 'bad', connections: { bad: { driver: 'unsupported' } } })
     await assert.rejects(
       async () => new Provider(fakeApp).boot?.(),
       /Unknown driver "unsupported"/
@@ -196,7 +196,7 @@ describe('queue() provider', () => {
   })
 
   it('register() is a no-op', () => {
-    const Provider = queue({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
     assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 })
@@ -207,7 +207,7 @@ describe('rudder commands — unsupported operations', () => {
   beforeEach(async () => {
     QueueRegistry.reset()
     rudder.reset()
-    const Provider = queue({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
     await new Provider(fakeApp).boot?.()
   })
 

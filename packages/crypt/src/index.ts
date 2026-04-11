@@ -163,7 +163,7 @@ export interface CryptConfig {
  *   import configs from '../config/index.js'
  *   export default [..., crypt(configs.crypt), ...]
  */
-export function crypt(config: CryptConfig): new (app: Application) => ServiceProvider {
+export function cryptProvider(config: CryptConfig): new (app: Application) => ServiceProvider {
   class CryptServiceProvider extends ServiceProvider {
     register(): void {}
 

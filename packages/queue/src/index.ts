@@ -207,7 +207,7 @@ export interface QueueConfig {
  *   import configs from '../config/index.js'
  *   export default [..., queue(configs.queue), ...]
  */
-export function queue(config: QueueConfig): new (app: Application) => ServiceProvider {
+export function queueProvider(config: QueueConfig): new (app: Application) => ServiceProvider {
   class QueueServiceProvider extends ServiceProvider {
     register(): void {}
 

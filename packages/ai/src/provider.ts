@@ -11,7 +11,7 @@ import type { AiConfig, ConversationStore } from './types.js'
  * import { ai } from '@rudderjs/ai'
  * export default [ai(configs.ai), ...]
  */
-export function ai(config: AiConfig): new (app: Application) => ServiceProvider {
+export function aiProvider(config: AiConfig): new (app: Application) => ServiceProvider {
   class AiServiceProvider extends ServiceProvider {
     register(): void {}
 

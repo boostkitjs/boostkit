@@ -76,7 +76,7 @@ export class Horizon {
  *   import { horizon } from '@rudderjs/horizon'
  *   export default [..., horizon(configs.horizon), ...]
  */
-export function horizon(config: HorizonConfig = {}): new (app: Application) => ServiceProvider {
+export function horizonProvider(config: HorizonConfig = {}): new (app: Application) => ServiceProvider {
   const resolved = {
     enabled:           config.enabled           ?? defaultConfig.enabled,
     path:              config.path              ?? defaultConfig.path,
