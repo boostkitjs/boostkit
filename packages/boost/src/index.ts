@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider } from '@rudderjs/core'
 
 export { createBoostServer, startBoostMcp } from './server.js'
 export { getAppInfo } from './tools/app-info.js'
@@ -14,36 +14,32 @@ export { boostUpdate } from './commands/update.js'
  * Boost service provider — registers the `boost:mcp` rudder command.
  *
  * Usage in bootstrap/providers.ts:
- *   import { boost } from '@rudderjs/boost'
- *   export default [..., boost()]
+ *   import { BoostProvider } from '@rudderjs/boost'
+ *   export default [..., BoostProvider]
  */
-export function boostProvider(): new (app: Application) => ServiceProvider {
-  class BoostServiceProvider extends ServiceProvider {
-    register(): void {}
+export class BoostProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      try {
-        const { rudder } = await import('@rudderjs/core')
-        const { startBoostMcp } = await import('./server.js')
+  async boot(): Promise<void> {
+    try {
+      const { rudder } = await import('@rudderjs/core')
+      const { startBoostMcp } = await import('./server.js')
 
-        rudder.command('boost:mcp', async () => {
-          await startBoostMcp(process.cwd())
-        }).description('Start the Boost MCP server (stdio transport)')
+      rudder.command('boost:mcp', async () => {
+        await startBoostMcp(process.cwd())
+      }).description('Start the Boost MCP server (stdio transport)')
 
-        rudder.command('boost:install', async () => {
-          const { boostInstall } = await import('./commands/install.js')
-          await boostInstall(process.cwd())
-        }).description('Generate IDE configs for AI coding assistants')
+      rudder.command('boost:install', async () => {
+        const { boostInstall } = await import('./commands/install.js')
+        await boostInstall(process.cwd())
+      }).description('Generate IDE configs for AI coding assistants')
 
-        rudder.command('boost:update', async () => {
-          const { boostUpdate } = await import('./commands/update.js')
-          await boostUpdate(process.cwd())
-        }).description('Update AI guidelines and skills from installed packages')
-      } catch {
-        // rudder not available
-      }
+      rudder.command('boost:update', async () => {
+        const { boostUpdate } = await import('./commands/update.js')
+        await boostUpdate(process.cwd())
+      }).description('Update AI guidelines and skills from installed packages')
+    } catch {
+      // rudder not available
     }
   }
-
-  return BoostServiceProvider
 }

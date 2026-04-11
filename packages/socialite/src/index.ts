@@ -1,5 +1,5 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
-import { SocialiteProvider, type SocialiteProviderConfig } from './provider.js'
+import { ServiceProvider, config } from '@rudderjs/core'
+import { SocialiteDriver, type SocialiteDriverConfig } from './driver.js'
 import { GitHubProvider } from './drivers/github.js'
 import { GoogleProvider } from './drivers/google.js'
 import { FacebookProvider } from './drivers/facebook.js'
@@ -8,19 +8,19 @@ import { AppleProvider } from './drivers/apple.js'
 // ─── Re-exports ───────────────────────────────────────────
 
 export { SocialUser } from './social-user.js'
-export { SocialiteProvider } from './provider.js'
+export { SocialiteDriver } from './driver.js'
 export { GitHubProvider } from './drivers/github.js'
 export { GoogleProvider } from './drivers/google.js'
 export { FacebookProvider } from './drivers/facebook.js'
 export { AppleProvider } from './drivers/apple.js'
 
-export type { SocialiteProviderConfig } from './provider.js'
+export type { SocialiteDriverConfig } from './driver.js'
 
 // ─── Built-in driver registry ─────────────────────────────
 
-type ProviderFactory = (config: SocialiteProviderConfig) => SocialiteProvider
+type DriverFactory = (config: SocialiteDriverConfig) => SocialiteDriver
 
-const builtInDrivers: Record<string, ProviderFactory> = {
+const builtInDrivers: Record<string, DriverFactory> = {
   github:   (c) => new GitHubProvider(c),
   google:   (c) => new GoogleProvider(c),
   facebook: (c) => new FacebookProvider(c),
@@ -31,11 +31,11 @@ const builtInDrivers: Record<string, ProviderFactory> = {
 
 export class Socialite {
   private static _config: SocialiteConfig = {}
-  private static _custom = new Map<string, ProviderFactory>()
-  private static _instances = new Map<string, SocialiteProvider>()
+  private static _custom = new Map<string, DriverFactory>()
+  private static _instances = new Map<string, SocialiteDriver>()
 
-  /** Get or create a provider instance by name. */
-  static driver(name: string): SocialiteProvider {
+  /** Get or create a driver instance by name. */
+  static driver(name: string): SocialiteDriver {
     const existing = this._instances.get(name)
     if (existing) return existing
 
@@ -43,15 +43,15 @@ export class Socialite {
     if (!config) throw new Error(`[RudderJS Socialite] Provider "${name}" is not configured.`)
 
     const factory = this._custom.get(name) ?? builtInDrivers[name]
-    if (!factory) throw new Error(`[RudderJS Socialite] Unknown provider "${name}". Use Socialite.extend() to register custom providers.`)
+    if (!factory) throw new Error(`[RudderJS Socialite] Unknown provider "${name}". Use Socialite.extend() to register custom drivers.`)
 
     const instance = factory(config)
     this._instances.set(name, instance)
     return instance
   }
 
-  /** Register a custom provider driver. */
-  static extend(name: string, factory: ProviderFactory): void {
+  /** Register a custom OAuth driver. */
+  static extend(name: string, factory: DriverFactory): void {
     this._custom.set(name, factory)
   }
 
@@ -71,28 +71,27 @@ export class Socialite {
 
 // ─── Config ───────────────────────────────────────────────
 
-export type SocialiteConfig = Record<string, SocialiteProviderConfig>
+export type SocialiteConfig = Record<string, SocialiteDriverConfig>
 
-// ─── Service Provider Factory ─────────────────────────────
+// ─── Service Provider ─────────────────────────────────────
 
 /**
- * Returns a SocialiteServiceProvider configured for OAuth.
+ * Service provider for OAuth via Socialite.
  *
- * Built-in providers: github, google, facebook, apple
+ * Built-in drivers: github, google, facebook, apple
  *
  * Usage in bootstrap/providers.ts:
- *   import { socialite } from '@rudderjs/socialite'
- *   export default [..., socialite(configs.socialite), ...]
+ *   import { SocialiteProvider } from '@rudderjs/socialite'
+ *   export default [..., SocialiteProvider, ...]
+ *
+ * Reads its config from `config('socialite')` at boot time.
  */
-export function socialiteProvider(config: SocialiteConfig): new (app: Application) => ServiceProvider {
-  class SocialiteServiceProvider extends ServiceProvider {
-    register(): void {}
+export class SocialiteProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      Socialite.configure(config)
-      this.app.instance('socialite', Socialite)
-    }
+  async boot(): Promise<void> {
+    const cfg = config<SocialiteConfig>('socialite')
+    Socialite.configure(cfg)
+    this.app.instance('socialite', Socialite)
   }
-
-  return SocialiteServiceProvider
 }

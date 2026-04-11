@@ -1,4 +1,4 @@
-import { ServiceProvider, rudder, type Application } from '@rudderjs/core'
+import { ServiceProvider, rudder, config } from '@rudderjs/core'
 import nodePath from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -277,14 +277,14 @@ export interface StorageConfig {
  *   import configs from '../config/index.js'
  *   export default [..., storage(configs.storage), ...]
  */
-export function storageProvider(config: StorageConfig): new (app: Application) => ServiceProvider {
-  class StorageServiceProvider extends ServiceProvider {
-    register(): void {}
+export class StorageProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      StorageRegistry.setDefault(config.default)
+  async boot(): Promise<void> {
+    const cfg = config<StorageConfig>('storage')
+    StorageRegistry.setDefault(cfg.default)
 
-      for (const [name, diskConfig] of Object.entries(config.disks)) {
+    for (const [name, diskConfig] of Object.entries(cfg.disks)) {
         const driver = diskConfig['driver'] as string
         let adapter: StorageAdapter
 
@@ -314,9 +314,6 @@ export function storageProvider(config: StorageConfig): new (app: Application) =
           if (e.code === 'EEXIST') console.log('Link already exists.')
           else throw err
         }
-      }).description('Create a symbolic link from public/storage to storage/app/public')
-    }
+    }).description('Create a symbolic link from public/storage to storage/app/public')
   }
-
-  return StorageServiceProvider
 }

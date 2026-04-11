@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider } from '@rudderjs/core'
 import { MailRegistry, type Mailable } from '@rudderjs/mail'
 import { ModelRegistry } from '@rudderjs/orm'
 
@@ -335,24 +335,20 @@ export const notify = (
 export { NotificationFake } from './fake.js'
 export type { SentNotification } from './fake.js'
 
-export function notificationProvider(): new (app: Application) => ServiceProvider {
-  class NotificationServiceProvider extends ServiceProvider {
-    register(): void {
-      const schemaDir = new URL(/* @vite-ignore */ '../schema', import.meta.url).pathname
-      this.publishes([
-        { from: `${schemaDir}/notification.prisma`,            to: 'prisma/schema',   tag: 'notification-schema', orm: 'prisma' as const },
-        { from: `${schemaDir}/notification.drizzle.sqlite.ts`, to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'sqlite' as const },
-        { from: `${schemaDir}/notification.drizzle.pg.ts`,     to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'postgresql' as const },
-        { from: `${schemaDir}/notification.drizzle.mysql.ts`,  to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'mysql' as const },
-      ])
-    }
-
-    boot(): void {
-      ChannelRegistry.register('mail',      new MailChannel())
-      ChannelRegistry.register('database',  new DatabaseChannel())
-      ChannelRegistry.register('broadcast', new BroadcastChannel())
-    }
+export class NotificationProvider extends ServiceProvider {
+  register(): void {
+    const schemaDir = new URL(/* @vite-ignore */ '../schema', import.meta.url).pathname
+    this.publishes([
+      { from: `${schemaDir}/notification.prisma`,            to: 'prisma/schema',   tag: 'notification-schema', orm: 'prisma' as const },
+      { from: `${schemaDir}/notification.drizzle.sqlite.ts`, to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'sqlite' as const },
+      { from: `${schemaDir}/notification.drizzle.pg.ts`,     to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'postgresql' as const },
+      { from: `${schemaDir}/notification.drizzle.mysql.ts`,  to: 'database/schema', tag: 'notification-schema', orm: 'drizzle' as const, driver: 'mysql' as const },
+    ])
   }
 
-  return NotificationServiceProvider
+  boot(): void {
+    ChannelRegistry.register('mail',      new MailChannel())
+    ChannelRegistry.register('database',  new DatabaseChannel())
+    ChannelRegistry.register('broadcast', new BroadcastChannel())
+  }
 }

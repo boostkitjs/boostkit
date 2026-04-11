@@ -1,7 +1,7 @@
-import { SocialiteProvider } from '../provider.js'
+import { SocialiteDriver } from '../driver.js'
 import { SocialUser } from '../social-user.js'
 
-export class GoogleProvider extends SocialiteProvider {
+export class GoogleProvider extends SocialiteDriver {
   protected defaultScopes(): string[] { return ['openid', 'profile', 'email'] }
   protected authUrl():  string { return 'https://accounts.google.com/o/oauth2/v2/auth' }
   protected tokenUrl(): string { return 'https://oauth2.googleapis.com/token' }

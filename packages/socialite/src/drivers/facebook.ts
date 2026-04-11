@@ -1,7 +1,7 @@
-import { SocialiteProvider } from '../provider.js'
+import { SocialiteDriver } from '../driver.js'
 import { SocialUser } from '../social-user.js'
 
-export class FacebookProvider extends SocialiteProvider {
+export class FacebookProvider extends SocialiteDriver {
   protected defaultScopes(): string[] { return ['email', 'public_profile'] }
   protected authUrl():  string { return 'https://www.facebook.com/v19.0/dialog/oauth' }
   protected tokenUrl(): string { return 'https://graph.facebook.com/v19.0/oauth/access_token' }

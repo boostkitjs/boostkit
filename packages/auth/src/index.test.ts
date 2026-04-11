@@ -2,7 +2,7 @@ import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   auth,
-  authProvider,
+  AuthProvider,
   Auth,
   AuthManager,
   SessionGuard,
@@ -353,18 +353,12 @@ describe('Auth facade', () => {
   })
 })
 
-// ─── authProvider() factory ───────────────────────────────
+// ─── AuthProvider ─────────────────────────────────────────
 
-describe('authProvider() factory', () => {
-  it('is a function that returns a constructor', () => {
-    const config = makeConfig(fakeModel([]))
-    const Provider = authProvider(config)
-    assert.strictEqual(typeof Provider, 'function')
-  })
-
-  it('each call returns a different class', () => {
-    const config = makeConfig(fakeModel([]))
-    assert.notStrictEqual(authProvider(config), authProvider(config))
+describe('AuthProvider', () => {
+  it('is a class', () => {
+    assert.strictEqual(typeof AuthProvider, 'function')
+    assert.strictEqual(AuthProvider.name, 'AuthProvider')
   })
 })
 

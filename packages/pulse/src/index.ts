@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { MemoryStorage, SqliteStorage } from './storage.js'
 import { RequestAggregator } from './aggregators/request.js'
 import { QueueAggregator } from './aggregators/queue.js'
@@ -75,36 +75,36 @@ export class Pulse {
  *   import { pulse } from '@rudderjs/pulse'
  *   export default [..., pulse(configs.pulse), ...]
  */
-export function pulseProvider(config: PulseConfig = {}): new (app: Application) => ServiceProvider {
-  const resolved = {
-    enabled:              config.enabled              ?? defaultConfig.enabled,
-    path:                 config.path                 ?? defaultConfig.path,
-    storage:              config.storage              ?? defaultConfig.storage,
-    sqlitePath:           config.sqlitePath           ?? defaultConfig.sqlitePath,
-    pruneAfterHours:      config.pruneAfterHours      ?? defaultConfig.pruneAfterHours,
-    slowRequestThreshold: config.slowRequestThreshold ?? defaultConfig.slowRequestThreshold,
-    slowQueryThreshold:   config.slowQueryThreshold   ?? defaultConfig.slowQueryThreshold,
-    recordRequests:       config.recordRequests       ?? defaultConfig.recordRequests,
-    recordQueues:         config.recordQueues         ?? defaultConfig.recordQueues,
-    recordCache:          config.recordCache          ?? defaultConfig.recordCache,
-    recordExceptions:     config.recordExceptions     ?? defaultConfig.recordExceptions,
-    recordUsers:          config.recordUsers          ?? defaultConfig.recordUsers,
-    recordServers:        config.recordServers        ?? defaultConfig.recordServers,
-    serverStatsIntervalMs: config.serverStatsIntervalMs ?? defaultConfig.serverStatsIntervalMs,
-    auth:                 config.auth                 ?? defaultConfig.auth,
+export class PulseProvider extends ServiceProvider {
+  register(): void {
+    this.publishes({
+      from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
+      to:   'boost',
+      tag:  'pulse-boost',
+    })
   }
 
-  class PulseServiceProvider extends ServiceProvider {
-    register(): void {
-      this.publishes({
-        from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
-        to:   'boost',
-        tag:  'pulse-boost',
-      })
+  async boot(): Promise<void> {
+    const cfg = config<PulseConfig>('pulse', {})
+    const resolved = {
+      enabled:              cfg.enabled              ?? defaultConfig.enabled,
+      path:                 cfg.path                 ?? defaultConfig.path,
+      storage:              cfg.storage              ?? defaultConfig.storage,
+      sqlitePath:           cfg.sqlitePath           ?? defaultConfig.sqlitePath,
+      pruneAfterHours:      cfg.pruneAfterHours      ?? defaultConfig.pruneAfterHours,
+      slowRequestThreshold: cfg.slowRequestThreshold ?? defaultConfig.slowRequestThreshold,
+      slowQueryThreshold:   cfg.slowQueryThreshold   ?? defaultConfig.slowQueryThreshold,
+      recordRequests:       cfg.recordRequests       ?? defaultConfig.recordRequests,
+      recordQueues:         cfg.recordQueues         ?? defaultConfig.recordQueues,
+      recordCache:          cfg.recordCache          ?? defaultConfig.recordCache,
+      recordExceptions:     cfg.recordExceptions     ?? defaultConfig.recordExceptions,
+      recordUsers:          cfg.recordUsers          ?? defaultConfig.recordUsers,
+      recordServers:        cfg.recordServers        ?? defaultConfig.recordServers,
+      serverStatsIntervalMs: cfg.serverStatsIntervalMs ?? defaultConfig.serverStatsIntervalMs,
+      auth:                 cfg.auth                 ?? defaultConfig.auth,
     }
 
-    async boot(): Promise<void> {
-      if (!resolved.enabled) return
+    if (!resolved.enabled) return
 
       // ── Create storage ────────────────────────────────────
       let storage: PulseStorage
@@ -156,10 +156,7 @@ export function pulseProvider(config: PulseConfig = {}): new (app: Application) 
         // @rudderjs/router not available
       }
 
-      // ── Register API routes ───────────────────────────────
-      await registerRoutes(storage, resolved)
-    }
+    // ── Register API routes ───────────────────────────────
+    await registerRoutes(storage, resolved)
   }
-
-  return PulseServiceProvider
 }

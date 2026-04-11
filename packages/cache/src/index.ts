@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 
 import { FakeCacheAdapter } from './fake.js'
 export { FakeCacheAdapter, type CacheOperation } from './fake.js'
@@ -237,42 +237,40 @@ export interface CacheConfig {
   stores: Record<string, CacheStoreConfig>
 }
 
-// ─── Service Provider Factory ──────────────────────────────
+// ─── Service Provider ──────────────────────────────────────
 
 /**
- * Returns a CacheServiceProvider class configured for the given cache config.
+ * Service provider for the cache subsystem.
  *
  * Built-in drivers:  memory (in-process — resets on restart, great for dev)
  *                    redis  (requires ioredis: pnpm add ioredis)
  *
  * Usage in bootstrap/providers.ts:
- *   import { cache } from '@rudderjs/cache'
- *   import configs from '../config/index.js'
- *   export default [..., cache(configs.cache), ...]
+ *   import { CacheProvider } from '@rudderjs/cache'
+ *   export default [..., CacheProvider, ...]
+ *
+ * Reads its config from `config('cache')` at boot time.
  */
-export function cacheProvider(config: CacheConfig): new (app: Application) => ServiceProvider {
-  class CacheServiceProvider extends ServiceProvider {
-    register(): void {}
+export class CacheProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      const storeName   = config.default
-      const storeConfig = config.stores[storeName] ?? { driver: 'memory' }
-      const driver      = storeConfig['driver'] as string
+  async boot(): Promise<void> {
+    const cfg         = config<CacheConfig>('cache')
+    const storeName   = cfg.default
+    const storeConfig = cfg.stores[storeName] ?? { driver: 'memory' }
+    const driver      = storeConfig['driver'] as string
 
-      let adapter: CacheAdapter
+    let adapter: CacheAdapter
 
-      if (driver === 'memory') {
-        adapter = new MemoryAdapter()
-      } else if (driver === 'redis') {
-        adapter = new RedisAdapter(storeConfig as RedisCacheConfig)
-      } else {
-        throw new Error(`[RudderJS Cache] Unknown driver "${driver}". Available: memory, redis`)
-      }
-
-      CacheRegistry.set(adapter)
-      this.app.instance('cache', adapter)
+    if (driver === 'memory') {
+      adapter = new MemoryAdapter()
+    } else if (driver === 'redis') {
+      adapter = new RedisAdapter(storeConfig as RedisCacheConfig)
+    } else {
+      throw new Error(`[RudderJS Cache] Unknown driver "${driver}". Available: memory, redis`)
     }
-  }
 
-  return CacheServiceProvider
+    CacheRegistry.set(adapter)
+    this.app.instance('cache', adapter)
+  }
 }

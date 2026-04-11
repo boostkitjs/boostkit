@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { resolveOptionalPeer } from '@rudderjs/core'
 import { Mailable } from './mailable.js'
 import type { MailMessage } from './mailable.js'
@@ -262,52 +262,49 @@ export function nodemailer(
  *   import configs from '../config/index.js'
  *   export default [..., mail(configs.mail), ...]
  */
-export function mailProvider(config: MailConfig): new (app: Application) => ServiceProvider {
-  class MailServiceProvider extends ServiceProvider {
-    register(): void {}
+export class MailProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      const mailerName   = config.default
-      const mailerConfig = config.mailers[mailerName] ?? { driver: 'log' }
-      const driver       = mailerConfig['driver'] as string
+  async boot(): Promise<void> {
+    const cfg          = config<MailConfig>('mail')
+    const mailerName   = cfg.default
+    const mailerConfig = cfg.mailers[mailerName] ?? { driver: 'log' }
+    const driver       = mailerConfig['driver'] as string
 
-      MailRegistry.setFrom(config.from)
+    MailRegistry.setFrom(cfg.from)
 
-      let adapter: MailAdapter
+    let adapter: MailAdapter
 
-      if (driver === 'log') {
-        adapter = new LogAdapter()
-      } else if (driver === 'smtp') {
-        if (!isNodemailerConfig(mailerConfig)) {
-          throw new Error('[RudderJS Mail] Invalid SMTP config. Expected fields: host (string), port (number).')
-        }
-        adapter = nodemailer(mailerConfig, config.from).create()
-      } else if (driver === 'failover') {
-        const mailerNames = (mailerConfig['mailers'] as string[] | undefined) ?? []
-        const retryAfter  = (mailerConfig['retryAfter'] as number | undefined) ?? 60
-        const adapters: MailAdapter[] = []
-        for (const name of mailerNames) {
-          const mc = config.mailers[name]
-          if (!mc) continue
-          if (mc.driver === 'log') {
-            adapters.push(new LogAdapter())
-          } else if (mc.driver === 'smtp' && isNodemailerConfig(mc)) {
-            adapters.push(nodemailer(mc, config.from).create())
-          }
-        }
-        if (adapters.length === 0) throw new Error('[RudderJS Mail] Failover driver has no valid mailers configured.')
-        const { FailoverAdapter } = await import('./failover.js')
-        adapter = new FailoverAdapter(adapters, retryAfter)
-      } else {
-        throw new Error(`[RudderJS Mail] Unknown driver "${driver}". Available: log, smtp, failover`)
+    if (driver === 'log') {
+      adapter = new LogAdapter()
+    } else if (driver === 'smtp') {
+      if (!isNodemailerConfig(mailerConfig)) {
+        throw new Error('[RudderJS Mail] Invalid SMTP config. Expected fields: host (string), port (number).')
       }
-
-      MailRegistry.set(adapter)
-      this.app.instance('mail', adapter)
+      adapter = nodemailer(mailerConfig, cfg.from).create()
+    } else if (driver === 'failover') {
+      const mailerNames = (mailerConfig['mailers'] as string[] | undefined) ?? []
+      const retryAfter  = (mailerConfig['retryAfter'] as number | undefined) ?? 60
+      const adapters: MailAdapter[] = []
+      for (const name of mailerNames) {
+        const mc = cfg.mailers[name]
+        if (!mc) continue
+        if (mc.driver === 'log') {
+          adapters.push(new LogAdapter())
+        } else if (mc.driver === 'smtp' && isNodemailerConfig(mc)) {
+          adapters.push(nodemailer(mc, cfg.from).create())
+        }
+      }
+      if (adapters.length === 0) throw new Error('[RudderJS Mail] Failover driver has no valid mailers configured.')
+      const { FailoverAdapter } = await import('./failover.js')
+      adapter = new FailoverAdapter(adapters, retryAfter)
+    } else {
+      throw new Error(`[RudderJS Mail] Unknown driver "${driver}". Available: log, smtp, failover`)
     }
-  }
 
-  return MailServiceProvider
+    MailRegistry.set(adapter)
+    this.app.instance('mail', adapter)
+  }
 }
 
 // ─── Re-exports ────────────────────────────────────────────

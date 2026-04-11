@@ -1,7 +1,14 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AppRequest, AppResponse } from '@rudderjs/contracts'
-import { SessionInstance, Session, sessionMiddleware, sessionProvider, type SessionConfig } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { SessionInstance, Session, sessionMiddleware, SessionProvider, type SessionConfig } from './index.js'
+
+function withSessionConfig(cfg: SessionConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ session: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -322,24 +329,28 @@ describe('Session facade', () => {
   })
 })
 
-// ─── session() provider ───────────────────────────────────────────────────────
+// ─── SessionProvider ──────────────────────────────────────────────────────────
 
-describe('session() provider', () => {
+describe('SessionProvider', () => {
   const fakeApp = { instance: () => undefined } as never
 
   it('register() is a no-op', () => {
-    const Provider = sessionProvider(config)
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    const restore = withSessionConfig(config)
+    try {
+      assert.doesNotThrow(() => new SessionProvider(fakeApp).register?.())
+    } finally { restore() }
   })
 
   it('boot() binds session.config to DI', () => {
-    let bound: unknown
-    const fakeAppSpy = {
-      instance: (key: string, value: unknown) => { if (key === 'session.config') bound = value },
-    } as never
+    const restore = withSessionConfig(config)
+    try {
+      let bound: unknown
+      const fakeAppSpy = {
+        instance: (key: string, value: unknown) => { if (key === 'session.config') bound = value },
+      } as never
 
-    const Provider = sessionProvider(config)
-    new Provider(fakeAppSpy).boot?.()
-    assert.strictEqual(bound, config)
+      new SessionProvider(fakeAppSpy).boot?.()
+      assert.deepStrictEqual(bound, config)
+    } finally { restore() }
   })
 })

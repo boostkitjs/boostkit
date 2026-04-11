@@ -118,6 +118,7 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   if (ctx.packages.cache)        files['config/cache.ts']    = configCache()
   if (ctx.packages.storage)      files['config/storage.ts']  = configStorage()
   if (ctx.packages.ai)           files['config/ai.ts']       = configAi()
+  if (ctx.packages.localization) files['config/localization.ts'] = configLocalization()
 
   files['config/index.ts']    = configIndex(ctx)
   files['env.d.ts']           = envDts()
@@ -821,34 +822,34 @@ function bootstrapProviders(ctx: TemplateContext): string {
   const imports: string[] = [
     "import type { Application, ServiceProvider } from '@rudderjs/core'",
     "import { eventsProvider } from '@rudderjs/core'",
-    "import { logProvider } from '@rudderjs/log'",
+    "import { LogProvider } from '@rudderjs/log'",
   ]
   const providers: string[] = [
     '// ── Infrastructure (order matters) ──────────────────────',
-    'logProvider(configs.log),',
+    'LogProvider,',
   ]
 
   if (ctx.orm === 'prisma') {
-    imports.push("import { databaseProvider } from '@rudderjs/orm-prisma'")
-    providers.push('databaseProvider(configs.database),')
+    imports.push("import { DatabaseProvider } from '@rudderjs/orm-prisma'")
+    providers.push('DatabaseProvider,')
   } else if (ctx.orm === 'drizzle') {
-    imports.push("import { databaseProvider } from '@rudderjs/orm-drizzle'")
-    providers.push('databaseProvider(configs.database),')
+    imports.push("import { DatabaseProvider } from '@rudderjs/orm-drizzle'")
+    providers.push('DatabaseProvider,')
   }
 
   if (ctx.packages.auth) {
-    imports.push("import { sessionProvider } from '@rudderjs/session'")
-    imports.push("import { hashProvider } from '@rudderjs/hash'")
-    providers.push('sessionProvider(configs.session),')
-    providers.push('hashProvider(configs.hash),')
+    imports.push("import { SessionProvider } from '@rudderjs/session'")
+    imports.push("import { HashProvider } from '@rudderjs/hash'")
+    providers.push('SessionProvider,')
+    providers.push('HashProvider,')
   }
   if (ctx.packages.cache) {
-    imports.push("import { cacheProvider } from '@rudderjs/cache'")
-    providers.push('cacheProvider(configs.cache),')
+    imports.push("import { CacheProvider } from '@rudderjs/cache'")
+    providers.push('CacheProvider,')
   }
   if (ctx.packages.auth) {
-    imports.push("import { authProvider } from '@rudderjs/auth'")
-    providers.push('authProvider(configs.auth),')
+    imports.push("import { AuthProvider } from '@rudderjs/auth'")
+    providers.push('AuthProvider,')
   }
 
   providers.push('')
@@ -856,47 +857,42 @@ function bootstrapProviders(ctx: TemplateContext): string {
   providers.push('eventsProvider({}),')
 
   if (ctx.packages.queue) {
-    imports.push("import { queueProvider } from '@rudderjs/queue'")
-    providers.push('queueProvider(configs.queue),')
+    imports.push("import { QueueProvider } from '@rudderjs/queue'")
+    providers.push('QueueProvider,')
   }
   if (ctx.packages.mail) {
-    imports.push("import { mailProvider } from '@rudderjs/mail'")
-    providers.push('mailProvider(configs.mail),')
+    imports.push("import { MailProvider } from '@rudderjs/mail'")
+    providers.push('MailProvider,')
   }
   if (ctx.packages.storage) {
-    imports.push("import { storageProvider } from '@rudderjs/storage'")
-    providers.push('storageProvider(configs.storage),')
+    imports.push("import { StorageProvider } from '@rudderjs/storage'")
+    providers.push('StorageProvider,')
   }
   if (ctx.packages.localization) {
-    imports.push("import { resolve } from 'node:path'")
-    imports.push("import { localizationProvider } from '@rudderjs/localization'")
+    imports.push("import { LocalizationProvider } from '@rudderjs/localization'")
   }
   if (ctx.packages.scheduler) {
-    imports.push("import { scheduleProvider } from '@rudderjs/schedule'")
-    providers.push('scheduleProvider(),')
+    imports.push("import { ScheduleProvider } from '@rudderjs/schedule'")
+    providers.push('ScheduleProvider,')
   }
   if (ctx.packages.notifications) {
-    imports.push("import { notificationProvider } from '@rudderjs/notification'")
-    providers.push('notificationProvider(),')
+    imports.push("import { NotificationProvider } from '@rudderjs/notification'")
+    providers.push('NotificationProvider,')
   }
   if (ctx.packages.broadcast) {
-    imports.push("import { broadcastingProvider } from '@rudderjs/broadcast'")
-    providers.push('broadcastingProvider(),')
+    imports.push("import { BroadcastingProvider } from '@rudderjs/broadcast'")
+    providers.push('BroadcastingProvider,')
   }
   if (ctx.packages.live) {
-    imports.push("import { liveProvider } from '@rudderjs/live'")
-    providers.push('liveProvider({}),')
+    imports.push("import { LiveProvider } from '@rudderjs/live'")
+    providers.push('LiveProvider,')
   }
   if (ctx.packages.localization) {
-    providers.push(`localizationProvider({
-    locale:   'en',
-    fallback: 'en',
-    path:     resolve(process.cwd(), 'lang'),
-  }),`)
+    providers.push('LocalizationProvider,')
   }
   if (ctx.packages.ai) {
-    imports.push("import { aiProvider } from '@rudderjs/ai'")
-    providers.push('aiProvider(configs.ai),')
+    imports.push("import { AiProvider } from '@rudderjs/ai'")
+    providers.push('AiProvider,')
   }
 
   providers.push('')
@@ -1195,6 +1191,10 @@ function configIndex(ctx: TemplateContext): string {
     imports.push("import ai       from './ai.js'")
     keys.push('ai')
   }
+  if (ctx.packages.localization) {
+    imports.push("import localization from './localization.js'")
+    keys.push('localization')
+  }
   return `${imports.join('\n')}
 
 const configs = { ${keys.join(', ')} }
@@ -1263,6 +1263,19 @@ export default {
     },
   },
 } satisfies AiConfig
+`
+}
+
+function configLocalization(): string {
+  return `import { resolve } from 'node:path'
+import { Env } from '@rudderjs/support'
+import type { LocalizationConfig } from '@rudderjs/localization'
+
+export default {
+  locale:   Env.get('APP_LOCALE',          'en'),
+  fallback: Env.get('APP_FALLBACK_LOCALE', 'en'),
+  path:     resolve(process.cwd(), 'lang'),
+} satisfies LocalizationConfig
 `
 }
 

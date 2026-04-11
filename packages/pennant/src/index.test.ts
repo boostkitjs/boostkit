@@ -8,7 +8,7 @@ import {
   MemoryDriver,
   FakePennant,
   FeatureMiddleware,
-  pennant,
+  PennantProvider,
 } from './index.js'
 import type { Scopeable } from './index.js'
 
@@ -19,7 +19,7 @@ let app: Application
 beforeEach(async () => {
   Application.resetForTesting()
   app = Application.create({
-    providers: [pennant()],
+    providers: [PennantProvider],
     env: 'testing',
   })
   await app.bootstrap()

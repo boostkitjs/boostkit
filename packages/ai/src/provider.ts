@@ -1,22 +1,22 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { AiRegistry } from './registry.js'
 import { setConversationStore } from './agent.js'
 import type { AiConfig, ConversationStore } from './types.js'
 
 /**
- * Create the AI ServiceProvider from config.
+ * AI ServiceProvider — reads config from `config('ai')`.
  *
  * @example
  * // bootstrap/providers.ts
- * import { ai } from '@rudderjs/ai'
- * export default [ai(configs.ai), ...]
+ * import { AiProvider } from '@rudderjs/ai'
+ * export default [AiProvider, ...]
  */
-export function aiProvider(config: AiConfig): new (app: Application) => ServiceProvider {
-  class AiServiceProvider extends ServiceProvider {
-    register(): void {}
+export class AiProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      for (const [name, providerConfig] of Object.entries(config.providers)) {
+  async boot(): Promise<void> {
+    const cfg = config<AiConfig>('ai')
+    for (const [name, providerConfig] of Object.entries(cfg.providers)) {
         const driver = providerConfig.driver ?? name
 
         if (driver === 'anthropic') {
@@ -75,18 +75,15 @@ export function aiProvider(config: AiConfig): new (app: Application) => ServiceP
         }
       }
 
-      AiRegistry.setDefault(config.default)
-      AiRegistry.setModels(config.models ?? [])
-      this.app.instance('ai.registry', AiRegistry)
+    AiRegistry.setDefault(cfg.default)
+    AiRegistry.setModels(cfg.models ?? [])
+    this.app.instance('ai.registry', AiRegistry)
 
-      // Register conversation store if provided in config
-      if ((config as AiConfig & { conversations?: ConversationStore }).conversations) {
-        const store = (config as AiConfig & { conversations?: ConversationStore }).conversations!
-        setConversationStore(store)
-        this.app.instance('ai.conversations', store)
-      }
+    // Register conversation store if provided in config
+    if ((cfg as AiConfig & { conversations?: ConversationStore }).conversations) {
+      const store = (cfg as AiConfig & { conversations?: ConversationStore }).conversations!
+      setConversationStore(store)
+      this.app.instance('ai.conversations', store)
     }
   }
-
-  return AiServiceProvider
 }

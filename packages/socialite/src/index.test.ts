@@ -3,16 +3,16 @@ import assert from 'node:assert/strict'
 import {
   Socialite,
   SocialUser,
-  SocialiteProvider,
+  SocialiteDriver,
   GitHubProvider,
   GoogleProvider,
   FacebookProvider,
   AppleProvider,
-  socialite,
-  type SocialiteProviderConfig,
+  SocialiteProvider,
+  type SocialiteDriverConfig,
 } from './index.js'
 
-const baseConfig: SocialiteProviderConfig = {
+const baseConfig: SocialiteDriverConfig = {
   clientId:     'test-client-id',
   clientSecret: 'test-client-secret',
   redirectUrl:  'http://localhost:3000/auth/callback',
@@ -160,8 +160,8 @@ describe('Socialite', () => {
     assert.throws(() => Socialite.driver('unknown'), /Unknown provider/)
   })
 
-  it('extend() registers a custom provider', () => {
-    class CustomProvider extends SocialiteProvider {
+  it('extend() registers a custom driver', () => {
+    class CustomDriver extends SocialiteDriver {
       protected defaultScopes() { return [] }
       protected authUrl() { return 'https://custom.example.com/auth' }
       protected tokenUrl() { return 'https://custom.example.com/token' }
@@ -171,10 +171,10 @@ describe('Socialite', () => {
       }
     }
 
-    Socialite.extend('custom', (c) => new CustomProvider(c))
+    Socialite.extend('custom', (c) => new CustomDriver(c))
     Socialite.configure({ custom: baseConfig })
-    const provider = Socialite.driver('custom')
-    assert.ok(provider instanceof CustomProvider)
+    const driver = Socialite.driver('custom')
+    assert.ok(driver instanceof CustomDriver)
   })
 
   it('all built-in drivers work', () => {
@@ -198,14 +198,11 @@ describe('Socialite', () => {
   })
 })
 
-// ─── socialite() provider ─────────────────────────────────
+// ─── SocialiteProvider ────────────────────────────────────
 
-describe('socialite() provider', () => {
-  it('is a function that returns a constructor', () => {
-    assert.strictEqual(typeof socialite({}), 'function')
-  })
-
-  it('each call returns a different class', () => {
-    assert.notStrictEqual(socialite({}), socialite({}))
+describe('SocialiteProvider', () => {
+  it('is a class', () => {
+    assert.strictEqual(typeof SocialiteProvider, 'function')
+    assert.strictEqual(SocialiteProvider.name, 'SocialiteProvider')
   })
 })

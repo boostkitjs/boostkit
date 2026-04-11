@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { MemoryStorage, SqliteStorage } from './storage.js'
 import { JobCollector } from './collectors/job.js'
 import { MetricsCollector } from './collectors/metrics.js'
@@ -76,29 +76,29 @@ export class Horizon {
  *   import { horizon } from '@rudderjs/horizon'
  *   export default [..., horizon(configs.horizon), ...]
  */
-export function horizonProvider(config: HorizonConfig = {}): new (app: Application) => ServiceProvider {
-  const resolved = {
-    enabled:           config.enabled           ?? defaultConfig.enabled,
-    path:              config.path              ?? defaultConfig.path,
-    storage:           config.storage           ?? defaultConfig.storage,
-    sqlitePath:        config.sqlitePath        ?? defaultConfig.sqlitePath,
-    maxJobs:           config.maxJobs           ?? defaultConfig.maxJobs,
-    pruneAfterHours:   config.pruneAfterHours   ?? defaultConfig.pruneAfterHours,
-    metricsIntervalMs: config.metricsIntervalMs ?? defaultConfig.metricsIntervalMs,
-    auth:              config.auth              ?? defaultConfig.auth,
+export class HorizonProvider extends ServiceProvider {
+  register(): void {
+    this.publishes({
+      from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
+      to:   'boost',
+      tag:  'horizon-boost',
+    })
   }
 
-  class HorizonServiceProvider extends ServiceProvider {
-    register(): void {
-      this.publishes({
-        from: new URL('../../boost/guidelines.md', import.meta.url).pathname,
-        to:   'boost',
-        tag:  'horizon-boost',
-      })
+  async boot(): Promise<void> {
+    const cfg = config<HorizonConfig>('horizon', {})
+    const resolved = {
+      enabled:           cfg.enabled           ?? defaultConfig.enabled,
+      path:              cfg.path              ?? defaultConfig.path,
+      storage:           cfg.storage           ?? defaultConfig.storage,
+      sqlitePath:        cfg.sqlitePath        ?? defaultConfig.sqlitePath,
+      maxJobs:           cfg.maxJobs           ?? defaultConfig.maxJobs,
+      pruneAfterHours:   cfg.pruneAfterHours   ?? defaultConfig.pruneAfterHours,
+      metricsIntervalMs: cfg.metricsIntervalMs ?? defaultConfig.metricsIntervalMs,
+      auth:              cfg.auth              ?? defaultConfig.auth,
     }
 
-    async boot(): Promise<void> {
-      if (!resolved.enabled) return
+    if (!resolved.enabled) return
 
       // ── Create storage ────────────────────────────────────
       let storage: HorizonStorage
@@ -131,10 +131,7 @@ export function horizonProvider(config: HorizonConfig = {}): new (app: Applicati
       metricsCollector.register()
       workerCollector.register()
 
-      // ── Register API routes ───────────────────────────────
-      await registerRoutes(storage, resolved)
-    }
+    // ── Register API routes ───────────────────────────────
+    await registerRoutes(storage, resolved)
   }
-
-  return HorizonServiceProvider
 }

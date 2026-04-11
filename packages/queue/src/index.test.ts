@@ -1,7 +1,14 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { rudder } from '@rudderjs/core'
-import { Job, DispatchBuilder, QueueRegistry, SyncAdapter, queueProvider, type QueueAdapter, type DispatchOptions } from './index.js'
+import { ConfigRepository, setConfigRepository, getConfigRepository } from '@rudderjs/core'
+import { Job, DispatchBuilder, QueueRegistry, SyncAdapter, QueueProvider, type QueueAdapter, type DispatchOptions, type QueueConfig } from './index.js'
+
+function withQueueConfig(cfg: QueueConfig): () => void {
+  const previous = getConfigRepository()
+  setConfigRepository(new ConfigRepository({ queue: cfg }))
+  return () => setConfigRepository(previous ?? new ConfigRepository({}))
+}
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -170,46 +177,50 @@ describe('SyncAdapter', () => {
   })
 })
 
-// ─── queue() provider ──────────────────────────────────────
+// ─── QueueProvider ─────────────────────────────────────────
 
-describe('queue() provider', () => {
+describe('QueueProvider', () => {
+  let restore: () => void
   beforeEach(() => QueueRegistry.reset())
+  afterEach(() => restore?.())
 
   it('boots with sync driver and registers the adapter', async () => {
-    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withQueueConfig({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    await new QueueProvider(fakeApp).boot?.()
     assert.ok(QueueRegistry.get() instanceof SyncAdapter)
   })
 
   it('falls back to sync driver when connection config is missing', async () => {
-    const Provider = queueProvider({ default: 'missing', connections: {} })
-    await new Provider(fakeApp).boot?.()
+    restore = withQueueConfig({ default: 'missing', connections: {} })
+    await new QueueProvider(fakeApp).boot?.()
     assert.ok(QueueRegistry.get() instanceof SyncAdapter)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = queueProvider({ default: 'bad', connections: { bad: { driver: 'unsupported' } } })
+    restore = withQueueConfig({ default: 'bad', connections: { bad: { driver: 'unsupported' } } })
     await assert.rejects(
-      async () => new Provider(fakeApp).boot?.(),
+      async () => new QueueProvider(fakeApp).boot?.(),
       /Unknown driver "unsupported"/
     )
   })
 
   it('register() is a no-op', () => {
-    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
-    assert.doesNotThrow(() => new Provider(fakeApp).register?.())
+    restore = withQueueConfig({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    assert.doesNotThrow(() => new QueueProvider(fakeApp).register?.())
   })
 })
 
 // ─── rudder commands — sync driver (no work/status/etc.) ──
 
 describe('rudder commands — unsupported operations', () => {
+  let restore: () => void
   beforeEach(async () => {
     QueueRegistry.reset()
     rudder.reset()
-    const Provider = queueProvider({ default: 'sync', connections: { sync: { driver: 'sync' } } })
-    await new Provider(fakeApp).boot?.()
+    restore = withQueueConfig({ default: 'sync', connections: { sync: { driver: 'sync' } } })
+    await new QueueProvider(fakeApp).boot?.()
   })
+  afterEach(() => restore())
 
   it('queue:work throws for sync driver', async () => {
     await assert.rejects(() => runCommand('queue:work'), /does not support workers/)

@@ -318,30 +318,28 @@ export function prisma(config: PrismaConfig = {}): OrmAdapterProvider {
 
 // ─── PrismaProvider ────────────────────────────────────────
 
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 import { ModelRegistry } from '@rudderjs/orm'
 
-export function databaseProvider(config?: DatabaseConfig): new (app: Application) => ServiceProvider {
-  class PrismaServiceProvider extends ServiceProvider {
-    register(): void {}
+export class DatabaseProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      let prismaConfig: PrismaConfig = {}
+  async boot(): Promise<void> {
+    const cfg = config<DatabaseConfig | undefined>('database', undefined)
 
-      if (config) {
-        const conn = config.connections[config.default]
-        if (conn) prismaConfig = { driver: conn.driver, ...(conn.url !== undefined && { url: conn.url }) }
-        if (config.PrismaClient) prismaConfig.PrismaClient = config.PrismaClient
-      }
+    let prismaConfig: PrismaConfig = {}
 
-      const adapter = await PrismaAdapter.make(prismaConfig)
-      await adapter.connect()
-
-      ModelRegistry.set(adapter)
-      this.app.instance('db', adapter)
-      this.app.instance('prisma', adapter.prisma)
+    if (cfg) {
+      const conn = cfg.connections[cfg.default]
+      if (conn) prismaConfig = { driver: conn.driver, ...(conn.url !== undefined && { url: conn.url }) }
+      if (cfg.PrismaClient) prismaConfig.PrismaClient = cfg.PrismaClient
     }
-  }
 
-  return PrismaServiceProvider
+    const adapter = await PrismaAdapter.make(prismaConfig)
+    await adapter.connect()
+
+    ModelRegistry.set(adapter)
+    this.app.instance('db', adapter)
+    this.app.instance('prisma', adapter.prisma)
+  }
 }

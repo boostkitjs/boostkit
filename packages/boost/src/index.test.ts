@@ -7,7 +7,7 @@ import { getConfigValue } from './tools/config-get.js'
 import { getRouteList } from './tools/route-list.js'
 import { getModelList } from './tools/model-list.js'
 import { getLastError } from './tools/last-error.js'
-import { createBoostServer, boostProvider } from './index.js'
+import { createBoostServer, BoostProvider } from './index.js'
 
 // Use the playground as the test project
 const PLAYGROUND = join(import.meta.dirname, '..', '..', '..', 'playground')
@@ -128,11 +128,10 @@ describe('createBoostServer', () => {
   })
 })
 
-// ─── boost() provider ────────────────────────────────────
+// ─── BoostProvider ───────────────────────────────────────
 
-describe('boost() provider', () => {
-  it('returns a constructor', () => {
-    const Provider = boostProvider()
-    assert.strictEqual(typeof Provider, 'function')
+describe('BoostProvider', () => {
+  it('is a constructor', () => {
+    assert.strictEqual(typeof BoostProvider, 'function')
   })
 })

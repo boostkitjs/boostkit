@@ -1,4 +1,4 @@
-import { ServiceProvider, rudder, type Application } from '@rudderjs/core'
+import { ServiceProvider, rudder, config } from '@rudderjs/core'
 import {
   initWsServer,
   getUpgradeHandler,
@@ -48,16 +48,16 @@ export const Broadcast = {
   channel: registerAuth as (pattern: string, callback: AuthCallback) => void,
 }
 
-// ─── Factory ────────────────────────────────────────────────
+// ─── Provider ───────────────────────────────────────────────
 
-export function broadcastingProvider(config: BroadcastConfig = {}): new (app: Application) => ServiceProvider {
-  const path = config.path ?? '/ws'
+export class BroadcastingProvider extends ServiceProvider {
+  register(): void {}
 
-  return class BroadcastServiceProvider extends ServiceProvider {
-    register(): void {}
+  async boot(): Promise<void> {
+    const cfg  = config<BroadcastConfig>('broadcast', {})
+    const path = cfg.path ?? '/ws'
 
-    async boot(): Promise<void> {
-      initWsServer()
+    initWsServer()
 
       // Register upgrade handler on globalThis so @rudderjs/vite and
       // @rudderjs/server-hono can attach it to the http.Server without
@@ -74,11 +74,10 @@ export function broadcastingProvider(config: BroadcastConfig = {}): new (app: Ap
         tag:  'broadcast-client',
       })
 
-      rudder.command('broadcast:connections', () => {
-        const { connections, channels } = broadcastStats()
-        console.log(`\n  Active connections : ${connections}`)
-        console.log(`  Active channels    : ${channels}\n`)
-      }).description('Show active WebSocket connection stats')
-    }
+    rudder.command('broadcast:connections', () => {
+      const { connections, channels } = broadcastStats()
+      console.log(`\n  Active connections : ${connections}`)
+      console.log(`  Active channels    : ${channels}\n`)
+    }).description('Show active WebSocket connection stats')
   }
 }

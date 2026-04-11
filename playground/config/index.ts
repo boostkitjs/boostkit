@@ -14,8 +14,9 @@ import log      from './log.js'
 import telescope from './telescope.js'
 import pulse    from './pulse.js'
 import horizon  from './horizon.js'
+import localization from './localization.js'
 
-const configs = { app, server, database, queue, mail, cache, storage, auth, hash, session, live, ai, log, telescope, pulse, horizon }
+const configs = { app, server, database, queue, mail, cache, storage, auth, hash, session, live, ai, log, telescope, pulse, horizon, localization }
 
 export type Configs = typeof configs
 

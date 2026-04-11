@@ -158,6 +158,13 @@ export function setConfigRepository(repo: ConfigRepository): void {
   ;(globalThis as Record<string, unknown>)['__rudderjs_config__'] = repo
 }
 
+/** @internal — used by @rudderjs/testing for snapshot/restore */
+export function getConfigRepository(): ConfigRepository | null {
+  return _repo
+    ?? ((globalThis as Record<string, unknown>)['__rudderjs_config__'] as ConfigRepository | undefined)
+    ?? null
+}
+
 export function config<T = unknown>(key: string, fallback?: T): T {
   const repo = _repo
     ?? (globalThis as Record<string, unknown>)['__rudderjs_config__'] as ConfigRepository | undefined

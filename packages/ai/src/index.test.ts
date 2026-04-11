@@ -871,18 +871,14 @@ describe('AiFake', () => {
   })
 })
 
-// ─── ai() ServiceProvider factory ─────────────────────────
+// ─── AiProvider ───────────────────────────────────────────
 
-import { aiProvider } from './provider.js'
+import { AiProvider } from './provider.js'
 
-describe('aiProvider() factory', () => {
-  it('returns a ServiceProvider class', () => {
-    const Provider = aiProvider({
-      default: 'mock/test',
-      providers: { mock: { driver: 'mock' } },
-    })
-    assert.ok(typeof Provider === 'function')
-    assert.ok(Provider.prototype)
+describe('AiProvider', () => {
+  it('is a ServiceProvider class', () => {
+    assert.ok(typeof AiProvider === 'function')
+    assert.ok(AiProvider.prototype)
   })
 })
 

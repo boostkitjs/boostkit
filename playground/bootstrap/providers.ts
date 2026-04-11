@@ -1,60 +1,54 @@
-import { resolve } from 'node:path'
 import type { Application, ServiceProvider } from '@rudderjs/core'
 import { eventsProvider } from '@rudderjs/core'
-import { authProvider } from '@rudderjs/auth'
-import { hashProvider } from '@rudderjs/hash'
-import { queueProvider } from '@rudderjs/queue'
-import { mailProvider } from '@rudderjs/mail'
-import { cacheProvider } from '@rudderjs/cache'
-import { storageProvider } from '@rudderjs/storage'
-import { scheduleProvider } from '@rudderjs/schedule'
-import { notificationProvider } from '@rudderjs/notification'
-import { sessionProvider } from '@rudderjs/session'
-import { localizationProvider } from '@rudderjs/localization'
-import { databaseProvider } from '@rudderjs/orm-prisma'
-import { broadcastingProvider } from '@rudderjs/broadcast'
-import { liveProvider } from '@rudderjs/live'
-import { aiProvider } from '@rudderjs/ai'
-import { boostProvider } from '@rudderjs/boost'
-import { logProvider } from '@rudderjs/log'
-import { telescopeProvider } from '@rudderjs/telescope'
-import { pulseProvider } from '@rudderjs/pulse'
-import { horizonProvider } from '@rudderjs/horizon'
+import { AuthProvider } from '@rudderjs/auth'
+import { HashProvider } from '@rudderjs/hash'
+import { QueueProvider } from '@rudderjs/queue'
+import { MailProvider } from '@rudderjs/mail'
+import { CacheProvider } from '@rudderjs/cache'
+import { StorageProvider } from '@rudderjs/storage'
+import { ScheduleProvider } from '@rudderjs/schedule'
+import { NotificationProvider } from '@rudderjs/notification'
+import { SessionProvider } from '@rudderjs/session'
+import { LocalizationProvider } from '@rudderjs/localization'
+import { DatabaseProvider } from '@rudderjs/orm-prisma'
+import { BroadcastingProvider } from '@rudderjs/broadcast'
+import { LiveProvider } from '@rudderjs/live'
+import { AiProvider } from '@rudderjs/ai'
+import { BoostProvider } from '@rudderjs/boost'
+import { LogProvider } from '@rudderjs/log'
+import { TelescopeProvider } from '@rudderjs/telescope'
+import { PulseProvider } from '@rudderjs/pulse'
+import { HorizonProvider } from '@rudderjs/horizon'
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 import { UserRegistered } from '../app/Events/UserRegistered.js'
 import { SendWelcomeEmailListener } from '../app/Listeners/SendWelcomeEmailListener.js'
-import configs from '../config/index.js'
 
 export default [
   // ── Infrastructure (order matters) ──────────────────────
-  logProvider(configs.log),           // boots first — available to all other providers
-  databaseProvider(configs.database), // binds PrismaClient to DI as 'prisma'
-  sessionProvider(configs.session),
-  hashProvider(configs.hash),
-  cacheProvider(configs.cache),
-  authProvider(configs.auth),         // requires session + hash
+  LogProvider,           // boots first — available to all other providers
+  DatabaseProvider,      // binds PrismaClient to DI as 'prisma'
+  SessionProvider,
+  HashProvider,
+  CacheProvider,
+  AuthProvider,          // requires session + hash
 
   // ── Features ────────────────────────────────────────────
-  queueProvider(configs.queue),
+  QueueProvider,
   eventsProvider({ [UserRegistered.name]: [SendWelcomeEmailListener] }),
-  mailProvider(configs.mail),
-  storageProvider(configs.storage),
-  localizationProvider({
-    locale:   configs.app.locale,
-    fallback: configs.app.fallback,
-    path:     resolve(process.cwd(), 'lang'),
-  }),
-  scheduleProvider(),
-  notificationProvider(),
-  broadcastingProvider(),
-  liveProvider(configs.live),
-  aiProvider(configs.ai),
-  boostProvider(),
+  MailProvider,
+  StorageProvider,
+  LocalizationProvider,
+  ScheduleProvider,
+  NotificationProvider,
+  BroadcastingProvider,
+  LiveProvider,
+  AiProvider,
+  BoostProvider,
 
   // ── Monitoring ──────────────────────────────────────────
-  telescopeProvider(configs.telescope),
-  pulseProvider(configs.pulse),
-  horizonProvider(configs.horizon),
+  TelescopeProvider,
+  PulseProvider,
+  HorizonProvider,
 
   // ── Application ─────────────────────────────────────────
   AppServiceProvider,

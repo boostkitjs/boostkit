@@ -1,4 +1,4 @@
-import { ServiceProvider, type Application } from '@rudderjs/core'
+import { ServiceProvider, config } from '@rudderjs/core'
 
 // ─── Hash Driver Contract ─────────────────────────────────
 
@@ -141,25 +141,23 @@ export interface HashConfig {
  *   import configs from '../config/index.js'
  *   export default [..., hash(configs.hash), ...]
  */
-export function hashProvider(config: HashConfig): new (app: Application) => ServiceProvider {
-  class HashServiceProvider extends ServiceProvider {
-    register(): void {}
+export class HashProvider extends ServiceProvider {
+  register(): void {}
 
-    async boot(): Promise<void> {
-      let driver: HashDriver
+  async boot(): Promise<void> {
+    const cfg = config<HashConfig>('hash')
 
-      if (config.driver === 'bcrypt') {
-        driver = new BcryptDriver(config.bcrypt)
-      } else if (config.driver === 'argon2') {
-        driver = new Argon2Driver(config.argon2)
-      } else {
-        throw new Error(`[RudderJS Hash] Unknown driver "${config.driver as string}". Available: bcrypt, argon2`)
-      }
+    let driver: HashDriver
 
-      HashRegistry.set(driver)
-      this.app.instance('hash', driver)
+    if (cfg.driver === 'bcrypt') {
+      driver = new BcryptDriver(cfg.bcrypt)
+    } else if (cfg.driver === 'argon2') {
+      driver = new Argon2Driver(cfg.argon2)
+    } else {
+      throw new Error(`[RudderJS Hash] Unknown driver "${cfg.driver as string}". Available: bcrypt, argon2`)
     }
-  }
 
-  return HashServiceProvider
+    HashRegistry.set(driver)
+    this.app.instance('hash', driver)
+  }
 }
