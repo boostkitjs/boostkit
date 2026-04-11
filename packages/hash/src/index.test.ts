@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { hash, Hash, HashRegistry, BcryptDriver } from './index.js'
+import { hashProvider, Hash, HashRegistry, BcryptDriver } from './index.js'
 
 // ─── BcryptDriver (direct) ───────────────────────────────
 
@@ -72,7 +72,7 @@ describe('HashRegistry', () => {
 describe('Hash facade', () => {
   beforeEach(async () => {
     HashRegistry.reset()
-    const Provider = hash({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
+    const Provider = hashProvider({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
     await new Provider({ instance: () => undefined } as never).boot?.()
   })
 
@@ -102,27 +102,27 @@ describe('Hash facade', () => {
   })
 })
 
-// ─── hash() provider ─────────────────────────────────────
+// ─── hashProvider() provider ─────────────────────────────────────
 
-describe('hash() provider', () => {
+describe('hashProvider() provider', () => {
   beforeEach(() => HashRegistry.reset())
 
   const fakeApp = { instance: () => undefined } as never
 
   it('boots with bcrypt driver and registers', async () => {
-    const Provider = hash({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
+    const Provider = hashProvider({ driver: 'bcrypt', bcrypt: { rounds: 4 } })
     await new Provider(fakeApp).boot?.()
     assert.ok(HashRegistry.get() !== null)
   })
 
   it('boots with default bcrypt config when no options given', async () => {
-    const Provider = hash({ driver: 'bcrypt' })
+    const Provider = hashProvider({ driver: 'bcrypt' })
     await new Provider(fakeApp).boot?.()
     assert.ok(HashRegistry.get() !== null)
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = hash({ driver: 'scrypt' as 'bcrypt' })
+    const Provider = hashProvider({ driver: 'scrypt' as 'bcrypt' })
     await assert.rejects(
       () => new Provider(fakeApp).boot?.() as Promise<void>,
       /Unknown driver "scrypt"/,
@@ -130,7 +130,7 @@ describe('hash() provider', () => {
   })
 
   it('register() is a no-op', () => {
-    const Provider = hash({ driver: 'bcrypt' })
+    const Provider = hashProvider({ driver: 'bcrypt' })
     assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 })

@@ -196,7 +196,7 @@ export function ContextMiddleware(): MiddlewareHandler {
 
 // ─── Service Provider factory ─────────────────────────────
 
-export function context(): new (app: Application) => ServiceProvider {
+export function contextProvider(): new (app: Application) => ServiceProvider {
   class ContextServiceProvider extends ServiceProvider {
     register(): void {}
 

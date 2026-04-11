@@ -627,7 +627,7 @@ function resolveAdapter(config: LogChannelConfig, allChannels: Record<string, Lo
  *   import { log } from '@rudderjs/log'
  *   export default [..., log(configs.log), ...]
  */
-export function log(config: LogConfig): new (app: Application) => ServiceProvider {
+export function logProvider(config: LogConfig): new (app: Application) => ServiceProvider {
   class LogServiceProvider extends ServiceProvider {
     register(): void {}
 

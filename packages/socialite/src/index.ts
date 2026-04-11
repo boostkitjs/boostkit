@@ -84,7 +84,7 @@ export type SocialiteConfig = Record<string, SocialiteProviderConfig>
  *   import { socialite } from '@rudderjs/socialite'
  *   export default [..., socialite(configs.socialite), ...]
  */
-export function socialite(config: SocialiteConfig): new (app: Application) => ServiceProvider {
+export function socialiteProvider(config: SocialiteConfig): new (app: Application) => ServiceProvider {
   class SocialiteServiceProvider extends ServiceProvider {
     register(): void {}
 

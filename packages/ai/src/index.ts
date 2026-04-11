@@ -102,7 +102,7 @@ export { MemoryConversationStore } from './conversation.js'
 export { AI } from './facade.js'
 
 // ServiceProvider factory
-export { ai } from './provider.js'
+export { aiProvider } from './provider.js'
 
 // Image Generation
 export { ImageGenerator } from './image.js'

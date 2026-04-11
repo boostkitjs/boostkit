@@ -277,7 +277,7 @@ export interface StorageConfig {
  *   import configs from '../config/index.js'
  *   export default [..., storage(configs.storage), ...]
  */
-export function storage(config: StorageConfig): new (app: Application) => ServiceProvider {
+export function storageProvider(config: StorageConfig): new (app: Application) => ServiceProvider {
   class StorageServiceProvider extends ServiceProvider {
     register(): void {}
 

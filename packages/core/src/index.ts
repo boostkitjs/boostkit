@@ -23,7 +23,7 @@ export type { PublishGroup } from './service-provider.js'
 
 // ─── Events ────────────────────────────────────────────────
 
-export { Listener, EventDispatcher, dispatcher, dispatch, events } from './events.js'
+export { Listener, EventDispatcher, dispatcher, dispatch, eventsProvider } from './events.js'
 export type { ListenMap } from './events.js'
 export { EventFake } from './events-fake.js'
 export type { DispatchedEvent } from './events-fake.js'

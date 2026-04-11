@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import os from 'node:os'
 import fs from 'node:fs/promises'
 import nodePath from 'node:path'
-import { LocalAdapter, Storage, StorageRegistry, storage } from './index.js'
+import { LocalAdapter, Storage, StorageRegistry, storageProvider } from './index.js'
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -278,13 +278,13 @@ describe('storage() provider', () => {
   })
 
   it('boots with local driver and registers the disk', async () => {
-    const Provider = storage({ default: 'local', disks: { local: { driver: 'local', root } } })
+    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
     await new Provider(fakeApp).boot?.()
     assert.ok(StorageRegistry.get('local') instanceof LocalAdapter)
   })
 
   it('sets the default disk', async () => {
-    const Provider = storage({ default: 'local', disks: { local: { driver: 'local', root } } })
+    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
     await new Provider(fakeApp).boot?.()
     assert.doesNotThrow(() => StorageRegistry.get())
   })
@@ -292,7 +292,7 @@ describe('storage() provider', () => {
   it('registers multiple disks', async () => {
     const root2 = await makeTmpDir()
     try {
-      const Provider = storage({
+      const Provider = storageProvider({
         default: 'local',
         disks: {
           local:  { driver: 'local', root },
@@ -308,7 +308,7 @@ describe('storage() provider', () => {
   })
 
   it('throws on an unknown driver', async () => {
-    const Provider = storage({ default: 'bad', disks: { bad: { driver: 'unsupported' } } })
+    const Provider = storageProvider({ default: 'bad', disks: { bad: { driver: 'unsupported' } } })
     await assert.rejects(
       async () => new Provider(fakeApp).boot?.(),
       /Unknown driver "unsupported"/
@@ -316,12 +316,12 @@ describe('storage() provider', () => {
   })
 
   it('register() is a no-op', () => {
-    const Provider = storage({ default: 'local', disks: { local: { driver: 'local', root } } })
+    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
     assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 
   it('booted local disk can put and retrieve files', async () => {
-    const Provider = storage({ default: 'local', disks: { local: { driver: 'local', root } } })
+    const Provider = storageProvider({ default: 'local', disks: { local: { driver: 'local', root } } })
     await new Provider(fakeApp).boot?.()
     await Storage.put('test.txt', 'provider works')
     assert.strictEqual(await Storage.text('test.txt'), 'provider works')

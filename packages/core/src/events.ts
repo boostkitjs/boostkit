@@ -82,7 +82,7 @@ export type ListenMap = Record<string, (new () => Listener<never>)[]>
  * Returns an EventServiceProvider class that registers the given listener map
  * into the global EventDispatcher on boot.
  */
-export function events(listen: ListenMap): new (app: Application) => ServiceProvider {
+export function eventsProvider(listen: ListenMap): new (app: Application) => ServiceProvider {
   class EventServiceProvider extends ServiceProvider {
     register(): void {}
 

@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AppRequest, AppResponse } from '@rudderjs/contracts'
-import { SessionInstance, Session, sessionMiddleware, session, type SessionConfig } from './index.js'
+import { SessionInstance, Session, sessionMiddleware, sessionProvider, type SessionConfig } from './index.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -328,7 +328,7 @@ describe('session() provider', () => {
   const fakeApp = { instance: () => undefined } as never
 
   it('register() is a no-op', () => {
-    const Provider = session(config)
+    const Provider = sessionProvider(config)
     assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 
@@ -338,7 +338,7 @@ describe('session() provider', () => {
       instance: (key: string, value: unknown) => { if (key === 'session.config') bound = value },
     } as never
 
-    const Provider = session(config)
+    const Provider = sessionProvider(config)
     new Provider(fakeAppSpy).boot?.()
     assert.strictEqual(bound, config)
   })

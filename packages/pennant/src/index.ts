@@ -316,7 +316,7 @@ export function FeatureMiddleware(featureName: string): MiddlewareHandler {
 
 // ─── Service Provider factory ─────────────────────────────
 
-export function pennant(config: PennantConfig = {}): new (app: Application) => ServiceProvider {
+export function pennantProvider(config: PennantConfig = {}): new (app: Application) => ServiceProvider {
   class PennantServiceProvider extends ServiceProvider {
     register(): void {}
 

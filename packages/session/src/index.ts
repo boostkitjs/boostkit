@@ -398,7 +398,7 @@ export function SessionMiddleware(): MiddlewareHandler {
  *   import { sessionMiddleware } from '@rudderjs/session'
  *   .withMiddleware((m) => { m.use(sessionMiddleware(configs.session)) })
  */
-export function session(config: SessionConfig): new (app: Application) => ServiceProvider {
+export function sessionProvider(config: SessionConfig): new (app: Application) => ServiceProvider {
   class SessionServiceProvider extends ServiceProvider {
     register(): void {}
 

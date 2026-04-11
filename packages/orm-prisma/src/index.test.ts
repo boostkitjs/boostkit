@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { prisma, database, type PrismaConfig, type DatabaseConfig } from './index.js'
+import { prisma, databaseProvider, type PrismaConfig, type DatabaseConfig } from './index.js'
 
 // Note: tests that actually connect to a database require a generated Prisma
 // client and a running DB. These tests verify factory contracts and adapter
@@ -136,13 +136,13 @@ describe('prisma() factory', () => {
   })
 })
 
-describe('database() factory', () => {
+describe('databaseProvider() factory', () => {
   it('is a function', () => {
-    assert.strictEqual(typeof database, 'function')
+    assert.strictEqual(typeof databaseProvider, 'function')
   })
 
   it('returns a constructor (class)', () => {
-    const Provider = database()
+    const Provider = databaseProvider()
     assert.strictEqual(typeof Provider, 'function')
   })
 
@@ -153,12 +153,12 @@ describe('database() factory', () => {
         sqlite: { driver: 'sqlite', url: 'file:./test.db' },
       },
     }
-    assert.doesNotThrow(() => database(cfg))
+    assert.doesNotThrow(() => databaseProvider(cfg))
   })
 
-  it('each call to database() returns a different class', () => {
-    const A = database()
-    const B = database()
+  it('each call to databaseProvider() returns a different class', () => {
+    const A = databaseProvider()
+    const B = databaseProvider()
     assert.notStrictEqual(A, B)
   })
 })

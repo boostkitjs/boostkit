@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { rudder } from '@rudderjs/core'
-import { ScheduledTask, schedule, Schedule, scheduler } from './index.js'
+import { ScheduledTask, schedule, Schedule, scheduleProvider } from './index.js'
 
 function makeTask(cb: () => void = () => {}): ScheduledTask {
   return new ScheduledTask(cb)
@@ -167,7 +167,7 @@ describe('scheduler() provider', () => {
   })
 
   it('registers schedule:run, schedule:work and schedule:list on boot', () => {
-    const Provider = scheduler()
+    const Provider = scheduleProvider()
     new Provider({} as never).boot?.()
     const names = rudder.getCommands().map((c) => c.name)
     assert.ok(names.includes('schedule:run'))
@@ -176,7 +176,7 @@ describe('scheduler() provider', () => {
   })
 
   it('schedule:run reports no tasks when registry is empty', async () => {
-    const Provider = scheduler()
+    const Provider = scheduleProvider()
     new Provider({} as never).boot?.()
     const cmd = rudder.getCommands().find(c => c.name === 'schedule:run')!
 
@@ -190,7 +190,7 @@ describe('scheduler() provider', () => {
   })
 
   it('schedule:list reports no tasks when registry is empty', () => {
-    const Provider = scheduler()
+    const Provider = scheduleProvider()
     new Provider({} as never).boot?.()
     const cmd = rudder.getCommands().find(c => c.name === 'schedule:list')!
 
@@ -205,7 +205,7 @@ describe('scheduler() provider', () => {
 
   it('schedule:run runs due tasks and reports completion', async () => {
     schedule.call(() => {}).everySecond().description('tick')
-    const Provider = scheduler()
+    const Provider = scheduleProvider()
     new Provider({} as never).boot?.()
     const cmd = rudder.getCommands().find(c => c.name === 'schedule:run')!
 

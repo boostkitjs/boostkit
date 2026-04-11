@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { crypt, Crypt, CryptRegistry, parseKey } from './index.js'
+import { cryptProvider, Crypt, CryptRegistry, parseKey } from './index.js'
 
 const TEST_KEY = `base64:${randomBytes(32).toString('base64')}`
 const TEST_KEY_2 = `base64:${randomBytes(32).toString('base64')}`
@@ -210,27 +210,27 @@ describe('CryptRegistry', () => {
   })
 })
 
-// ─── crypt() provider ─────────────────────────────────────
+// ─── cryptProvider() provider ─────────────────────────────────────
 
-describe('crypt() provider', () => {
+describe('cryptProvider() provider', () => {
   beforeEach(() => CryptRegistry.reset())
 
   const fakeApp = { instance: () => undefined } as never
 
   it('boots and registers the key', async () => {
-    const Provider = crypt({ key: TEST_KEY })
+    const Provider = cryptProvider({ key: TEST_KEY })
     await new Provider(fakeApp).boot?.()
     assert.ok(CryptRegistry.getKey().length === 32)
   })
 
   it('boots with previous keys', async () => {
-    const Provider = crypt({ key: TEST_KEY, previousKeys: [TEST_KEY_2] })
+    const Provider = cryptProvider({ key: TEST_KEY, previousKeys: [TEST_KEY_2] })
     await new Provider(fakeApp).boot?.()
     assert.strictEqual(CryptRegistry.getPreviousKeys().length, 1)
   })
 
   it('throws when key is empty', async () => {
-    const Provider = crypt({ key: '' })
+    const Provider = cryptProvider({ key: '' })
     await assert.rejects(
       () => new Provider(fakeApp).boot?.() as Promise<void>,
       /APP_KEY is not set/,
@@ -238,7 +238,7 @@ describe('crypt() provider', () => {
   })
 
   it('throws when key is wrong length', async () => {
-    const Provider = crypt({ key: 'too-short' })
+    const Provider = cryptProvider({ key: 'too-short' })
     await assert.rejects(
       () => new Provider(fakeApp).boot?.() as Promise<void>,
       /must be 32 bytes/,
@@ -246,7 +246,7 @@ describe('crypt() provider', () => {
   })
 
   it('register() is a no-op', () => {
-    const Provider = crypt({ key: TEST_KEY })
+    const Provider = cryptProvider({ key: TEST_KEY })
     assert.doesNotThrow(() => new Provider(fakeApp).register?.())
   })
 })

@@ -1,25 +1,25 @@
 import { resolve } from 'node:path'
 import type { Application, ServiceProvider } from '@rudderjs/core'
-import { events } from '@rudderjs/core'
+import { eventsProvider } from '@rudderjs/core'
 import { authProvider } from '@rudderjs/auth'
-import { hash } from '@rudderjs/hash'
-import { queue } from '@rudderjs/queue'
-import { mail } from '@rudderjs/mail'
-import { cache } from '@rudderjs/cache'
-import { storage } from '@rudderjs/storage'
-import { scheduler } from '@rudderjs/schedule'
-import { notifications } from '@rudderjs/notification'
-import { session } from '@rudderjs/session'
-import { localization } from '@rudderjs/localization'
-import { database } from '@rudderjs/orm-prisma'
-import { broadcasting } from '@rudderjs/broadcast'
-import { live }   from '@rudderjs/live'
-import { ai }        from '@rudderjs/ai'
-import { boost }     from '@rudderjs/boost'
-import { log }       from '@rudderjs/log'
-import { telescope } from '@rudderjs/telescope'
-import { pulse }     from '@rudderjs/pulse'
-import { horizon }   from '@rudderjs/horizon'
+import { hashProvider } from '@rudderjs/hash'
+import { queueProvider } from '@rudderjs/queue'
+import { mailProvider } from '@rudderjs/mail'
+import { cacheProvider } from '@rudderjs/cache'
+import { storageProvider } from '@rudderjs/storage'
+import { scheduleProvider } from '@rudderjs/schedule'
+import { notificationProvider } from '@rudderjs/notification'
+import { sessionProvider } from '@rudderjs/session'
+import { localizationProvider } from '@rudderjs/localization'
+import { databaseProvider } from '@rudderjs/orm-prisma'
+import { broadcastingProvider } from '@rudderjs/broadcast'
+import { liveProvider } from '@rudderjs/live'
+import { aiProvider } from '@rudderjs/ai'
+import { boostProvider } from '@rudderjs/boost'
+import { logProvider } from '@rudderjs/log'
+import { telescopeProvider } from '@rudderjs/telescope'
+import { pulseProvider } from '@rudderjs/pulse'
+import { horizonProvider } from '@rudderjs/horizon'
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 import { UserRegistered } from '../app/Events/UserRegistered.js'
 import { SendWelcomeEmailListener } from '../app/Listeners/SendWelcomeEmailListener.js'
@@ -27,34 +27,34 @@ import configs from '../config/index.js'
 
 export default [
   // ── Infrastructure (order matters) ──────────────────────
-  log(configs.log),           // boots first — available to all other providers
-  database(configs.database), // binds PrismaClient to DI as 'prisma'
-  session(configs.session),
-  hash(configs.hash),
-  cache(configs.cache),
-  authProvider(configs.auth), // requires session + hash
+  logProvider(configs.log),           // boots first — available to all other providers
+  databaseProvider(configs.database), // binds PrismaClient to DI as 'prisma'
+  sessionProvider(configs.session),
+  hashProvider(configs.hash),
+  cacheProvider(configs.cache),
+  authProvider(configs.auth),         // requires session + hash
 
   // ── Features ────────────────────────────────────────────
-  queue(configs.queue),
-  events({ [UserRegistered.name]: [SendWelcomeEmailListener] }),
-  mail(configs.mail),
-  storage(configs.storage),
-  localization({
+  queueProvider(configs.queue),
+  eventsProvider({ [UserRegistered.name]: [SendWelcomeEmailListener] }),
+  mailProvider(configs.mail),
+  storageProvider(configs.storage),
+  localizationProvider({
     locale:   configs.app.locale,
     fallback: configs.app.fallback,
     path:     resolve(process.cwd(), 'lang'),
   }),
-  scheduler(),
-  notifications(),
-  broadcasting(),
-  live(configs.live),
-  ai(configs.ai),
-  boost(),
+  scheduleProvider(),
+  notificationProvider(),
+  broadcastingProvider(),
+  liveProvider(configs.live),
+  aiProvider(configs.ai),
+  boostProvider(),
 
   // ── Monitoring ──────────────────────────────────────────
-  telescope(configs.telescope),
-  pulse(configs.pulse),
-  horizon(configs.horizon),
+  telescopeProvider(configs.telescope),
+  pulseProvider(configs.pulse),
+  horizonProvider(configs.horizon),
 
   // ── Application ─────────────────────────────────────────
   AppServiceProvider,

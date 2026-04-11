@@ -434,7 +434,7 @@ export const LIVE_UPGRADE_KEY = '__rudderjs_live_upgrade__'
  *   live({ persistence: liveRedis() }),  // redis (production)
  * ]
  */
-export function live(config: LiveConfig = {}): new (app: Application) => ServiceProvider {
+export function liveProvider(config: LiveConfig = {}): new (app: Application) => ServiceProvider {
   const path        = config.path        ?? '/ws-live'
   const persistence = config.persistence ?? new MemoryPersistence()
 

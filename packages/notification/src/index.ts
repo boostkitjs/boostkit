@@ -335,7 +335,7 @@ export const notify = (
 export { NotificationFake } from './fake.js'
 export type { SentNotification } from './fake.js'
 
-export function notifications(): new (app: Application) => ServiceProvider {
+export function notificationProvider(): new (app: Application) => ServiceProvider {
   class NotificationServiceProvider extends ServiceProvider {
     register(): void {
       const schemaDir = new URL(/* @vite-ignore */ '../schema', import.meta.url).pathname
