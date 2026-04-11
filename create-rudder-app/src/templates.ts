@@ -241,6 +241,7 @@ function packageJson(ctx: TemplateContext): string {
     '@rudderjs/router':       'latest',
     '@rudderjs/server-hono':  'latest',
     '@rudderjs/support':      'latest',
+    '@rudderjs/view':         'latest',
     '@vikejs/hono':           '^0.2.0',
     'dotenv':                 '^16.4.0',
     'reflect-metadata':       '^0.2.2',
@@ -1908,9 +1909,9 @@ export default function Page() {
 
 function welcomeView(ctx: TemplateContext): string {
   switch (ctx.primary) {
-    case 'vue':   return welcomeViewVue()
-    case 'solid': return welcomeViewSolid()
-    default:      return welcomeViewReact()
+    case 'vue':   return welcomeViewVue(ctx)
+    case 'solid': return welcomeViewSolid(ctx)
+    default:      return welcomeViewReact(ctx)
   }
 }
 
@@ -1950,10 +1951,9 @@ const features: Feature[] = [
   },
 ]`
 
-function welcomeViewReact(): string {
-  return `import '@/index.css'
-
-// URL this view is served at — MUST match the Route.get('/', ...) in routes/web.ts.
+function welcomeViewReact(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n\n` : ''
+  return `${cssImport}// URL this view is served at — MUST match the Route.get('/', ...) in routes/web.ts.
 // The scanner reads this constant and writes it into the generated +route.ts,
 // so Vike's client router can SPA-navigate here instead of doing full reloads.
 export const route = '/'
@@ -2076,13 +2076,20 @@ export default function Welcome(props: WelcomeProps) {
 `
 }
 
-function welcomeViewVue(): string {
-  return `<script setup lang="ts">
-import '@/index.css'
-
+function welcomeViewVue(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n` : ''
+  // Vue SFC quirk: top-level `export` statements must live in a regular
+  // <script> block, NOT <script setup> (the compiler rejects exports there).
+  // The scanner reads both blocks as plain text, so the route override is
+  // still picked up. Keep this dual-script structure whenever a Vue view
+  // needs `export const route = '/...'`.
+  return `<script lang="ts">
 // URL this view is served at — see the React variant for rationale.
 export const route = '/'
+</script>
 
+<script setup lang="ts">
+${cssImport}
 export interface WelcomeProps {
   appName:       string
   rudderVersion: string
@@ -2198,9 +2205,9 @@ async function handleSignOut() {
 `
 }
 
-function welcomeViewSolid(): string {
-  return `import '@/index.css'
-import { For, Show } from 'solid-js'
+function welcomeViewSolid(ctx: TemplateContext): string {
+  const cssImport = ctx.tailwind ? `import '@/index.css'\n` : ''
+  return `${cssImport}import { For, Show } from 'solid-js'
 
 // URL this view is served at — see the React variant for rationale.
 export const route = '/'

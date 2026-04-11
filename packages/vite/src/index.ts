@@ -6,6 +6,11 @@ import { viewsScannerPlugin } from './views-scanner.js'
 // ─── SSR / build externals ─────────────────────────────────
 
 const SSR_EXTERNALS = [
+  // @rudderjs/view — linked package, Vite's SSR module runner can't resolve
+  // it via its internal fetchModule path in non-workspace consumers (fresh
+  // scaffolded app + pnpm link). Loading it through Node's native ESM
+  // (which handles the symlink correctly) sidesteps the issue.
+  '@rudderjs/view',
   // CLI-only — uses node:process stdin/readline
   '@clack/core',
   '@clack/prompts',
@@ -164,6 +169,18 @@ export function rudderjs(): Promise<Plugin[]> {
                 { find: '@',        replacement: path.resolve(process.cwd(), 'src') },
                 { find: /^App\//,   replacement: path.resolve(process.cwd(), 'app') + '/' },
               ],
+            },
+            // `@rudderjs/view` is imported from routes/web.ts during SSR. Vite's
+            // first-run dep pre-bundler can't resolve it when the package is
+            // linked via pnpm overrides in a non-workspace project (e.g. a
+            // fresh scaffolded app pointing at a local rudderjs checkout) —
+            // the second `vike dev` invocation succeeds because Vite's cache
+            // is warm, but the first cold boot fails with a cryptic
+            // "Cannot find module '@rudderjs/view'" error. Excluding it from
+            // dep optimization lets Vite resolve it via normal Node ESM and
+            // skips the flaky scan.
+            optimizeDeps: {
+              exclude: ['@rudderjs/view'],
             },
             ssr: {
               external: SSR_EXTERNALS,
