@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
+// node:fs and node:path are imported lazily inside `defaultProviders()` so this
+// module stays safe to include in browser bundles. Vite externalizes node:* in
+// client builds, and a top-level import would crash the browser the moment any
+// client code transitively touches @rudderjs/core's barrel export.
 import { resolveOptionalPeer, config } from '@rudderjs/support'
 import type { Application } from './application.js'
 import type { ServiceProvider } from './service-provider.js'
@@ -59,6 +61,10 @@ export function getLastLoadedProviderEntries(): ProviderEntry[] {
  */
 export async function defaultProviders(options: DefaultProvidersOptions = {}): Promise<ProviderClass[]> {
   const skip = new Set(options.skip ?? [])
+
+  // Lazy-load node:* so this module stays browser-safe at the top level.
+  const { readFileSync } = await import('node:fs')
+  const path             = await import('node:path')
 
   // 1. Try the build-time manifest first
   let entries: ProviderEntry[]
