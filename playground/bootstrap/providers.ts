@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import type { Application, ServiceProvider } from '@rudderjs/core'
 import { events } from '@rudderjs/core'
-import { auth } from '@rudderjs/auth'
+import { authProvider } from '@rudderjs/auth'
 import { hash } from '@rudderjs/hash'
 import { queue } from '@rudderjs/queue'
 import { mail } from '@rudderjs/mail'
@@ -32,7 +32,7 @@ export default [
   session(configs.session),
   hash(configs.hash),
   cache(configs.cache),
-  auth(configs.auth),         // requires session + hash
+  authProvider(configs.auth), // requires session + hash
 
   // ── Features ────────────────────────────────────────────
   queue(configs.queue),

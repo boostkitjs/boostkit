@@ -7,7 +7,6 @@ import { view } from '@rudderjs/view'
 import { resolve, dd, dump, config, validate } from '@rudderjs/core'
 import { broadcast, broadcastStats } from '@rudderjs/broadcast'
 import { getLocale, runWithLocale, setLocale, trans } from '@rudderjs/localization'
-import { AuthMiddleware } from '@rudderjs/auth'
 import { Cache } from '@rudderjs/cache'
 import { Storage } from '@rudderjs/storage'
 import { RateLimit, CsrfMiddleware } from '@rudderjs/middleware'
@@ -21,9 +20,6 @@ import { z } from 'zod'
 
 // Register decorator-based controllers
 Route.registerController(TestController)
-
-// Per-route middleware instance — reused across protected routes
-const authMw = AuthMiddleware()
 
 Route.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
@@ -135,11 +131,12 @@ Route.post('/api/debug/validate', async (req) => {
   return Response.json({ valid: true, data })
 })
 
-// GET /api/me — returns current user (null if not logged in)
+// GET /api/me — returns current user (null if not logged in).
+// No AuthMiddleware needed: the auth provider installs it globally,
+// so `req.user` is populated on every request.
 Route.get('/api/me', async (req) => {
-  const user = (req.raw as Record<string, unknown>)['__rjs_user'] ?? null
-  return Response.json({ user })
-}, [AuthMiddleware()])
+  return Response.json({ user: req.user ?? null })
+})
 
 // Route.get('/id', (_req, res) => res.json({ id: res.header('X-Request-Id') }), [requestIdMiddleware])  // example of using requestIdMiddleware on a specific route
 
@@ -152,7 +149,7 @@ Route.get('/api/users', async (_req, res) => {
      return resolve<UserService>(UserService).findAll();
   })
   return res.json({ data: users })
-}, [authMw])
+})
 
 Route.get('/api/users/:id', async (req, res) => {
   const user = await resolve<UserService>(UserService).findById(req.params['id']!)
