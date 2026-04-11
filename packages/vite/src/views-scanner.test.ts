@@ -143,11 +143,15 @@ describe('views-scanner — framework detection', () => {
     assert.match(fs.readFileSync(routeFile, 'utf8'), /export default '\/home'/)
   })
 
-  it('honors `export const route` inside a Vue <script setup> block', () => {
+  it('honors `export const route` in a Vue dual <script> / <script setup> block', () => {
+    // Vue SFCs reject top-level `export` statements inside <script setup>,
+    // so real Vue view files put the route constant in a regular <script>
+    // block alongside <script setup>. The scanner reads both blocks as plain
+    // text so the regex still matches.
     root = scaffold('vue')
     fs.writeFileSync(
       path.join(root, 'app', 'Views', 'Home.vue'),
-      `<script setup lang="ts">\nexport const route = '/dashboard'\n</script>\n<template><div /></template>\n`,
+      `<script lang="ts">\nexport const route = '/dashboard'\n</script>\n<script setup lang="ts">\nconst x = 1\n</script>\n<template><div /></template>\n`,
     )
     process.chdir(root)
     viewsScannerPlugin()
