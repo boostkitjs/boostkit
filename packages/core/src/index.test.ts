@@ -16,7 +16,7 @@ import {
   EventDispatcher,
   dispatcher,
   dispatch,
-  events,
+  eventsProvider,
   app,
   resolve,
   container,
@@ -612,16 +612,16 @@ describe('global dispatcher and dispatch()', () => {
   })
 })
 
-// ─── events() provider ────────────────────────────────────
+// ─── eventsProvider() provider ────────────────────────────────────
 
-describe('events() provider', () => {
+describe('eventsProvider() provider', () => {
   beforeEach(() => dispatcher.reset())
 
   class ItemSaved { constructor(public id: number) {} }
 
   it('boot() registers listeners from the ListenMap', () => {
     class ItemSavedListener { handle(_e: unknown) {} }
-    const Provider = events({ ItemSaved: [ItemSavedListener as never] })
+    const Provider = eventsProvider({ ItemSaved: [ItemSavedListener as never] })
     new Provider({} as never).boot?.()
     assert.strictEqual(dispatcher.count('ItemSaved'), 1)
   })
@@ -629,7 +629,7 @@ describe('events() provider', () => {
   it('boot() dispatches to registered listeners', async () => {
     const calls: number[] = []
     class ItemSavedListener { handle(e: unknown) { calls.push((e as ItemSaved).id) } }
-    const Provider = events({ ItemSaved: [ItemSavedListener as never] })
+    const Provider = eventsProvider({ ItemSaved: [ItemSavedListener as never] })
     new Provider({} as never).boot?.()
     await dispatch(new ItemSaved(7))
     assert.deepStrictEqual(calls, [7])
@@ -638,7 +638,7 @@ describe('events() provider', () => {
   it('boot() supports multiple event types', () => {
     class AListener { handle(_: unknown) {} }
     class BListener { handle(_: unknown) {} }
-    const Provider = events({ EventA: [AListener as never], EventB: [BListener as never] })
+    const Provider = eventsProvider({ EventA: [AListener as never], EventB: [BListener as never] })
     new Provider({} as never).boot?.()
     assert.strictEqual(dispatcher.count('EventA'), 1)
     assert.strictEqual(dispatcher.count('EventB'), 1)
@@ -647,13 +647,13 @@ describe('events() provider', () => {
   it('boot() supports multiple listeners per event', () => {
     class L1 { handle(_: unknown) {} }
     class L2 { handle(_: unknown) {} }
-    const Provider = events({ ItemSaved: [L1 as never, L2 as never] })
+    const Provider = eventsProvider({ ItemSaved: [L1 as never, L2 as never] })
     new Provider({} as never).boot?.()
     assert.strictEqual(dispatcher.count('ItemSaved'), 2)
   })
 
   it('register() is a no-op (events has no bindings)', () => {
-    const Provider = events({})
+    const Provider = eventsProvider({})
     assert.doesNotThrow(() => new Provider({} as never).register?.())
   })
 })

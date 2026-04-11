@@ -175,6 +175,9 @@ importers:
       '@clack/prompts':
         specifier: ^1.0.0
         version: 1.0.1
+      '@rudderjs/core':
+        specifier: workspace:*
+        version: link:../core
       '@rudderjs/rudder':
         specifier: workspace:*
         version: link:../rudder
