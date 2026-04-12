@@ -1,4 +1,4 @@
-import type { QueryBuilder, OrmAdapter } from '@rudderjs/contracts'
+import type { QueryBuilder, OrmAdapter, PaginatedResult } from '@rudderjs/contracts'
 import { castGet, castSet, type CastDefinition } from './cast.js'
 import { type Attribute } from './attribute.js'
 
@@ -341,6 +341,18 @@ export abstract class Model {
 
   static all<T extends typeof Model>(this: T): Promise<InstanceType<T>[]> {
     return Model._q(this).all()
+  }
+
+  static first<T extends typeof Model>(this: T): Promise<InstanceType<T> | null> {
+    return Model._q(this).first()
+  }
+
+  static count<T extends typeof Model>(this: T): Promise<number> {
+    return Model._q(this).count()
+  }
+
+  static paginate<T extends typeof Model>(this: T, page: number, perPage?: number): Promise<PaginatedResult<InstanceType<T>>> {
+    return Model._q(this).paginate(page, perPage)
   }
 
   static where<T extends typeof Model>(this: T, column: string, value: unknown): QueryBuilder<InstanceType<T>> {
