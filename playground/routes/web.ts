@@ -135,6 +135,44 @@ Route.get('/test/http', async (_req, res) => {
   res.json({ status: response.status, data: response.json() })
 })
 
+// GET /test/model — fires ORM model operations for telescope testing
+Route.get('/test/model', async (_req, res) => {
+  const { Todo } = await import('../app/Models/Todo.js')
+  const todo = await Todo.create({ title: 'Telescope test', completed: false })
+  await Todo.update(todo.id, { title: 'Telescope test (updated)' })
+  await Todo.delete(todo.id)
+  res.json({ created: todo.id })
+})
+
+// GET /test/gate — fires gate authorization checks for telescope testing
+Route.get('/test/gate', async (_req, res) => {
+  const { Gate } = await import('@rudderjs/auth')
+  Gate.define('edit-post', (user: Record<string, unknown>) => user['role'] === 'admin')
+  const allowed = await Gate.allows('edit-post', { id: 1, role: 'admin' })
+  const denied  = await Gate.allows('edit-post', { id: 2, role: 'user' })
+  res.json({ allowed, denied })
+})
+
+// GET /test/dump — fires dump() for telescope testing
+Route.get('/test/dump', async (_req, res) => {
+  const { dump } = await import('@rudderjs/support')
+  dump({ hello: 'world', timestamp: Date.now() })
+  dump('simple string dump')
+  res.json({ dumped: 2 })
+})
+
+// GET /test/event — fires event dispatches for telescope testing
+Route.get('/test/event', async (_req, res) => {
+  const { dispatch } = await import('@rudderjs/core')
+
+  class UserRegistered { constructor(public id: number, public name: string) {} }
+  class OrderCompleted { constructor(public orderId: number, public total: number) {} }
+
+  await dispatch(new UserRegistered(1, 'Test User'))
+  await dispatch(new OrderCompleted(42, 99.99))
+  res.json({ dispatched: 2 })
+})
+
 // GET /test/cache — fires cache operations for telescope testing
 Route.get('/test/cache', async (_req, res) => {
   const { Cache } = await import('@rudderjs/cache')

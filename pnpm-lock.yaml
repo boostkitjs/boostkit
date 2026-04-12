@@ -1088,6 +1088,9 @@ importers:
       '@rudderjs/storage':
         specifier: workspace:*
         version: link:../packages/storage
+      '@rudderjs/support':
+        specifier: workspace:*
+        version: link:../packages/support
       '@rudderjs/telescope':
         specifier: workspace:*
         version: link:../packages/telescope

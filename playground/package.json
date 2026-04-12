@@ -48,6 +48,7 @@
     "@rudderjs/server-hono": "workspace:*",
     "@rudderjs/session": "workspace:*",
     "@rudderjs/storage": "workspace:*",
+    "@rudderjs/support": "workspace:*",
     "@rudderjs/telescope": "workspace:*",
     "@rudderjs/view": "workspace:*",
     "@rudderjs/vite": "workspace:*",
