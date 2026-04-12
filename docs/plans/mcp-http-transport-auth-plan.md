@@ -63,11 +63,14 @@ After this plan:
 
 4. **`packages/mcp/src/provider.ts`** (modify) — During `boot()`, iterate `Mcp.getWebServers()` and mount each on the framework's Hono instance via `startHttp()`.
 
-5. **`packages/mcp/src/Mcp.ts`** (modify) — `web()` already stores entries in a Map. Add middleware storage:
+5. **`packages/mcp/src/Mcp.ts`** (modify) — `web()` already stores `{ server, middleware }` in a Map but returns `void`. Change it to return a fluent builder so auth can be chained:
    ```ts
-   static web(path: string, server: typeof McpServer, middleware?: any[]) {
-     // store { serverClass, middleware }
-     return { middleware: (mw: any[]) => ... } // fluent chain
+   static web(path: string, server: ServerClass, middleware: unknown[] = []) {
+     this.webServers.set(path, { server, middleware })
+     return {
+       middleware: (mw: unknown[]) => { /* push to stored middleware */ return this },
+       oauth2: (options?) => { /* push OAuth2 middleware */ return this },
+     }
    }
    ```
 
