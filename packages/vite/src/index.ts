@@ -95,6 +95,21 @@ export function rudderjs(): Promise<Plugin[]> {
       ...vikePlugins,
       viewsScanner,
       {
+        // Inject x-real-ip header from the Node socket so downstream Hono
+        // middleware can read the client IP. Vike's universal-middleware
+        // converts the Express request to a Web Request which loses socket info.
+        name: 'rudderjs:ip',
+        configureServer(server) {
+          server.middlewares.use((req, _res, next) => {
+            if (!req.headers['x-real-ip'] && !req.headers['x-forwarded-for']) {
+              const ip = req.socket?.remoteAddress
+              if (ip) (req.headers as Record<string, string>)['x-real-ip'] = ip
+            }
+            next()
+          })
+        },
+      },
+      {
         name: 'rudderjs:ws',
         configureServer(server) {
           // Attach the WebSocket upgrade handler to Vite's own HTTP server.

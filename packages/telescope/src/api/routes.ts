@@ -95,18 +95,20 @@ export async function prune(
 
 // ─── Recording Toggle ─────────────────────────────────────
 
+const _g = globalThis as Record<string, unknown>
+const _recKey = '__rudderjs_telescope_recording__'
+
 export function getRecording(
   res: AppResponse,
 ): void {
-  const { TelescopeRegistry } = require('../index.js') as typeof import('../index.js')
-  res.json({ recording: TelescopeRegistry.recording })
+  res.json({ recording: (_g[_recKey] as boolean | undefined) ?? true })
 }
 
 export function toggleRecording(
   res: AppResponse,
 ): void {
-  const { TelescopeRegistry } = require('../index.js') as typeof import('../index.js')
-  const recording = TelescopeRegistry.toggleRecording()
+  const recording = !((_g[_recKey] as boolean | undefined) ?? true)
+  _g[_recKey] = recording
   res.json({ recording })
 }
 

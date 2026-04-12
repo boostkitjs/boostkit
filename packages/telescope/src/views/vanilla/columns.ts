@@ -191,4 +191,16 @@ export const pages: Record<string, PageConfig> = {
       { label: 'Bytes',    key: "entry.content.byteSize != null ? entry.content.byteSize : '—'", className: 'text-right font-mono text-xs' },
     ],
   },
+
+  ai: {
+    type:  'ai',
+    title: 'AI',
+    columns: [
+      { label: 'Agent',    key: 'entry.content.agentName' },
+      { label: 'Model',    key: 'entry.content.model',                    badge: true },
+      { label: 'Tokens',   key: "entry.content.tokens?.total ?? '—'" },
+      { label: 'Tools',    key: "entry.content.toolCallCount || '—'" },
+      { label: 'Duration', key: "entry.content.duration + 'ms'" },
+    ],
+  },
 }

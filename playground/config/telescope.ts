@@ -8,4 +8,5 @@ export default {
   pruneAfterHours:    24,
   slowQueryThreshold: 100,
   ignoreRequests:     ['/telescope*', '/health', '/@*'],
+  recordAi:           true,
 } satisfies TelescopeConfig

@@ -117,11 +117,7 @@ export class ThrottleMiddleware extends Middleware {
 
   /** Best-effort client identifier from request headers */
   private clientKey(req: AppRequest): string {
-    return (
-      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ??
-      req.headers['x-real-ip'] ??
-      'unknown'
-    )
+    return (req as unknown as Record<string, unknown>)['ip'] as string ?? 'unknown'
   }
 
   handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
@@ -285,11 +281,7 @@ interface RateRecord {
 }
 
 function clientIp(req: AppRequest): string {
-  return (
-    (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
-    (req.headers['x-real-ip'] as string | undefined) ??
-    'unknown'
-  )
+  return (req as unknown as Record<string, unknown>)['ip'] as string ?? 'unknown'
 }
 
 function buildKey(keyBy: KeyExtractor, req: AppRequest): string {

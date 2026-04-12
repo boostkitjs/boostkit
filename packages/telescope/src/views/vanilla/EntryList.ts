@@ -34,7 +34,7 @@ export function EntryList(props: EntryListProps): string {
 
   const colHeaders = columns.map(c => {
     const align = c.className?.includes('text-right') ? 'text-right' : 'text-left'
-    return `<th class="px-4 py-3 ${align} text-xs uppercase font-medium text-gray-500">${c.label}</th>`
+    return `<th class="px-4 py-3 ${align} text-xs uppercase font-medium text-gray-500 dark:text-gray-400">${c.label}</th>`
   }).join('\n              ')
 
   const colCells = columns.map(c => {
@@ -57,63 +57,63 @@ export function EntryList(props: EntryListProps): string {
         <div class="flex gap-2 items-center">
           <button @click="toggleAutoRefresh()" :title="autoRefresh ? 'Auto-refresh on (click to disable)' : 'Auto-refresh off (click to enable)'"
                   class="text-xs border rounded-lg px-3 py-1.5 transition flex items-center gap-1.5"
-                  :class="autoRefresh ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'">
+                  :class="autoRefresh ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'">
             <span class="w-2 h-2 rounded-full" :class="autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'"></span>
             <span x-text="autoRefresh ? 'Live' : 'Live'"></span>
           </button>
           <input type="text" x-model="search" @input.debounce.300ms="load()"
-                 placeholder="Search..." class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                 placeholder="Search..." class="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
         </div>
       </div>
 
       <!-- Active tag filter pill -->
       <div x-show="tag" class="mb-3 flex items-center gap-2 text-sm">
-        <span class="text-gray-500">Filtering by tag:</span>
-        <a :href="window.location.pathname" @click.prevent="tag = ''; load()" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+        <span class="text-gray-500 dark:text-gray-400">Filtering by tag:</span>
+        <a :href="window.location.pathname" @click.prevent="tag = ''; load()" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900">
           <span x-text="tag"></span>
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </a>
       </div>
 
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50 border-b border-gray-200">
+          <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
             <tr>
               ${colHeaders}
-              <th class="px-4 py-3 text-left text-xs uppercase font-medium text-gray-500">Tags</th>
-              <th class="px-4 py-3 text-right text-xs uppercase font-medium text-gray-500">Time</th>
+              <th class="px-4 py-3 text-left text-xs uppercase font-medium text-gray-500 dark:text-gray-400">Tags</th>
+              <th class="px-4 py-3 text-right text-xs uppercase font-medium text-gray-500 dark:text-gray-400">Time</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
             <template x-for="entry in entries" :key="entry.id">
-              <tr class="hover:bg-gray-50 cursor-pointer" @click="goTo(entry.id)">
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" @click="goTo(entry.id)">
                 ${colCells}
                 <td class="px-4 py-3">
                   <template x-for="t in (entry.tags || []).slice(0, 3)" :key="t">
-                    <a :href="window.location.pathname + '?tag=' + encodeURIComponent(t)" @click.stop.prevent="tag = t; page = 1; load()" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 hover:bg-gray-200 mr-1">
+                    <a :href="window.location.pathname + '?tag=' + encodeURIComponent(t)" @click.stop.prevent="tag = t; page = 1; load()" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 mr-1">
                       <span x-text="t"></span>
                     </a>
                   </template>
-                  <span x-show="(entry.tags || []).length > 3" class="text-xs text-gray-400" x-text="'+' + ((entry.tags || []).length - 3)"></span>
+                  <span x-show="(entry.tags || []).length > 3" class="text-xs text-gray-400 dark:text-gray-500" x-text="'+' + ((entry.tags || []).length - 3)"></span>
                 </td>
-                <td class="px-4 py-3 text-right text-gray-400 text-xs" x-text="ago(entry.createdAt)"></td>
+                <td class="px-4 py-3 text-right text-gray-400 dark:text-gray-500 text-xs" x-text="ago(entry.createdAt)"></td>
               </tr>
             </template>
             <tr x-show="entries.length === 0">
-              <td colspan="${columns.length + 2}" class="px-4 py-12 text-center text-gray-400">No entries found.</td>
+              <td colspan="${columns.length + 2}" class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">No entries found.</td>
             </tr>
           </tbody>
         </table>
 
         <!-- Pagination -->
-        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm">
-          <span class="text-gray-500">Total: <span x-text="meta.total"></span></span>
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-sm">
+          <span class="text-gray-500 dark:text-gray-400">Total: <span x-text="meta.total"></span></span>
           <div class="flex gap-1">
             <button @click="page > 1 && (page--, load())" :disabled="page <= 1"
-                    class="px-3 py-1 border rounded text-xs disabled:opacity-30">Prev</button>
-            <span class="px-3 py-1 text-gray-500" x-text="'Page ' + page + ' of ' + meta.last_page"></span>
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 disabled:opacity-30">Prev</button>
+            <span class="px-3 py-1 text-gray-500 dark:text-gray-400" x-text="'Page ' + page + ' of ' + meta.last_page"></span>
             <button @click="page < meta.last_page && (page++, load())" :disabled="page >= meta.last_page"
-                    class="px-3 py-1 border rounded text-xs disabled:opacity-30">Next</button>
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 disabled:opacity-30">Next</button>
           </div>
         </div>
       </div>
@@ -168,18 +168,18 @@ export function EntryList(props: EntryListProps): string {
 
           badgeClass(value) {
             const colors = {
-              GET: 'bg-green-100 text-green-700', POST: 'bg-blue-100 text-blue-700',
-              PUT: 'bg-amber-100 text-amber-700', DELETE: 'bg-red-100 text-red-700',
-              PATCH: 'bg-purple-100 text-purple-700',
-              error: 'bg-red-100 text-red-700', warning: 'bg-amber-100 text-amber-700',
-              info: 'bg-blue-100 text-blue-700', debug: 'bg-gray-100 text-gray-700',
-              dispatched: 'bg-blue-100 text-blue-700', failed: 'bg-red-100 text-red-700',
-              hit: 'bg-green-100 text-green-700', miss: 'bg-red-100 text-red-700',
-              set: 'bg-blue-100 text-blue-700', forget: 'bg-gray-100 text-gray-700',
-              created: 'bg-green-100 text-green-700', updated: 'bg-blue-100 text-blue-700',
-              deleted: 'bg-red-100 text-red-700',
+              GET: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300', POST: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+              PUT: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300', DELETE: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+              PATCH: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
+              error: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300', warning: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
+              info: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300', debug: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+              dispatched: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300', failed: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+              hit: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300', miss: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+              set: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300', forget: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+              created: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300', updated: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+              deleted: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
             }
-            return colors[value] || 'bg-gray-100 text-gray-600'
+            return colors[value] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
           },
 
           ago(dateStr) {

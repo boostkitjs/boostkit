@@ -31,20 +31,20 @@ export function BatchPage(props: BatchPageProps): string {
     ${Card(null, html`
       <div class="flex items-center justify-between">
         <div>
-          <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Batch</div>
+          <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Batch</div>
           <div class="font-mono text-xs">${batchId}</div>
         </div>
         <div class="flex flex-wrap gap-2">
           ${Object.entries(counts).map(([type, count]) => html`
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 text-xs">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-xs">
               <span class="font-medium">${count}</span>
-              <span class="text-gray-500">${type}${count === 1 ? '' : 's'}</span>
+              <span class="text-gray-500 dark:text-gray-400">${type}${count === 1 ? '' : 's'}</span>
             </span>
           `)}
         </div>
       </div>
       ${requestEntry ? html`
-        <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
+        <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 text-sm">
           <div class="flex items-center gap-2">
             ${Badge(String((requestEntry.content as Record<string, unknown>)['method'] ?? ''))}
             <span class="font-mono text-xs">${String((requestEntry.content as Record<string, unknown>)['path'] ?? '')}</span>
@@ -62,12 +62,12 @@ export function BatchPage(props: BatchPageProps): string {
       ? new Date(e.createdAt).getTime() - new Date(requestEntry.createdAt).getTime()
       : 0
     return html`
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-2 text-right text-xs text-gray-400 font-mono w-16">+${offsetMs}ms</td>
+      <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+        <td class="px-4 py-2 text-right text-xs text-gray-400 dark:text-gray-500 font-mono w-16">+${offsetMs}ms</td>
         <td class="px-4 py-2 w-24">${Badge(e.type)}</td>
         <td class="px-4 py-2 text-sm break-all">${summaryText}</td>
         <td class="px-4 py-2 text-right">
-          <a href="${detailUrl}" @click.prevent="$dispatch('telescope:navigate', '${detailUrl}')" class="text-xs text-indigo-600 hover:text-indigo-700">View →</a>
+          <a href="${detailUrl}" @click.prevent="$dispatch('telescope:navigate', '${detailUrl}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">View →</a>
         </td>
       </tr>
     `
@@ -77,14 +77,14 @@ export function BatchPage(props: BatchPageProps): string {
     ${Card(null, html`
       <table class="w-full">
         <thead class="text-left">
-          <tr class="text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
+          <tr class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
             <th class="px-4 py-2 text-right">Offset</th>
             <th class="px-4 py-2">Type</th>
             <th class="px-4 py-2">Summary</th>
             <th class="px-4 py-2"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
           ${tableRows}
         </tbody>
       </table>
@@ -92,7 +92,7 @@ export function BatchPage(props: BatchPageProps): string {
   `
 
   const backLink = html`
-    <a href="${basePath}" @click.prevent="$dispatch('telescope:navigate', '${basePath}')" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-3">
+    <a href="${basePath}" @click.prevent="$dispatch('telescope:navigate', '${basePath}')" class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-3">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
       Back to Dashboard
     </a>

@@ -16,9 +16,7 @@ import { UserRegistered } from '../Events/UserRegistered.js'
 // don't exhaust the sign-up or password-reset budget for the same client.
 const authLimit = RateLimit.perMinute(10)
   .by(req => {
-    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
-      ?? (req.headers['x-real-ip'] as string | undefined)
-      ?? 'unknown'
+    const ip = (req as unknown as Record<string, unknown>)['ip'] as string ?? '127.0.0.1'
     return `${ip}:${req.path}`
   })
   .message('Too many auth attempts. Try again later.')

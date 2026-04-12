@@ -122,7 +122,7 @@ export async function registerTelescopeRoutes(
 
   // ── API: list + show per entry type ──────────────────────
   for (const type of ENTRY_TYPES) {
-    const apiPath = type === 'query' ? 'queries' : type === 'http' ? 'http' : `${type}s`
+    const apiPath = type === 'query' ? 'queries' : type === 'http' ? 'http' : type === 'ai' ? 'ai' : `${type}s`
     router.get(
       `${apiPrefix}/${apiPath}`,
       (req: AppRequest, res: AppResponse) => listEntries(storage, type, req, res),

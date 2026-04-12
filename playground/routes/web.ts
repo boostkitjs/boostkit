@@ -182,3 +182,29 @@ Route.get('/test/cache', async (_req, res) => {
   await Cache.forget('test:greeting')
   res.json({ hit, miss })
 })
+
+// GET /test/ai — fires an AI agent execution for telescope testing
+Route.get('/test/ai', async (_req, res) => {
+  const { agent, toolDefinition } = await import('@rudderjs/ai')
+  const { z } = await import('zod')
+
+  const calculator = toolDefinition({
+    name: 'calculator',
+    description: 'Performs basic math',
+    inputSchema: z.object({ expression: z.string() }),
+  }).server(({ expression }) => ({ result: eval(expression) })) // eslint-disable-line no-eval
+
+  const mathAgent = agent({
+    instructions: 'You are a helpful math assistant. Use the calculator tool.',
+    model: 'anthropic/claude-haiku-4-5-20251001',
+    tools: [calculator],
+  })
+
+  const result = await mathAgent.prompt('What is 2 + 2?')
+
+  res.json({
+    text:   result.text,
+    steps:  result.steps.length,
+    tokens: result.usage?.totalTokens ?? null,
+  })
+})

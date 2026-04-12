@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { TelescopeEntry, TelescopeStorage, ListOptions, EntryType } from './types.js'
 
+const _g = globalThis as Record<string, unknown>
+const _recKey = '__rudderjs_telescope_recording__'
+
+function isRecording(): boolean {
+  return (_g[_recKey] as boolean | undefined) ?? true
+}
+
 // ─── Helpers ───────────────────────────────────────────────
 
 export function createEntry(
@@ -27,6 +34,7 @@ export class MemoryStorage implements TelescopeStorage {
   constructor(private readonly maxEntries: number = 1000) {}
 
   store(entry: TelescopeEntry): void {
+    if (!isRecording()) return
     this.entries.unshift(entry)
     if (this.entries.length > this.maxEntries) {
       this.entries.length = this.maxEntries
@@ -34,6 +42,7 @@ export class MemoryStorage implements TelescopeStorage {
   }
 
   storeBatch(entries: TelescopeEntry[]): void {
+    if (!isRecording()) return
     for (const entry of entries) this.store(entry)
   }
 
@@ -151,6 +160,7 @@ export class SqliteStorage implements TelescopeStorage {
   }
 
   store(entry: TelescopeEntry): void {
+    if (!isRecording()) return
     const row = this.toRow(entry)
     this.getDb().prepare(
       `INSERT INTO telescope_entries (id, batch_id, type, content, tags, family_hash, created_at)
@@ -159,6 +169,7 @@ export class SqliteStorage implements TelescopeStorage {
   }
 
   storeBatch(entries: TelescopeEntry[]): void {
+    if (!isRecording()) return
     const db   = this.getDb()
     const stmt = db.prepare(
       `INSERT INTO telescope_entries (id, batch_id, type, content, tags, family_hash, created_at)

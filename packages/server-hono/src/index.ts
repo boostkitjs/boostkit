@@ -67,6 +67,19 @@ export interface HonoConfig {
 
 // ─── Request Normalizer ────────────────────────────────────
 
+function normalizeIp(ip: string): string {
+  return ip === '::1' || ip === '::ffff:127.0.0.1' ? '127.0.0.1' : ip
+}
+
+function extractIp(c: Context): string | undefined {
+  // x-forwarded-for / x-real-ip (reverse proxy, or injected by rudderjs:ip vite plugin)
+  const xff = c.req.header('x-forwarded-for')
+  if (xff) return normalizeIp(xff.split(',')[0]!.trim())
+  const xri = c.req.header('x-real-ip')
+  if (xri) return normalizeIp(xri)
+  return undefined
+}
+
 function normalizeRequest(c: Context): AppRequest {
   const url = new URL(c.req.url)
   const req: Record<string, unknown> = {
@@ -80,6 +93,7 @@ function normalizeRequest(c: Context): AppRequest {
     ),
     body:    null, // populated lazily per route
     raw:     c,
+    ip:      extractIp(c),
   }
   // Forward per-request augmentations stored on c by middleware (e.g. session, user).
   // Both applyMiddleware and registerRoute call normalizeRequest(c) with the same

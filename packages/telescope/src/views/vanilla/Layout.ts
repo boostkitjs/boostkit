@@ -45,6 +45,7 @@ export function Layout(props: LayoutProps): string {
     { label: 'Gates',         path: '/gates',        icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
     { label: 'Dumps',         path: '/dumps',        icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
     { label: 'WebSockets',    path: '/broadcasts',   icon: 'M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z' },
+    { label: 'AI',           path: '/ai',           icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { label: 'Live (Yjs)',    path: '/live',         icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   ]
 
@@ -54,7 +55,7 @@ export function Layout(props: LayoutProps): string {
     const pathExpr = n.path === '' ? `'/'` : `'${n.path}'`
     return `<a href="${href}" @click.prevent="navigate('${href}')"
           class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition"
-          :class="currentPath === ${pathExpr} ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'">
+          :class="currentPath === ${pathExpr} ? 'bg-indigo-50 text-indigo-700 font-medium dark:bg-indigo-950 dark:text-indigo-300' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'">
       <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${n.icon}"/></svg>
       ${n.label}
     </a>`
@@ -66,18 +67,27 @@ export function Layout(props: LayoutProps): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title} — Telescope</title>
+  <script>tailwindcss = { config: { darkMode: 'class' } }</script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark')
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      document.documentElement.classList.toggle('dark', e.matches)
+    })
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     [x-cloak] { display: none !important; }
     .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans antialiased">
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans antialiased">
   <div x-data="telescopeSpa()" @popstate.window="onPopState()" class="flex min-h-screen">
     <!-- Sidebar -->
-    <aside class="w-56 bg-white border-r border-gray-200 flex flex-col">
-      <div class="px-4 py-5 flex items-center gap-2 border-b border-gray-100">
+    <aside class="w-56 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+      <div class="px-4 py-5 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800">
         <a href="${basePath}" @click.prevent="navigate('${basePath}')" class="flex items-center gap-2">
           <div class="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,18 +106,18 @@ export function Layout(props: LayoutProps): string {
     <!-- Main content -->
     <main id="telescope-main" class="flex-1 overflow-auto" @telescope:navigate.window="navigate($event.detail)">
       <!-- Toolbar -->
-      <div class="border-b border-gray-200 bg-white px-6 py-2 flex items-center justify-end gap-2"
+      <div class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-2 flex items-center justify-end gap-2"
            x-data="telescopeToolbar('${basePath}/api')">
         <button @click="toggleRecording()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition"
                 :class="recording ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-700 hover:bg-red-100'">
           <span class="w-2 h-2 rounded-full" :class="recording ? 'bg-green-500' : 'bg-red-500'"></span>
           <span x-text="recording ? 'Recording' : 'Paused'"></span>
         </button>
-        <button @click="clearAll()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition">
+        <button @click="clearAll()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           Clear
         </button>
-        <button @click="refresh()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition">
+        <button @click="refresh()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Refresh
         </button>
