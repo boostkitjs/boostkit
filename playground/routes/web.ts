@@ -50,8 +50,27 @@ Route.get('/session/demo', (req, res) => {
 // GET /test/queries — fires a few ORM queries for telescope testing
 Route.get('/test/queries', async (_req, res) => {
   const { User } = await import('../app/Models/User.js')
-  const users = await User.all()
-  res.json({ total: users.length })
+  const { Todo } = await import('../app/Models/Todo.js')
+
+  const users     = await User.all()
+  const firstUser = await User.first()
+  const userCount = await User.count()
+
+  const todos      = await Todo.all()
+  const firstTodo  = await Todo.first()
+  const todoCount  = await Todo.count()
+  const todosPage  = await Todo.paginate(1, 5)
+  const foundTodo  = firstTodo ? await Todo.find(firstTodo.id) : null
+
+  res.json({
+    users:  { total: userCount, first: firstUser?.name ?? null },
+    todos:  {
+      total: todoCount,
+      first: firstTodo?.title ?? null,
+      found: foundTodo?.title ?? null,
+      page:  { data: todosPage.data.length, total: todosPage.total, perPage: todosPage.perPage },
+    },
+  })
 })
 
 // GET /test/logs — fires log messages for telescope testing
