@@ -27,7 +27,7 @@ const RequestView: ViewFn = (entry) => {
   const status = c['status'] as number | undefined
   const statusBadge = status
     ? raw(`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor(status)}">${status}</span>`)
-    : raw('<span class="text-gray-300">—</span>')
+    : raw('<span class="text-gray-300 dark:text-gray-600">—</span>')
 
   // Build the details table — only include fields that have values
   const details: Record<string, unknown> = {
@@ -61,13 +61,10 @@ const RequestView: ViewFn = (entry) => {
       Props: view.props.length > 0 ? view.props.join(', ') : '(none)',
     })) : ''}
 
-    ${headers || hasBody ? Tabs([
-      { label: 'Headers', content: headers ? KeyValueTable(headers) : html`` },
-      { label: 'Body',    content: hasBody ? JsonBlock(body) : html`` },
-    ]) : ''}
-
-    ${hasResHeaders ? Tabs([
-      { label: 'Response Headers', content: KeyValueTable(responseHeaders!) },
+    ${headers || hasBody || hasResHeaders ? Tabs([
+      ...(headers ? [{ label: 'Headers', content: KeyValueTable(headers) }] : []),
+      ...(hasBody ? [{ label: 'Body', content: JsonBlock(body) }] : []),
+      ...(hasResHeaders ? [{ label: 'Response Headers', content: KeyValueTable(responseHeaders!) }] : []),
     ]) : ''}
 
     ${session && Object.keys(session).length > 0 ? Card('Session', JsonBlock(session)) : ''}
@@ -75,11 +72,11 @@ const RequestView: ViewFn = (entry) => {
 }
 
 function statusColor(status: number): string {
-  if (status >= 500) return 'bg-red-100 text-red-700'
-  if (status >= 400) return 'bg-amber-100 text-amber-700'
-  if (status >= 300) return 'bg-blue-100 text-blue-700'
-  if (status >= 200) return 'bg-green-100 text-green-700'
-  return 'bg-gray-100 text-gray-600'
+  if (status >= 500) return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+  if (status >= 400) return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+  if (status >= 300) return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+  if (status >= 200) return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+  return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
 }
 
 const QueryView: ViewFn = (entry) => {
@@ -100,7 +97,7 @@ const ExceptionView: ViewFn = (entry) => {
   const stack = String(c['stack'] ?? c['trace'] ?? '')
   return html`
     ${Card(null, KeyValueTable({
-      Class:   raw(`<span class="font-mono text-xs text-red-600">${escape(c['class'] as string ?? '')}</span>`),
+      Class:   raw(`<span class="font-mono text-xs text-red-600 dark:text-red-400">${escape(c['class'] as string ?? '')}</span>`),
       Message: c['message'],
       File:    c['file'],
       Line:    c['line'],
@@ -126,7 +123,7 @@ const MailView: ViewFn = (entry) => {
       BCC:     Array.isArray(c['bcc']) ? (c['bcc'] as string[]).join(', ') : c['bcc'],
     }))}
     ${htmlBody ? Card('HTML Preview', html`
-      <iframe srcdoc="${String(htmlBody)}" class="w-full h-96 bg-white border border-gray-200 rounded-lg" sandbox=""></iframe>
+      <iframe srcdoc="${String(htmlBody)}" class="w-full h-96 bg-white border border-gray-200 dark:border-gray-700 rounded-lg" sandbox=""></iframe>
     `) : ''}
     ${textBody ? Card('Plain Text', CodeBlock(String(textBody))) : ''}
   `
@@ -243,7 +240,7 @@ const CommandView: ViewFn = (entry) => {
     ${c['args'] && Object.keys(c['args'] as object).length > 0 ? Card('Arguments', JsonBlock(c['args'])) : ''}
     ${c['opts'] && Object.keys(c['opts'] as object).length > 0 ? Card('Options', JsonBlock(c['opts'])) : ''}
     ${error?.message ? Card('Error', html`
-      <div class="text-sm text-red-600 mb-2">${error.message}</div>
+      <div class="text-sm text-red-600 dark:text-red-400 mb-2">${error.message}</div>
       ${error.stack ? CodeBlock(error.stack, { maxHeight: '[600px]' }) : ''}
     `) : ''}
   `
@@ -267,7 +264,7 @@ const HttpView: ViewFn = (entry) => {
     ${c['reqBody'] !== undefined && c['reqBody'] !== null ? Card('Request Body', JsonBlock(c['reqBody'])) : ''}
     ${resHeaders ? Card('Response Headers', KeyValueTable(resHeaders)) : ''}
     ${c['resBody'] ? Card('Response Body', CodeBlock(String(c['resBody']), { maxHeight: '[400px]' })) : ''}
-    ${isFailure && c['error'] ? Card('Error', raw(`<div class="text-sm text-red-600">${escape(c['error'] as string)}</div>`)) : ''}
+    ${isFailure && c['error'] ? Card('Error', raw(`<div class="text-sm text-red-600 dark:text-red-400">${escape(c['error'] as string)}</div>`)) : ''}
   `
 }
 
@@ -308,8 +305,8 @@ const BroadcastView: ViewFn = (entry) => {
   const baseRows: Record<string, unknown> = {
     Kind:         Badge(kind),
     'Connection': c['connectionId'] != null
-      ? raw(`<a href="../batches/${escape(c['connectionId'] as string)}" class="font-mono text-xs text-indigo-600 hover:text-indigo-700">${escape((c['connectionId'] as string).slice(0, 12))}…</a>`)
-      : raw('<span class="text-gray-300">—</span>'),
+      ? raw(`<a href="../batches/${escape(c['connectionId'] as string)}" class="font-mono text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">${escape((c['connectionId'] as string).slice(0, 12))}…</a>`)
+      : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
   }
 
   switch (kind) {
@@ -353,16 +350,146 @@ const BroadcastView: ViewFn = (entry) => {
   `
 }
 
+function renderToolCalls(toolCalls: unknown[]): SafeString {
+  if (toolCalls.length === 0) return html``
+  const items = toolCalls.map((tc) => {
+    const t = tc as Record<string, unknown>
+    const name      = String(t['name'] ?? t['toolName'] ?? '—')
+    const duration  = t['duration'] != null ? `${t['duration']}ms` : null
+    const approved  = t['approved'] === true
+    const needsApproval = t['requiresApproval'] === true
+    const args      = t['args'] ?? t['input'] ?? t['arguments']
+    const result    = t['result'] ?? t['output']
+
+    const approvalBadge = needsApproval
+      ? raw(`<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">${approved ? 'Approved' : 'Pending'}</span>`)
+      : ''
+
+    return html`
+      <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden mb-2">
+        <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          ${Badge(name)}
+          ${approvalBadge}
+          ${duration ? raw(`<span class="text-xs text-gray-400 dark:text-gray-500 ml-auto">${escape(duration)}</span>`) : ''}
+        </div>
+        ${args !== undefined ? html`
+          <details class="group">
+            <summary class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800">Args</summary>
+            <div class="px-3 pb-2">${JsonBlock(args)}</div>
+          </details>
+        ` : ''}
+        ${result !== undefined ? html`
+          <details class="group">
+            <summary class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800">Result</summary>
+            <div class="px-3 pb-2">${JsonBlock(result)}</div>
+          </details>
+        ` : ''}
+      </div>
+    `
+  }).join('')
+  return raw(items)
+}
+
+function renderSteps(steps: unknown[]): SafeString {
+  if (steps.length <= 1) return html``
+  const items = steps.map((s, i) => {
+    const step = s as Record<string, unknown>
+    const usage = step['usage'] as Record<string, unknown> | undefined
+    const tokens = usage ? (usage['totalTokens'] ?? usage['total_tokens']) : undefined
+    const tcCount = Array.isArray(step['toolCalls']) ? step['toolCalls'].length : (step['toolCallCount'] ?? 0)
+    const finishReason = step['finishReason'] ?? step['finish_reason']
+
+    return html`
+      <div class="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 mb-2">
+        ${Card(null, KeyValueTable({
+          Iteration:     i + 1,
+          Tokens:        tokens != null ? String(tokens) : '—',
+          'Tool Calls':  String(tcCount),
+          'Finish Reason': finishReason ? Badge(String(finishReason)) : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
+        }))}
+      </div>
+    `
+  }).join('')
+  return raw(items)
+}
+
+const AiView: ViewFn = (entry) => {
+  const c = entry.content as Record<string, unknown>
+
+  const status       = String(c['status'] ?? '')
+  const statusBadge  = status === 'failed'
+    ? raw(`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">Failed</span>`)
+    : raw(`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">Completed</span>`)
+
+  const finishReason = c['finishReason'] ?? c['finish_reason']
+  const streaming    = c['streaming'] === true ? 'Yes' : 'No'
+  const toolCalls    = Array.isArray(c['toolCalls']) ? c['toolCalls'] as unknown[] : []
+  const steps        = Array.isArray(c['steps']) ? c['steps'] as unknown[] : []
+  const usage        = c['usage'] as Record<string, unknown> | undefined
+
+  const requestRows: Record<string, unknown> = {
+    Status:        statusBadge,
+    Agent:         c['agent'] ?? '—',
+    Model:         c['model'] ? Badge(String(c['model'])) : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
+    Provider:      c['provider'] ?? '—',
+    Duration:      c['duration'] != null ? `${c['duration']}ms` : '—',
+    'Finish Reason': finishReason ? Badge(String(finishReason)) : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
+    Steps:         steps.length > 0 ? steps.length : (c['stepCount'] ?? '—'),
+    'Tool Calls':  toolCalls.length > 0 ? toolCalls.length : (c['toolCallCount'] ?? '—'),
+    Streaming:     streaming,
+  }
+  if (c['conversationId']) {
+    requestRows['Conversation ID'] = raw(`<span class="font-mono text-xs">${escape(String(c['conversationId']))}</span>`)
+  }
+  const failoverAttempts = c['failoverAttempts'] as number | undefined
+  if (failoverAttempts != null && failoverAttempts > 0) {
+    requestRows['Failover Attempts'] = failoverAttempts
+  }
+
+  const inputValue  = c['input']  as unknown
+  const outputValue = c['output'] as unknown
+  const errorValue  = c['error']  as unknown
+
+  const inputStr  = typeof inputValue  === 'string' ? inputValue  : JSON.stringify(inputValue,  null, 2)
+  const outputStr = typeof outputValue === 'string' ? outputValue : JSON.stringify(outputValue, null, 2)
+
+  return html`
+    ${Card('AI Request', KeyValueTable(requestRows))}
+
+    ${usage ? Card('Token Usage', KeyValueTable({
+      Prompt:     usage['promptTokens']     ?? usage['prompt_tokens']     ?? '—',
+      Completion: usage['completionTokens'] ?? usage['completion_tokens'] ?? '—',
+      Total:      usage['totalTokens']      ?? usage['total_tokens']      ?? '—',
+    })) : ''}
+
+    ${inputValue !== undefined && inputValue !== null
+      ? Card('Input', CodeBlock(inputStr, { maxHeight: '[200px]' }))
+      : ''}
+
+    ${outputValue !== undefined && outputValue !== null
+      ? Card('Output', CodeBlock(outputStr, { maxHeight: '[400px]' }))
+      : ''}
+
+    ${errorValue
+      ? Card('Error', raw(`<pre class="text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap break-words">${escape(typeof errorValue === 'string' ? errorValue : JSON.stringify(errorValue, null, 2))}</pre>`))
+      : ''}
+
+    ${toolCalls.length > 0 ? Card('Tool Calls', renderToolCalls(toolCalls)) : ''}
+
+    ${steps.length > 1 ? Card('Steps', renderSteps(steps)) : ''}
+  `
+}
+
 const LiveView: ViewFn = (entry) => {
   const c = entry.content as Record<string, unknown>
   const kind = String(c['kind'] ?? '')
 
   const baseRows: Record<string, unknown> = {
     Kind:     Badge(kind),
-    Document: c['docName'] != null ? raw(`<span class="font-mono text-xs">${escape(c['docName'] as string)}</span>`) : raw('<span class="text-gray-300">—</span>'),
+    Document: c['docName'] != null ? raw(`<span class="font-mono text-xs">${escape(c['docName'] as string)}</span>`) : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
   }
   if (c['clientId']) {
-    baseRows['Client'] = raw(`<a href="../live/${escape(c['clientId'] as string)}" class="font-mono text-xs text-indigo-600 hover:text-indigo-700">${escape((c['clientId'] as string).slice(0, 12))}…</a>`)
+    baseRows['Client'] = raw(`<a href="../live/${escape(c['clientId'] as string)}" class="font-mono text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">${escape((c['clientId'] as string).slice(0, 12))}…</a>`)
   }
 
   switch (kind) {
@@ -413,6 +540,7 @@ export const detailViews: Record<string, ViewFn> = {
   dump:         DumpView,
   broadcast:    BroadcastView,
   live:         LiveView,
+  ai:           AiView,
 }
 
 /** Internal escape helper — used inside `raw()` blocks for safety. */

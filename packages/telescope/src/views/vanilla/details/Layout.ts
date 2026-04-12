@@ -27,12 +27,12 @@ export function DetailLayout(props: DetailLayoutProps): string {
   const ageText = formatAge(new Date(entry.createdAt))
   const tagPills = entry.tags.length > 0
     ? html`<div class="flex flex-wrap gap-1 mt-2">
-        ${entry.tags.map((tag: string) => html`<a href="${basePath}/${pageKey}?tag=${tag}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/${pageKey}?tag=${tag}')" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">${tag}</a>`)}
+        ${entry.tags.map((tag: string) => html`<a href="${basePath}/${pageKey}?tag=${tag}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/${pageKey}?tag=${tag}')" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">${tag}</a>`)}
       </div>`
     : ''
 
   const batchLink = entry.batchId
-    ? html`<a href="${basePath}/batches/${entry.batchId}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/batches/${entry.batchId}')" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 ml-3">
+    ? html`<a href="${basePath}/batches/${entry.batchId}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/batches/${entry.batchId}')" class="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 ml-3">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
         View all related entries
       </a>`
@@ -40,13 +40,13 @@ export function DetailLayout(props: DetailLayoutProps): string {
 
   const headerHtml = html`
     <div class="mb-6">
-      <a href="${basePath}/${pageKey}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/${pageKey}')" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-3">
+      <a href="${basePath}/${pageKey}" @click.prevent="$dispatch('telescope:navigate', '${basePath}/${pageKey}')" class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-3">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         Back to ${pageTitle}
       </a>
       <div class="flex items-baseline justify-between">
         <h2 class="text-xl font-bold">${pageTitle.replace(/s$/, '')} Detail</h2>
-        <div class="text-xs text-gray-500">
+        <div class="text-xs text-gray-500 dark:text-gray-400">
           <span class="font-mono">${entry.id}</span>
           <span class="mx-2">·</span>
           <span>${ageText}</span>
@@ -105,19 +105,19 @@ function renderRelatedEntries(
       const durationText = c['duration'] != null ? `${c['duration']}ms` : ''
 
       return html`
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-2 text-right text-xs text-gray-400 font-mono w-16">${offsetMs >= 0 ? '+' : ''}${offsetMs}ms</td>
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-4 py-2 text-right text-xs text-gray-400 dark:text-gray-500 font-mono w-16">${offsetMs >= 0 ? '+' : ''}${offsetMs}ms</td>
           <td class="px-4 py-2 text-sm break-all">
-            <a href="${detailUrl}" @click.prevent="$dispatch('telescope:navigate', '${detailUrl}')" class="text-indigo-600 hover:text-indigo-700">${summary}</a>
+            <a href="${detailUrl}" @click.prevent="$dispatch('telescope:navigate', '${detailUrl}')" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">${summary}</a>
           </td>
-          <td class="px-4 py-2 text-right text-xs text-gray-400 font-mono">${durationText}</td>
+          <td class="px-4 py-2 text-right text-xs text-gray-400 dark:text-gray-500 font-mono">${durationText}</td>
         </tr>
       `
     })
 
     return Card(title, html`
       <table class="w-full">
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
           ${rows}
         </tbody>
       </table>
@@ -126,7 +126,7 @@ function renderRelatedEntries(
 
   return html`
     <div class="mt-6">
-      <h3 class="text-sm uppercase tracking-wide font-medium text-gray-500 mb-3">Related Entries</h3>
+      <h3 class="text-sm uppercase tracking-wide font-medium text-gray-500 dark:text-gray-400 mb-3">Related Entries</h3>
       ${sections}
     </div>
   `

@@ -63,9 +63,8 @@ export class RequestCollector implements Collector {
 
       // Extract IP and user-agent from request headers
       const headers = req.headers as Record<string, unknown>
-      const ip = (req as unknown as Record<string, unknown>)['ip'] as string | undefined
-        ?? headers['x-forwarded-for'] as string | undefined
-        ?? headers['x-real-ip'] as string | undefined
+      const rawIp = (req as unknown as Record<string, unknown>)['ip'] as string | undefined
+      const ip = rawIp === '::1' || rawIp === '::ffff:127.0.0.1' ? '127.0.0.1' : rawIp
       const userAgent = headers['user-agent'] as string | undefined
       const hostname  = headers['host'] as string | undefined
 

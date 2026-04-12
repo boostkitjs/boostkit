@@ -19,9 +19,9 @@ export function Dashboard(props: DashboardProps): string {
         <template x-for="[type, count] of Object.entries(counts)" :key="type">
           <a :href="'${basePath}/' + typeUrl(type)"
              @click.prevent="$dispatch('telescope:navigate', '${basePath}/' + typeUrl(type))"
-             class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition group">
+             class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition group">
             <div class="text-2xl font-bold group-hover:text-indigo-600 transition-colors" x-text="count"></div>
-            <div class="text-sm text-gray-500" x-text="typeLabel(type)"></div>
+            <div class="text-sm text-gray-500 dark:text-gray-400" x-text="typeLabel(type)"></div>
           </a>
         </template>
       </div>

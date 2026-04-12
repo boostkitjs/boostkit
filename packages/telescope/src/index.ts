@@ -17,6 +17,7 @@ import { LiveCollector } from './collectors/live.js'
 import { HttpCollector } from './collectors/http.js'
 import { GateCollector } from './collectors/gate.js'
 import { DumpCollector } from './collectors/dump.js'
+import { AiCollector } from './collectors/ai.js'
 import { registerTelescopeRoutes } from './routes.js'
 import { defaultConfig, type TelescopeConfig, type TelescopeStorage, type TelescopeEntry, type EntryType, type Collector, type ListOptions } from './types.js'
 
@@ -44,18 +45,20 @@ export { DumpCollector } from './collectors/dump.js'
 
 // ─── Telescope Registry ────────────────────────────────────
 
+const _g = globalThis as Record<string, unknown>
+const _recKey = '__rudderjs_telescope_recording__'
+
 export class TelescopeRegistry {
   private static storage: TelescopeStorage | null = null
-  private static _recording = true
 
   static set(storage: TelescopeStorage): void { this.storage = storage }
   static get(): TelescopeStorage | null        { return this.storage }
   /** @internal — clears the registered storage. Used for testing. */
   static reset(): void                         { this.storage = null }
 
-  static get recording(): boolean       { return this._recording }
-  static set recording(v: boolean)      { this._recording = v }
-  static toggleRecording(): boolean     { this._recording = !this._recording; return this._recording }
+  static get recording(): boolean       { return (_g[_recKey] as boolean | undefined) ?? true }
+  static set recording(v: boolean)      { _g[_recKey] = v }
+  static toggleRecording(): boolean     { const v = !this.recording; _g[_recKey] = v; return v }
 }
 
 // ─── Telescope Facade ──────────────────────────────────────
@@ -138,9 +141,11 @@ export class TelescopeProvider extends ServiceProvider {
     recordHttp:          merged.recordHttp          ?? defaultConfig.recordHttp,
     recordGate:          merged.recordGate          ?? defaultConfig.recordGate,
     recordDumps:         merged.recordDumps         ?? defaultConfig.recordDumps,
+    recordAi:            merged.recordAi            ?? defaultConfig.recordAi,
     liveAwarenessSampleMs: merged.liveAwarenessSampleMs ?? defaultConfig.liveAwarenessSampleMs,
     ignoreRequests:      merged.ignoreRequests      ?? defaultConfig.ignoreRequests,
     slowQueryThreshold:  merged.slowQueryThreshold  ?? defaultConfig.slowQueryThreshold,
+    slowAiThreshold:     merged.slowAiThreshold     ?? defaultConfig.slowAiThreshold,
     hideRequestHeaders:  merged.hideRequestHeaders  ?? defaultConfig.hideRequestHeaders,
     hideRequestFields:   merged.hideRequestFields   ?? defaultConfig.hideRequestFields,
     auth:                merged.auth                ?? defaultConfig.auth,
@@ -193,6 +198,7 @@ export class TelescopeProvider extends ServiceProvider {
       if (resolved.recordHttp)           collectors.push(new HttpCollector(storage, resolved.hideRequestHeaders))
       if (resolved.recordGate)           collectors.push(new GateCollector(storage))
       if (resolved.recordDumps)          collectors.push(new DumpCollector(storage))
+      if (resolved.recordAi)             collectors.push(new AiCollector(storage, resolved))
 
       for (const collector of collectors) {
         await collector.register()

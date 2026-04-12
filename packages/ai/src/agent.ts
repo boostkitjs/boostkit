@@ -42,12 +42,8 @@ import type {
 
 // ─── AI Observer (lazy accessor) ─────────────────────────
 
-let _aiObs: AiObserverRegistry | null | undefined
 function _getAiObservers(): AiObserverRegistry | null {
-  if (_aiObs === undefined) {
-    _aiObs = (globalThis as Record<string, unknown>)['__rudderjs_ai_observers__'] as AiObserverRegistry | undefined ?? null
-  }
-  return _aiObs
+  return ((globalThis as Record<string, unknown>)['__rudderjs_ai_observers__'] as AiObserverRegistry | undefined) ?? null
 }
 
 function _buildObserverSteps(steps: AgentStep[], modelString: string): AiObserverStep[] {

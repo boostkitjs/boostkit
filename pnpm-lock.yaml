@@ -903,6 +903,9 @@ importers:
         specifier: workspace:*
         version: link:../schedule
     devDependencies:
+      '@rudderjs/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@rudderjs/auth':
         specifier: workspace:*
         version: link:../auth
