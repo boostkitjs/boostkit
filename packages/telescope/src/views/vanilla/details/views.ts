@@ -19,6 +19,7 @@ const RequestView: ViewFn = (entry) => {
   const responseHeaders = c['responseHeaders'] as Record<string, string> | undefined
   const body            = c['body']
   const session         = c['session']         as Record<string, unknown> | undefined
+  const user            = c['user']            as Record<string, unknown> | undefined
   // Status badge with color based on status code
   const status = c['status'] as number | undefined
   const statusBadge = status
@@ -35,6 +36,12 @@ const RequestView: ViewFn = (entry) => {
       'IP Address':   c['ip'],
       'User-Agent':   c['userAgent'],
     }))}
+
+    ${user ? Card('Authenticated User', KeyValueTable({
+      ID:              user['id'],
+      Name:            user['name'],
+      'Email Address': user['email'],
+    })) : ''}
 
     ${headers ? Card('Request Headers', KeyValueTable(headers)) : ''}
     ${body !== undefined && body !== null && body !== '' ? Card('Request Body', JsonBlock(body)) : ''}

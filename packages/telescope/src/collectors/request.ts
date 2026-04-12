@@ -88,6 +88,23 @@ export class RequestCollector implements Collector {
         if (session) sessionData = redactFields(session.all(), hideFields) as Record<string, unknown>
       } catch { /* session middleware may not be installed */ }
 
+      // Authenticated user — read from @rudderjs/auth's AsyncLocalStorage context
+      let user: Record<string, unknown> | undefined
+      try {
+        const { auth } = await import('@rudderjs/auth') as {
+          auth(): { user(): Promise<Record<string, unknown> | null> }
+        }
+        const current = await auth().user()
+        if (current) {
+          user = {
+            id:    current['id'],
+            name:  current['name'],
+            email: current['email'],
+          }
+          tags.push(`user:${current['id']}`)
+        }
+      } catch { /* @rudderjs/auth may not be installed */ }
+
       const entry = createEntry('request', {
         method:    req.method,
         url:       req.url,
@@ -103,6 +120,7 @@ export class RequestCollector implements Collector {
         hostname,
         responseHeaders,
         session:   sessionData,
+        user,
       }, { batchId, tags })
 
       storage.store(entry)
