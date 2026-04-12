@@ -8,7 +8,10 @@ export { getRouteList } from './tools/route-list.js'
 export { getModelList } from './tools/model-list.js'
 export { getLastError } from './tools/last-error.js'
 export { boostInstall } from './commands/install.js'
+export type { BoostInstallOptions } from './commands/install.js'
 export { boostUpdate } from './commands/update.js'
+export type { BoostAgent, SkillEntry } from './agents/types.js'
+export { builtInAgents } from './agents/index.js'
 
 /**
  * Boost service provider — registers the `boost:mcp` rudder command.
@@ -29,10 +32,10 @@ export class BoostProvider extends ServiceProvider {
         await startBoostMcp(process.cwd())
       }).description('Start the Boost MCP server (stdio transport)')
 
-      rudder.command('boost:install', async () => {
+      rudder.command('boost:install', async (args: string[]) => {
         const { boostInstall } = await import('./commands/install.js')
-        await boostInstall(process.cwd())
-      }).description('Generate IDE configs for AI coding assistants')
+        await boostInstall(process.cwd(), { args })
+      }).description('Generate IDE configs for AI coding assistants (--agent=claude-code,cursor)')
 
       rudder.command('boost:update', async () => {
         const { boostUpdate } = await import('./commands/update.js')
