@@ -6,6 +6,7 @@ Vite build plugin — configures Vike SSR, path aliases, SSR externals, view sca
 
 - `src/index.ts` — Main plugin factory returning `Plugin[]`
 - View scanner generates Vike pages at `pages/__view/` from `app/Views/`
+- `rudderjs:ip` plugin injects `x-real-ip` header from Node socket in dev mode (Vike's universal-middleware loses socket info)
 - `rudderjs:routes` plugin watches `routes/`, `bootstrap/`, and `app/` for HMR invalidation
 
 ## Architecture Rules
