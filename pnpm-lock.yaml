@@ -598,6 +598,31 @@ importers:
         specifier: ^8.0.0
         version: 8.19.0
 
+  packages/passport:
+    dependencies:
+      '@rudderjs/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@rudderjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@rudderjs/orm':
+        specifier: workspace:*
+        version: link:../orm
+    devDependencies:
+      '@rudderjs/rudder':
+        specifier: workspace:*
+        version: link:../rudder
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/pennant:
     dependencies:
       '@rudderjs/core':
