@@ -1,10 +1,13 @@
 {
   "name": "@rudderjs/passport",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "rudderjs": {
     "provider": "PassportProvider",
     "stage": "infrastructure",
-    "depends": ["@rudderjs/auth", "@rudderjs/orm-prisma"]
+    "depends": [
+      "@rudderjs/auth",
+      "@rudderjs/orm-prisma"
+    ]
   },
   "license": "MIT",
   "repository": {

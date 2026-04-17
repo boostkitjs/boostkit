@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/telescope",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "rudderjs": {
     "provider": "TelescopeProvider",
     "stage": "monitoring"
@@ -55,20 +55,48 @@
     "@rudderjs/mcp": "workspace:*"
   },
   "peerDependenciesMeta": {
-    "@rudderjs/rudder": { "optional": true },
-    "@rudderjs/log": { "optional": true },
-    "@rudderjs/orm": { "optional": true },
-    "@rudderjs/cache": { "optional": true },
-    "@rudderjs/queue": { "optional": true },
-    "@rudderjs/mail": { "optional": true },
-    "@rudderjs/notification": { "optional": true },
-    "@rudderjs/schedule": { "optional": true },
-    "@rudderjs/broadcast": { "optional": true },
-    "@rudderjs/live": { "optional": true },
-    "@rudderjs/http": { "optional": true },
-    "@rudderjs/auth": { "optional": true },
-    "@rudderjs/ai": { "optional": true },
-    "@rudderjs/mcp": { "optional": true }
+    "@rudderjs/rudder": {
+      "optional": true
+    },
+    "@rudderjs/log": {
+      "optional": true
+    },
+    "@rudderjs/orm": {
+      "optional": true
+    },
+    "@rudderjs/cache": {
+      "optional": true
+    },
+    "@rudderjs/queue": {
+      "optional": true
+    },
+    "@rudderjs/mail": {
+      "optional": true
+    },
+    "@rudderjs/notification": {
+      "optional": true
+    },
+    "@rudderjs/schedule": {
+      "optional": true
+    },
+    "@rudderjs/broadcast": {
+      "optional": true
+    },
+    "@rudderjs/live": {
+      "optional": true
+    },
+    "@rudderjs/http": {
+      "optional": true
+    },
+    "@rudderjs/auth": {
+      "optional": true
+    },
+    "@rudderjs/ai": {
+      "optional": true
+    },
+    "@rudderjs/mcp": {
+      "optional": true
+    }
   },
   "optionalDependencies": {
     "better-sqlite3": "^11.0.0"
