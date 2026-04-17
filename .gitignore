@@ -10,7 +10,14 @@ dist-test/
 .forge-cli-state.json
 .worktrees/
 
-# Claude Code harness state
-.claude/scheduled_tasks.lock
-.claude/settings.local.json
-.claude/worktrees/
+# Claude Code / agent harness state — not framework code
+.claude/
+.agents/
+skills-lock.json
+
+# Test output
+test-results/
+
+# Secrets — never commit keys, even dev-generated ones
+**/storage/*.key
+**/storage/*.pem
