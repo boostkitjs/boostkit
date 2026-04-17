@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/socialite",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "rudderjs": {
     "provider": "SocialiteProvider",
     "stage": "feature"
