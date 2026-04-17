@@ -24,6 +24,8 @@ export interface TemplateContext {
     broadcast:     boolean
     live:          boolean
     ai:            boolean
+    mcp:           boolean
+    passport:      boolean
     localization:  boolean
   }
 }
@@ -91,6 +93,7 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
     files['prisma.config.ts']            = prismaConfig(ctx)
     files['prisma/schema/base.prisma']   = prismaBase(ctx)
     if (ctx.packages.auth)          files['prisma/schema/auth.prisma']         = prismaAuth()
+    if (ctx.packages.passport)      files['prisma/schema/passport.prisma']     = prismaPassport()
     if (ctx.packages.notifications) files['prisma/schema/notification.prisma'] = prismaNotification()
     if (ctx.withTodo)               files['prisma/schema/todo.prisma']         = prismaTodo()
     files['prisma/schema/modules.prisma'] = '// <rudderjs:modules:start>\n// <rudderjs:modules:end>\n'
@@ -118,14 +121,21 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   if (ctx.packages.cache)        files['config/cache.ts']    = configCache()
   if (ctx.packages.storage)      files['config/storage.ts']  = configStorage()
   if (ctx.packages.ai)           files['config/ai.ts']       = configAi()
+  if (ctx.packages.live)         files['config/live.ts']     = configLive(ctx)
+  if (ctx.packages.passport)     files['config/passport.ts'] = configPassport()
   if (ctx.packages.localization) files['config/localization.ts'] = configLocalization()
 
   files['config/index.ts']    = configIndex(ctx)
   files['env.d.ts']           = envDts()
 
   if (ctx.packages.auth && ctx.orm) files['app/Models/User.ts'] = userModel()
-  files['app/Providers/AppServiceProvider.ts']  = appServiceProvider()
+  files['app/Providers/AppServiceProvider.ts']  = appServiceProvider(ctx)
   files['app/Middleware/RequestIdMiddleware.ts'] = requestIdMiddleware()
+
+  if (ctx.packages.mcp) {
+    files['app/Mcp/EchoServer.ts'] = mcpEchoServer()
+    files['app/Mcp/EchoTool.ts']   = mcpEchoTool()
+  }
 
   files['routes/api.ts']     = routesApi(ctx)
   files['routes/web.ts']     = routesWeb(ctx)
@@ -275,6 +285,8 @@ function packageJson(ctx: TemplateContext): string {
   if (ctx.packages.broadcast)     deps['@rudderjs/broadcast']    = 'latest'
   if (ctx.packages.live)          deps['@rudderjs/live']         = 'latest'
   if (ctx.packages.ai)            deps['@rudderjs/ai']           = 'latest'
+  if (ctx.packages.mcp)           deps['@rudderjs/mcp']          = 'latest'
+  if (ctx.packages.passport)      deps['@rudderjs/passport']     = 'latest'
   if (ctx.packages.localization)  deps['@rudderjs/localization'] = 'latest'
   const devDeps: Record<string, string> = {
     '@rudderjs/cli': 'latest',
@@ -621,6 +633,75 @@ function prismaNotification(): string {
   updated_at      String
 
   @@index([notifiable_type, notifiable_id])
+}
+`
+}
+
+function prismaPassport(): string {
+  return `model OAuthClient {
+  id            String   @id @default(cuid())
+  name          String
+  secret        String?
+  redirectUris  String   @default("[]")
+  grantTypes    String   @default("[\\"authorization_code\\"]")
+  scopes        String   @default("[]")
+  confidential  Boolean  @default(true)
+  revoked       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("oauth_clients")
+}
+
+model OAuthAccessToken {
+  id        String    @id @default(cuid())
+  userId    String?
+  clientId  String
+  name      String?
+  scopes    String    @default("[]")
+  revoked   Boolean   @default(false)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("oauth_access_tokens")
+}
+
+model OAuthRefreshToken {
+  id            String   @id @default(cuid())
+  accessTokenId String   @unique
+  revoked       Boolean  @default(false)
+  expiresAt     DateTime
+
+  @@map("oauth_refresh_tokens")
+}
+
+model OAuthAuthCode {
+  id                  String   @id @default(cuid())
+  userId              String
+  clientId            String
+  scopes              String   @default("[]")
+  revoked             Boolean  @default(false)
+  expiresAt           DateTime
+  codeChallenge       String?
+  codeChallengeMethod String?
+
+  @@map("oauth_auth_codes")
+}
+
+model OAuthDeviceCode {
+  id           String    @id @default(cuid())
+  clientId     String
+  userCode     String    @unique
+  deviceCode   String    @unique
+  scopes       String    @default("[]")
+  userId       String?
+  approved     Boolean?
+  expiresAt    DateTime
+  lastPolledAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@map("oauth_device_codes")
 }
 `
 }
@@ -1129,6 +1210,14 @@ function configIndex(ctx: TemplateContext): string {
     imports.push("import ai       from './ai.js'")
     keys.push('ai')
   }
+  if (ctx.packages.live) {
+    imports.push("import live     from './live.js'")
+    keys.push('live')
+  }
+  if (ctx.packages.passport) {
+    imports.push("import passport from './passport.js'")
+    keys.push('passport')
+  }
   if (ctx.packages.localization) {
     imports.push("import localization from './localization.js'")
     keys.push('localization')
@@ -1204,6 +1293,45 @@ export default {
 `
 }
 
+function configLive(ctx: TemplateContext): string {
+  const persistenceImport = ctx.orm === 'prisma' ? "\nimport { livePrisma } from '@rudderjs/live'" : ''
+  const persistenceLine   = ctx.orm === 'prisma'
+    ? '\n  // Server-side persistence — Y.Docs survive server restarts\n  persistence: livePrisma(),\n'
+    : ''
+  return `import { Env } from '@rudderjs/support'${persistenceImport}
+import type { LiveConfig } from '@rudderjs/live'
+
+export default {
+  path: Env.get('LIVE_PATH', '/ws-live'),
+${persistenceLine}
+  // Client-side providers
+  providers: ['websocket', 'indexeddb'],
+} satisfies LiveConfig
+`
+}
+
+function configPassport(): string {
+  return `import type { PassportConfig } from '@rudderjs/passport'
+
+export default {
+  // Keys loaded from filesystem — run \`pnpm rudder passport:keys\` to generate
+  keyPath: 'storage',
+
+  // Token lifetimes
+  tokensExpireIn:               15 * 24 * 60 * 60 * 1000,          // 15 days
+  refreshTokensExpireIn:        30 * 24 * 60 * 60 * 1000,          // 30 days
+  personalAccessTokensExpireIn: 6 * 30 * 24 * 60 * 60 * 1000,      // ~6 months
+
+  // Available OAuth scopes
+  scopes: {
+    read:  'Read access to your data',
+    write: 'Modify your data',
+    admin: 'Full administrative access',
+  },
+} satisfies PassportConfig
+`
+}
+
 function configLocalization(): string {
   return `import { resolve } from 'node:path'
 import { Env } from '@rudderjs/support'
@@ -1237,17 +1365,63 @@ export class User extends Model {
 `
 }
 
-function appServiceProvider(): string {
-  return `import { ServiceProvider } from '@rudderjs/core'
+function appServiceProvider(ctx: TemplateContext): string {
+  const imports: string[] = ["import { ServiceProvider } from '@rudderjs/core'"]
+  const registerLines: string[] = [
+    '// Register your application-level services here:',
+    '// this.app.singleton(MyService, () => new MyService())',
+  ]
+
+  if (ctx.packages.mcp) {
+    imports.push("import { Mcp } from '@rudderjs/mcp'")
+    imports.push("import { EchoServer } from '../Mcp/EchoServer.js'")
+    registerLines.push('')
+    registerLines.push('// Expose the demo MCP server over HTTP at /mcp/echo')
+    registerLines.push("Mcp.web('/mcp/echo', EchoServer)")
+  }
+
+  return `${imports.join('\n')}
 
 export class AppServiceProvider extends ServiceProvider {
   register(): void {
-    // Register your application-level services here:
-    // this.app.singleton(MyService, () => new MyService())
+    ${registerLines.join('\n    ')}
   }
 
   boot(): void {
     console.log(\`[AppServiceProvider] booted — \${this.app.name}\`)
+  }
+}
+`
+}
+
+function mcpEchoServer(): string {
+  return `import { McpServer, Name, Version, Instructions } from '@rudderjs/mcp'
+import { EchoTool } from './EchoTool.js'
+
+@Name('echo-server')
+@Version('1.0.0')
+@Instructions('A demo MCP server that echoes messages back.')
+export class EchoServer extends McpServer {
+  protected tools = [EchoTool]
+}
+`
+}
+
+function mcpEchoTool(): string {
+  return `import { z } from 'zod'
+import { McpTool, McpResponse, Description } from '@rudderjs/mcp'
+import type { McpToolResult } from '@rudderjs/mcp'
+
+@Description('Echoes the given message back to the caller')
+export class EchoTool extends McpTool {
+  schema() {
+    return z.object({
+      message: z.string().describe('The message to echo'),
+    })
+  }
+
+  async handle(input: Record<string, unknown>): Promise<McpToolResult> {
+    return McpResponse.text(\`Echo: \${String(input['message'])}\`)
   }
 }
 `
@@ -1382,6 +1556,32 @@ router.post('/api/ai/chat', async (req, res) => {
   const response     = await AI.agent('You are a helpful assistant.').prompt(lastMessage)
   res.json({ message: response.text })
 })`)
+  }
+
+  if (ctx.packages.passport) {
+    imports.push("import { registerPassportRoutes, RequireBearer, scope } from '@rudderjs/passport'")
+    lines.push('')
+    lines.push(`// ── Passport OAuth 2 routes ──────────────────────────────
+//
+// Registers /oauth/authorize, /oauth/token, /oauth/tokens/:id,
+// /oauth/scopes, /oauth/device/code, /oauth/device/approve.
+//
+// Requires: RSA keys via \`pnpm rudder passport:keys\` and an OAuth client
+// via \`pnpm rudder passport:client <name>\`.
+const passportRouter = {
+  get:    (path: string, handler: any) => router.get(path, handler),
+  post:   (path: string, handler: any) => router.post(path, handler),
+  delete: (path: string, handler: any) => router.delete(path, handler),
+}
+registerPassportRoutes(passportRouter as any)
+
+// Example: protected route requiring a Bearer token with 'read' scope
+router.get('/api/passport/me', async (req, res) => {
+  res.json({
+    user:   req.user ?? null,
+    scopes: (req.raw as any)?.__passport_scopes ?? [],
+  })
+}, [RequireBearer(), scope('read')])`)
   }
 
   lines.push('')

@@ -7,25 +7,25 @@ import { getTemplates, pmExec, pmRun, pmInstall, type TemplateContext } from './
 const defaultPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
 }
 
 const noPkgs: TemplateContext['packages'] = {
   auth: false, cache: false, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
 }
 
 const noAuth: TemplateContext['packages'] = {
   auth: false, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
 }
 
 const allPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: true, storage: true,
   mail: true, notifications: true, scheduler: true,
-  broadcast: true, live: true, ai: true, localization: true,
+  broadcast: true, live: true, ai: true, mcp: true, passport: true, localization: true,
 }
 
 function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
@@ -492,16 +492,14 @@ describe('getTemplates() — package checklist', () => {
     assert.ok(!providers.includes('@rudderjs/queue'))
   })
 
-  it('all packages selected → full providers.ts', () => {
-    const files = getTemplates(ctx({ packages: allPkgs }))
-    const providers = files['bootstrap/providers.ts']!
-    assert.ok(providers.includes('@rudderjs/auth'))
-    assert.ok(providers.includes('@rudderjs/cache'))
-    assert.ok(providers.includes('@rudderjs/queue'))
-    assert.ok(providers.includes('@rudderjs/mail'))
-    assert.ok(providers.includes('@rudderjs/storage'))
-    assert.ok(providers.includes('@rudderjs/notification'))
-    assert.ok(providers.includes('@rudderjs/schedule'))
+  it('providers.ts uses defaultProviders() regardless of selection', () => {
+    const min = getTemplates(ctx({ packages: noPkgs }))['bootstrap/providers.ts']!
+    const full = getTemplates(ctx({ packages: allPkgs }))['bootstrap/providers.ts']!
+    for (const providers of [min, full]) {
+      assert.ok(providers.includes('defaultProviders'))
+      assert.ok(providers.includes('eventsProvider'))
+      assert.ok(providers.includes('AppServiceProvider'))
+    }
   })
 
   it('config/index.ts only re-exports existing configs', () => {
@@ -603,14 +601,13 @@ describe('getTemplates() — log and hash configs', () => {
     assert.ok('@rudderjs/hash' in pkg.dependencies)
   })
 
-  it('providers.ts includes log provider always', () => {
+  it('providers.ts delegates to defaultProviders() — framework providers auto-discovered', () => {
     const files = getTemplates(ctx({ packages: noPkgs }))
-    assert.ok(files['bootstrap/providers.ts']!.includes('@rudderjs/log'))
-  })
-
-  it('providers.ts includes hash provider when auth selected', () => {
-    const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
-    assert.ok(files['bootstrap/providers.ts']!.includes('@rudderjs/hash'))
+    const providers = files['bootstrap/providers.ts']!
+    // After the auto-discovery migration, @rudderjs/log and @rudderjs/hash
+    // are resolved at boot time via providers:discover, not listed literally.
+    assert.ok(providers.includes('defaultProviders'))
+    assert.ok(!providers.includes('@rudderjs/log'))
   })
 
   it('config/index.ts includes log', () => {
@@ -621,5 +618,119 @@ describe('getTemplates() — log and hash configs', () => {
   it('config/index.ts includes hash when auth selected', () => {
     const files = getTemplates(ctx({ packages: { ...noPkgs, auth: true } }))
     assert.ok(files['config/index.ts']!.includes("from './hash.js'"))
+  })
+})
+
+// ─── live config ──────────────────────────────────────────
+
+describe('getTemplates() — live config wiring', () => {
+  it('live selected → config/live.ts generated and wired into config/index.ts', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, live: true } }))
+    assert.ok('config/live.ts' in files)
+    assert.ok(files['config/live.ts']!.includes('LiveConfig'))
+    assert.ok(files['config/index.ts']!.includes("from './live.js'"))
+  })
+
+  it('live + prisma → livePrisma() persistence', () => {
+    const files = getTemplates(ctx({ orm: 'prisma', packages: { ...noPkgs, live: true } }))
+    assert.ok(files['config/live.ts']!.includes('livePrisma'))
+  })
+
+  it('live not selected → no config/live.ts, no live import in config/index.ts', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(!('config/live.ts' in files))
+    assert.ok(!files['config/index.ts']!.includes("from './live.js'"))
+  })
+
+  it('live selected → @rudderjs/live in deps', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, live: true } }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@rudderjs/live' in pkg.dependencies)
+  })
+})
+
+// ─── mcp package ──────────────────────────────────────────
+
+describe('getTemplates() — mcp package', () => {
+  it('mcp selected → @rudderjs/mcp in deps + demo server/tool scaffolded', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, mcp: true } }))
+    assert.ok('app/Mcp/EchoServer.ts' in files)
+    assert.ok('app/Mcp/EchoTool.ts' in files)
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@rudderjs/mcp' in pkg.dependencies)
+  })
+
+  it('mcp selected → AppServiceProvider registers Mcp.web(...)', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, mcp: true } }))
+    const provider = files['app/Providers/AppServiceProvider.ts']!
+    assert.ok(provider.includes("from '@rudderjs/mcp'"))
+    assert.ok(provider.includes("Mcp.web('/mcp/echo', EchoServer)"))
+  })
+
+  it('mcp not selected → no Mcp files, no @rudderjs/mcp dep', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(!('app/Mcp/EchoServer.ts' in files))
+    assert.ok(!('app/Mcp/EchoTool.ts' in files))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(!('@rudderjs/mcp' in pkg.dependencies))
+    assert.ok(!files['app/Providers/AppServiceProvider.ts']!.includes('@rudderjs/mcp'))
+  })
+
+  it('EchoTool uses zod schema and returns McpResponse', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, mcp: true } }))
+    const tool = files['app/Mcp/EchoTool.ts']!
+    assert.ok(tool.includes("import { z } from 'zod'"))
+    assert.ok(tool.includes('McpResponse.text'))
+  })
+})
+
+// ─── passport package ────────────────────────────────────
+
+describe('getTemplates() — passport package', () => {
+  const passportCtx = () => ctx({
+    orm: 'prisma',
+    packages: { ...noPkgs, auth: true, passport: true },
+  })
+
+  it('passport selected → @rudderjs/passport in deps', () => {
+    const files = passportCtx() ? getTemplates(passportCtx()) : null
+    const pkg = JSON.parse(files!['package.json']!)
+    assert.ok('@rudderjs/passport' in pkg.dependencies)
+  })
+
+  it('passport selected → prisma/schema/passport.prisma generated', () => {
+    const files = getTemplates(passportCtx())
+    assert.ok('prisma/schema/passport.prisma' in files)
+    const schema = files['prisma/schema/passport.prisma']!
+    assert.ok(schema.includes('model OAuthClient'))
+    assert.ok(schema.includes('model OAuthAccessToken'))
+    assert.ok(schema.includes('model OAuthRefreshToken'))
+    assert.ok(schema.includes('model OAuthAuthCode'))
+    assert.ok(schema.includes('model OAuthDeviceCode'))
+  })
+
+  it('passport selected → config/passport.ts generated and wired into config/index.ts', () => {
+    const files = getTemplates(passportCtx())
+    assert.ok('config/passport.ts' in files)
+    assert.ok(files['config/passport.ts']!.includes('PassportConfig'))
+    assert.ok(files['config/index.ts']!.includes("from './passport.js'"))
+  })
+
+  it('passport selected → routes/api.ts registers passport routes + example', () => {
+    const api = getTemplates(passportCtx())['routes/api.ts']!
+    assert.ok(api.includes("from '@rudderjs/passport'"))
+    assert.ok(api.includes('registerPassportRoutes(passportRouter'))
+    assert.ok(api.includes('/api/passport/me'))
+    assert.ok(api.includes('RequireBearer()'))
+    assert.ok(api.includes("scope('read')"))
+  })
+
+  it('passport not selected → no passport files, no dep', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    assert.ok(!('prisma/schema/passport.prisma' in files))
+    assert.ok(!('config/passport.ts' in files))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(!('@rudderjs/passport' in pkg.dependencies))
+    assert.ok(!files['routes/api.ts']!.includes('@rudderjs/passport'))
   })
 })

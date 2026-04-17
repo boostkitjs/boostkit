@@ -77,6 +77,8 @@ async function main(): Promise<void> {
       { value: 'broadcast',     label: 'WebSocket',        hint: 'real-time channels' },
       { value: 'live',          label: 'Real-time Collab',  hint: 'Yjs CRDT sync' },
       { value: 'ai',            label: 'AI',               hint: 'LLM providers (Anthropic, OpenAI, Google, Ollama)' },
+      { value: 'mcp',           label: 'MCP',              hint: 'Model Context Protocol servers — expose tools/resources to LLMs' },
+      { value: 'passport',      label: 'Passport (OAuth2)', hint: 'OAuth 2 server with JWT — requires Auth + Prisma' },
       { value: 'localization',  label: 'Localization',     hint: 'i18n — trans(), setLocale()' },
     ],
     initialValues: ['auth', 'cache'],
@@ -96,7 +98,15 @@ async function main(): Promise<void> {
     broadcast:     selectedPackages.includes('broadcast'),
     live:          selectedPackages.includes('live'),
     ai:            selectedPackages.includes('ai'),
+    mcp:           selectedPackages.includes('mcp'),
+    passport:      selectedPackages.includes('passport'),
     localization:  selectedPackages.includes('localization'),
+  }
+
+  // Passport requires auth + prisma at runtime. Warn and drop silently if missing.
+  if (packages.passport && (!packages.auth || orm !== 'prisma')) {
+    cancel('Passport requires Auth + Prisma. Re-run and select both, or drop Passport.')
+    process.exit(1)
   }
 
   // ── Todo module ────────────────────────────────────────
@@ -201,6 +211,7 @@ async function main(): Promise<void> {
   // Copy auth views from installer's own @rudderjs/auth dependency.
   // Views are consumed via `registerAuthRoutes(Route)` from @rudderjs/auth/routes
   // — the generated routes/web.ts wires this automatically.
+  let authViewsCopied = true
   if (packages.auth) {
     try {
       const require      = createRequire(import.meta.url)
@@ -208,11 +219,18 @@ async function main(): Promise<void> {
       const authViewsDir = path.join(path.dirname(authPkgPath), 'views', primary)
       await fs.cp(authViewsDir, path.join(target, 'app', 'Views', 'Auth'), { recursive: true })
     } catch {
-      // Package not found — user can publish manually after install
+      authViewsCopied = false
     }
   }
 
   s.stop(`${Object.keys(templates).length} files written`)
+
+  if (packages.auth && !authViewsCopied) {
+    console.warn(
+      `  ⚠ Auth views could not be vendored from @rudderjs/auth.\n` +
+      `    After install, run: ${pmRun(pm, 'rudder')} vendor:publish --tag=auth-views-${primary}`
+    )
+  }
 
   // ── Install ────────────────────────────────────────────
 
@@ -253,11 +271,14 @@ async function main(): Promise<void> {
       `  ${pmExec(pm, 'prisma db push')}`,
     ] : []),
     ...(!install && packages.auth ? [`  ${pmRun(pm, 'rudder')} vendor:publish --tag=auth-views-${primary}`] : []),
+    ...(packages.passport ? [`  ${pmRun(pm, 'rudder')} passport:keys`] : []),
     `  ${pmRun(pm, 'dev')}`,
   ]
 
   const hints: string[] = []
-  if (packages.ai)     hints.push('  AI chat:     /ai-chat  (set ANTHROPIC_API_KEY in .env)')
+  if (packages.ai)       hints.push('  AI chat:     /ai-chat  (set ANTHROPIC_API_KEY in .env)')
+  if (packages.mcp)      hints.push('  MCP echo:    POST /mcp/echo  (see app/Mcp/EchoServer.ts)')
+  if (packages.passport) hints.push('  OAuth2:      /oauth/authorize, /oauth/token  (run `rudder passport:client <name>` first)')
   const hintsStr = hints.length > 0 ? '\n\n' + hints.join('\n') : ''
 
   outro(
