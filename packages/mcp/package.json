@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MCP (Model Context Protocol) server framework for RudderJS",
   "rudderjs": {
     "provider": "McpProvider",
@@ -13,7 +13,9 @@
     "directory": "packages/mcp"
   },
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -60,8 +62,12 @@
     "@rudderjs/rudder": "workspace:*"
   },
   "peerDependenciesMeta": {
-    "@rudderjs/router": { "optional": true },
-    "@rudderjs/rudder": { "optional": true }
+    "@rudderjs/router": {
+      "optional": true
+    },
+    "@rudderjs/rudder": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@rudderjs/router": "workspace:*",

@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/ai",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "AI engine — providers, agents, tools, streaming, middleware",
   "rudderjs": {
     "provider": "AiProvider",
@@ -13,7 +13,10 @@
     "directory": "packages/ai"
   },
   "type": "module",
-  "files": ["dist", "boost"],
+  "files": [
+    "dist",
+    "boost"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

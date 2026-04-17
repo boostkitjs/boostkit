@@ -1,10 +1,12 @@
 {
   "name": "@rudderjs/cache",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "rudderjs": {
     "provider": "CacheProvider",
     "stage": "infrastructure",
-    "depends": ["@rudderjs/log"]
+    "depends": [
+      "@rudderjs/log"
+    ]
   },
   "license": "MIT",
   "repository": {
