@@ -1,5 +1,16 @@
 # @rudderjs/auth
 
+## 2.0.0
+
+### Patch Changes
+
+- 6fb47b4: `registerAuthRoutes()` now names its routes: `login`, `register`, `password.forgot`, `password.reset`. This enables callers to check `Route.has('login')` (Laravel's `Route::has()` idiom) — useful for rendering nav links conditionally based on whether the auth package registered its routes.
+- Updated dependencies [6fb47b4]
+  - @rudderjs/router@0.2.0
+  - @rudderjs/core@0.0.11
+  - @rudderjs/hash@0.0.4
+  - @rudderjs/session@0.0.8
+
 ## 1.0.0
 
 ### Patch Changes

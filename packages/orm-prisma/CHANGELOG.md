@@ -1,5 +1,11 @@
 # @rudderjs/orm-prisma
 
+## 0.0.14
+
+### Patch Changes
+
+- @rudderjs/core@0.0.11
+
 ## 0.0.13
 
 ### Patch Changes
