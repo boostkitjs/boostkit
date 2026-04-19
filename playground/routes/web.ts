@@ -199,6 +199,63 @@ Route.get('/test/cache', async (_req, res) => {
   res.json({ hit, miss })
 })
 
+// GET /test/mcp — exercises the local MCP server (EchoServer) via JSON-RPC.
+// Triggers the MCP observer so Telescope's MCP collector records tool calls.
+Route.get('/test/mcp', async (_req, res) => {
+  const baseUrl = 'http://localhost:3000/mcp/echo'
+
+  const post = async (body: Record<string, unknown>, sessionId?: string): Promise<{
+    sessionId: string | null; data: unknown
+  }> => {
+    const r = await fetch(baseUrl, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept':       'application/json, text/event-stream',
+        ...(sessionId ? { 'Mcp-Session-Id': sessionId } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+    const newSessionId = r.headers.get('mcp-session-id') ?? sessionId ?? null
+    const text = await r.text()
+    // Streamable HTTP responses can be JSON or SSE — handle both
+    let data: unknown = null
+    if (text.startsWith('event:') || text.includes('\ndata: ')) {
+      const dataLine = text.split('\n').find(l => l.startsWith('data: '))
+      if (dataLine) data = JSON.parse(dataLine.slice(6))
+    } else if (text) {
+      try { data = JSON.parse(text) } catch { data = text }
+    }
+    return { sessionId: newSessionId, data }
+  }
+
+  // 1. Initialize the session
+  const init = await post({
+    jsonrpc: '2.0',
+    id:      1,
+    method:  'initialize',
+    params:  {
+      protocolVersion: '2024-11-05',
+      capabilities:    {},
+      clientInfo:      { name: 'telescope-test', version: '1.0.0' },
+    },
+  })
+
+  // 2. Acknowledge initialization (notification, no response)
+  await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, init.sessionId ?? undefined)
+
+  // 3. List tools
+  const list = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, init.sessionId ?? undefined)
+
+  // 4. Call the echo tool
+  const call = await post({
+    jsonrpc: '2.0', id: 3, method: 'tools/call',
+    params: { name: 'echo', arguments: { name: 'Telescope' } },
+  }, init.sessionId ?? undefined)
+
+  res.json({ sessionId: init.sessionId, list: list.data, call: call.data })
+})
+
 // GET /test/ai — fires an AI agent execution for telescope testing
 Route.get('/test/ai', async (_req, res) => {
   const { agent, toolDefinition } = await import('@rudderjs/ai')
