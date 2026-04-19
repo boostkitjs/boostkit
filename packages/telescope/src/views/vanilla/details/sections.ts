@@ -116,7 +116,6 @@ export function Tabs(tabs: { label: string; content: SafeString | string }[]): S
     return s.trim().length > 0
   })
   if (visible.length === 0) return html``
-  if (visible.length === 1) return html`${visible[0]!.content}`
 
   const id = `tabs_${Math.random().toString(36).slice(2, 8)}`
   return html`
