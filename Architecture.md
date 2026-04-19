@@ -927,9 +927,9 @@ All optional peer packages **must** include `"default": "./dist/index.js"` in th
 | Phase 2 | Plan 2: ORM & Data Layer (casts, accessors, resources, factories, serialization) | ✅ Complete |
 | Phase 2 | Plan 3: Queue & Scheduling (chains, batches, unique, middleware, sub-minute, hooks) | ✅ Complete |
 | Phase 3 | Plan 4: Auth & Mail (email verification, queued mail, markdown, failover, queued notifications) | ✅ Complete |
-| Phase 4 | Plan 5: Advanced Features (context, pennant, scoped/deferred/contextual bindings, process, concurrency) | ⬜ Next |
+| Phase 4 | Plan 5: Advanced Features (context, pennant, scoped/deferred/contextual bindings, process, concurrency) | ✅ Complete |
 | Phase 4 | Plan 6: Testing Infrastructure (TestCase, Queue.fake, Mail.fake, Notification.fake, Event.fake, Cache.fake) | ✅ Complete |
-| Phase 5 | Plan 7: Monitoring & Observability (Telescope, Pulse, Horizon) | ✅ Phases 1-3 |
-| Phase 5 | Plan 8: AI, Boost & MCP | ✅ Phases 1-4 |
+| Phase 5 | Plan 7: Monitoring & Observability — Telescope ✅ verified end-to-end (17 collectors), Pulse ⬜ untested, Horizon ⬜ untested | ◐ Partial |
+| Phase 5 | Plan 8: AI, Boost & MCP — AI loop parity, MCP HTTP transport + DI, Boost guidelines & tools, Passport OAuth2 all shipped | ✅ Complete |
 | — | Production Build Fixes (node:crypto, WS upgrade, vite externals) | ✅ Complete |
 | — | Open-core extraction (pilotiq + pilotiq-pro repos) | ✅ Complete |

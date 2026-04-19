@@ -569,4 +569,4 @@ RudderJS is the framework layer. Two sibling projects build on it:
 
 ## License
 
-MIT © [Suleiman Shahbari](https://github.com/rudderjs/rudder)
+MIT © [RudderJS](https://github.com/rudderjs/rudder)
