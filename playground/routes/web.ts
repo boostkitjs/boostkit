@@ -118,26 +118,16 @@ Route.get('/test/mail', async (_req, res) => {
   res.json({ sent: true })
 })
 
-// GET /test/notification — dispatches a test notification for telescope testing
+// GET /test/notification — dispatches the real WelcomeNotification (mail + database channels)
 Route.get('/test/notification', async (_req, res) => {
-  const { notify, Notification } = await import('@rudderjs/notification')
-  const { Mailable } = await import('@rudderjs/mail')
+  const { notify } = await import('@rudderjs/notification')
+  const { WelcomeNotification } = await import('../app/Notifications/WelcomeNotification.js')
 
-  class TestNotification extends Notification {
-    via() { return ['mail'] }
-    toMail() {
-      return new (class extends Mailable {
-        build() {
-          return this.subject('Telescope Test Notification')
-            .html('<p>You have a new notification!</p>')
-            .text('You have a new notification!')
-        }
-      })()
-    }
-  }
-
-  await notify({ id: 'user-1', email: 'test@example.com' }, new TestNotification())
-  res.json({ notified: true })
+  await notify(
+    { id: 'user-1', name: 'Telescope Tester', email: 'test@example.com' },
+    new WelcomeNotification(),
+  )
+  res.json({ notified: true, channels: ['mail', 'database'] })
 })
 
 // GET /test/http — fires outgoing HTTP requests for telescope testing
@@ -156,10 +146,12 @@ Route.get('/test/model', async (_req, res) => {
   res.json({ created: todo.id })
 })
 
-// GET /test/gate — fires gate authorization checks for telescope testing
+// GET /test/gate — fires gate authorization checks for telescope testing.
+// The gate decides based on the post's role so we get a real allow + deny
+// regardless of whether anyone is signed in.
 Route.get('/test/gate', async (_req, res) => {
   const { Gate } = await import('@rudderjs/auth')
-  Gate.define('edit-post', (user) => (user as unknown as { role?: string }).role === 'admin')
+  Gate.define('edit-post', (_user, post: { role?: string }) => post?.role === 'admin')
   const allowed = await Gate.allows('edit-post', { id: 1, role: 'admin' })
   const denied  = await Gate.allows('edit-post', { id: 2, role: 'user' })
   res.json({ allowed, denied })
@@ -173,15 +165,27 @@ Route.get('/test/dump', async (_req, res) => {
   res.json({ dumped: 2 })
 })
 
-// GET /test/event — fires event dispatches for telescope testing
+// GET /test/event — dispatches the real UserRegistered event,
+// which fires SendWelcomeEmailListener → Mail.send(WelcomeEmail)
 Route.get('/test/event', async (_req, res) => {
   const { dispatch } = await import('@rudderjs/core')
+  const { UserRegistered } = await import('../app/Events/UserRegistered.js')
 
-  class UserRegistered { constructor(public id: number, public name: string) {} }
+  // Also dispatch a no-listener event to verify the collector still records it
   class OrderCompleted { constructor(public orderId: number, public total: number) {} }
 
-  await dispatch(new UserRegistered(1, 'Test User'))
+  await dispatch(new UserRegistered('user-1', 'Telescope Tester', 'test@example.com'))
   await dispatch(new OrderCompleted(42, 99.99))
+  res.json({ dispatched: 2 })
+})
+
+// GET /test/job — dispatches a queue job for telescope testing
+Route.get('/test/job', async (_req, res) => {
+  const { WelcomeUserJob } = await import('../app/Jobs/WelcomeUserJob.js')
+  await WelcomeUserJob.dispatch('Test User', 'test@example.com').send()
+  await WelcomeUserJob.dispatch('Priority User', 'priority@example.com')
+    .onQueue('priority')
+    .send()
   res.json({ dispatched: 2 })
 })
 
@@ -193,6 +197,63 @@ Route.get('/test/cache', async (_req, res) => {
   const miss = await Cache.get<string>('test:nonexistent')
   await Cache.forget('test:greeting')
   res.json({ hit, miss })
+})
+
+// GET /test/mcp — exercises the local MCP server (EchoServer) via JSON-RPC.
+// Triggers the MCP observer so Telescope's MCP collector records tool calls.
+Route.get('/test/mcp', async (_req, res) => {
+  const baseUrl = 'http://localhost:3000/mcp/echo'
+
+  const post = async (body: Record<string, unknown>, sessionId?: string): Promise<{
+    sessionId: string | null; data: unknown
+  }> => {
+    const r = await fetch(baseUrl, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept':       'application/json, text/event-stream',
+        ...(sessionId ? { 'Mcp-Session-Id': sessionId } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+    const newSessionId = r.headers.get('mcp-session-id') ?? sessionId ?? null
+    const text = await r.text()
+    // Streamable HTTP responses can be JSON or SSE — handle both
+    let data: unknown = null
+    if (text.startsWith('event:') || text.includes('\ndata: ')) {
+      const dataLine = text.split('\n').find(l => l.startsWith('data: '))
+      if (dataLine) data = JSON.parse(dataLine.slice(6))
+    } else if (text) {
+      try { data = JSON.parse(text) } catch { data = text }
+    }
+    return { sessionId: newSessionId, data }
+  }
+
+  // 1. Initialize the session
+  const init = await post({
+    jsonrpc: '2.0',
+    id:      1,
+    method:  'initialize',
+    params:  {
+      protocolVersion: '2024-11-05',
+      capabilities:    {},
+      clientInfo:      { name: 'telescope-test', version: '1.0.0' },
+    },
+  })
+
+  // 2. Acknowledge initialization (notification, no response)
+  await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, init.sessionId ?? undefined)
+
+  // 3. List tools
+  const list = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, init.sessionId ?? undefined)
+
+  // 4. Call the echo tool
+  const call = await post({
+    jsonrpc: '2.0', id: 3, method: 'tools/call',
+    params: { name: 'echo', arguments: { name: 'Telescope' } },
+  }, init.sessionId ?? undefined)
+
+  res.json({ sessionId: init.sessionId, list: list.data, call: call.data })
 })
 
 // GET /test/ai — fires an AI agent execution for telescope testing

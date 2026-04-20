@@ -1,6 +1,6 @@
 # RudderJS Feature Roadmap
 
-> Laravel 13 gap analysis — compiled 2026-04-06
+> Laravel 13 gap analysis — compiled 2026-04-06, last updated 2026-04-20
 >
 > Legend: S = Small (1-2 days) | M = Medium (3-5 days) | L = Large (1-2 weeks)
 
@@ -130,13 +130,13 @@
 
 ---
 
-## Plan 7: Monitoring & Observability
+## Plan 7: Monitoring & Observability — partial
 
 *Production visibility — equivalent to Pulse, Telescope, Horizon, Nightwatch.*
 
-**Priority**: Lower — build after core is stable. These are Pilotiq panel plugins.
+**Status**: Telescope shipped as `@rudderjs/telescope` and verified end-to-end (all 17 collectors smoke-tested 2026-04-20). Pulse and Horizon packages exist under `@rudderjs/*` but haven't been verified against fixtures and may need build/parity work. Nightwatch still ⬜.
 
-### 7.1 — Pulse Plugin (`@pilotiq/pulse`)
+### 7.1 — `@rudderjs/pulse` ⬜ untested
 
 **Laravel equivalent**: [Laravel Pulse](https://laravel.com/docs/13.x/pulse) — self-hosted performance monitoring dashboard.
 
@@ -175,7 +175,7 @@
 
 ---
 
-### 7.2 — Telescope Plugin (`@pilotiq/telescope`)
+### 7.2 — `@rudderjs/telescope` ✅
 
 **Laravel equivalent**: [Laravel Telescope](https://laravel.com/docs/13.x/telescope) — development debug assistant.
 
@@ -221,7 +221,7 @@
 
 ---
 
-### 7.3 — Horizon Plugin (`@pilotiq/horizon`)
+### 7.3 — `@rudderjs/horizon` ⬜ untested
 
 **Laravel equivalent**: [Laravel Horizon](https://laravel.com/docs/13.x/horizon) — Redis queue monitoring + management.
 
@@ -308,10 +308,10 @@
 ---
 
 ### Plan 7 Deliverables
-- [ ] `@pilotiq/pulse` — performance dashboard panel plugin (9 cards, 10 recorders, Redis ingest)
-- [ ] `@pilotiq/telescope` — debug inspector panel plugin (18 watchers, tagging, filtering, mail preview)
-- [ ] `@pilotiq/horizon` — queue monitoring panel plugin (auto-balancing, metrics, job management)
-- [ ] `@pilotiq/nightwatch` — external monitoring (panel plugin first, SaaS later)
+- [x] `@rudderjs/telescope` — debug inspector (17 watchers, tagging, filtering, related-entry correlation, SQLite + WAL for cross-process viewing) — verified end-to-end 2026-04-20
+- [ ] `@rudderjs/pulse` — performance dashboard (package exists, untested against fixtures)
+- [ ] `@rudderjs/horizon` — queue monitor (package exists, untested against fixtures)
+- [ ] `@rudderjs/nightwatch` — external monitoring (panel plugin first, SaaS later)
 
 ---
 
@@ -330,11 +330,11 @@ Phase 3 ──── Plan 4 (Auth/Mail)                                   ✅ DO
 Phase 4 ──── Plan 5 (Advanced) + Plan 6 (Testing)  ← parallel    ✅ DONE
               ├── context, pennant, process, concurrency, fakes
               │
-Phase 5 ──── Plan 8 (AI, Boost & MCP — Laravel Parity)            ⬜ NEXT
-              ├── ai enhancements, @rudderjs/mcp, boost phases 2-3
+Phase 5 ──── Plan 8 (AI, Boost & MCP — Laravel Parity)            ✅ MOSTLY DONE
+              ├── ai loop parity, @rudderjs/mcp, boost guidelines + tools
               │
-Phase 6 ──── Plan 7 (Monitoring & Observability)                  ⬜ LATER
-              ├── pulse, telescope, horizon, nightwatch
+Phase 6 ──── Plan 7 (Monitoring & Observability)                  ◐ partial
+              ├── @rudderjs/telescope ✅, pulse ⬜, horizon ⬜, nightwatch ⬜
 ```
 
 ---
@@ -350,11 +350,11 @@ Phase 6 ──── Plan 7 (Monitoring & Observability)                  ⬜ LA
 | `@rudderjs/process` | 5 | Core framework | ✅ |
 | `@rudderjs/concurrency` | 5 | Core framework | ✅ |
 | `@rudderjs/testing` | 6 | Core framework | ✅ |
-| `@rudderjs/mcp` | 8 | Core framework | ⬜ |
-| `@pilotiq/pulse` | 7 | Panel plugin | ⬜ |
-| `@pilotiq/telescope` | 7 | Panel plugin | ⬜ |
-| `@pilotiq/horizon` | 7 | Panel plugin | ⬜ |
-| `@pilotiq/nightwatch` | 7 | Panel plugin / SaaS | ⬜ |
+| `@rudderjs/mcp` | 8 | Core framework | ✅ |
+| `@rudderjs/telescope` | 7 | Core framework | ✅ |
+| `@rudderjs/pulse` | 7 | Core framework | ⬜ untested |
+| `@rudderjs/horizon` | 7 | Core framework | ⬜ untested |
+| `@rudderjs/nightwatch` | 7 | Core framework / SaaS | ⬜ |
 
 ## Existing Package Enhancements
 
@@ -371,5 +371,5 @@ Phase 6 ──── Plan 7 (Monitoring & Observability)                  ⬜ LA
 | `@rudderjs/mail` | 4, 6 | +queued, +markdown, +failover, +preview ✅ / +fake ✅ | ✅ |
 | `@rudderjs/notification` | 4, 6 | +queued, +broadcast channel, +on-demand ✅ / +fake ✅ | ✅ |
 | `@rudderjs/cache` | 6 | +fake | ✅ |
-| `@rudderjs/ai` | 8 | +middleware wiring, +attachments, +queue, +conversations, +providers, +image gen, +TTS/STT, +Vercel protocol | ⬜ |
-| `@rudderjs/boost` | 8 | +boost:install, +guidelines, +skills, +db_query tool | ⬜ |
+| `@rudderjs/ai` | 8 | +middleware wiring, +attachments, +queue, +conversations, +providers, +image gen, +TTS/STT, +Vercel protocol | ✅ |
+| `@rudderjs/boost` | 8 | +boost:install, +guidelines, +skills, +db_query tool | ✅ |

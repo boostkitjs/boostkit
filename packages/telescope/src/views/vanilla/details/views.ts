@@ -160,6 +160,17 @@ const MailView: ViewFn = (entry) => {
   const textBody = c['text']
   const to = Array.isArray(c['to']) ? (c['to'] as string[]).join(', ') : c['to']
 
+  const bodyTabs: { label: string; content: SafeString | string }[] = []
+  if (htmlBody) {
+    bodyTabs.push({
+      label: 'HTML Preview',
+      content: html`<iframe srcdoc="${String(htmlBody)}" class="w-full h-96 bg-white border border-gray-200 dark:border-gray-700 rounded-lg" sandbox=""></iframe>`,
+    })
+  }
+  if (textBody) {
+    bodyTabs.push({ label: 'Plain Text', content: CodeBlock(String(textBody)) })
+  }
+
   return html`
     ${Card(null, KeyValueTable({
       Class:   raw(`<span class="font-mono text-xs">${escape(c['class'] as string ?? '')}</span>`),
@@ -169,10 +180,7 @@ const MailView: ViewFn = (entry) => {
       CC:      Array.isArray(c['cc']) ? (c['cc'] as string[]).join(', ') : c['cc'],
       BCC:     Array.isArray(c['bcc']) ? (c['bcc'] as string[]).join(', ') : c['bcc'],
     }))}
-    ${htmlBody ? Card('HTML Preview', html`
-      <iframe srcdoc="${String(htmlBody)}" class="w-full h-96 bg-white border border-gray-200 dark:border-gray-700 rounded-lg" sandbox=""></iframe>
-    `) : ''}
-    ${textBody ? Card('Plain Text', CodeBlock(String(textBody))) : ''}
+    ${bodyTabs.length > 0 ? Tabs(bodyTabs) : ''}
   `
 }
 
@@ -297,36 +305,69 @@ const HttpView: ViewFn = (entry) => {
   const c = entry.content as Record<string, unknown>
   const reqHeaders  = c['reqHeaders']  as Record<string, string> | undefined
   const resHeaders  = c['resHeaders']  as Record<string, string> | undefined
+  const reqBody     = c['reqBody']
+  const resBody     = c['resBody']
   const isFailure   = c['kind'] === 'request.failed'
+
+  const status = c['status'] as number | undefined
+  const statusBadge = isFailure
+    ? Badge('FAILED')
+    : (status != null
+        ? raw(`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor(status)}">${status}</span>`)
+        : Badge('—'))
+
+  // Always show a Payload tab — matches the Request entry's behavior
+  const hasReqBody = reqBody !== undefined && reqBody !== null && reqBody !== ''
+                     && !(typeof reqBody === 'object' && Object.keys(reqBody as object).length === 0)
+  const payloadContent = hasReqBody ? JsonBlock(reqBody) : JsonBlock([])
+
+  const requestTabs = Tabs([
+    { label: 'Payload', content: payloadContent },
+    { label: 'Headers', content: reqHeaders && Object.keys(reqHeaders).length > 0
+        ? JsonBlock(reqHeaders)
+        : raw('<p class="text-sm text-gray-400 dark:text-gray-500">No request headers.</p>') },
+  ])
+
+  const hasResBody    = resBody !== undefined && resBody !== null && resBody !== ''
+  const hasResHeaders = !!resHeaders && Object.keys(resHeaders).length > 0
+  const responseBodyContent = hasResBody
+    ? (typeof resBody === 'string' ? CodeBlock(resBody, { maxHeight: '[400px]' }) : JsonBlock(resBody))
+    : ''
+  const responseTabs = Tabs([
+    ...(hasResBody    ? [{ label: 'Body',    content: responseBodyContent     }] : []),
+    ...(hasResHeaders ? [{ label: 'Headers', content: JsonBlock(resHeaders!) }] : []),
+  ])
 
   return html`
     ${Card(null, KeyValueTable({
-      Method:        Badge(c['method'] as string),
-      URL:           raw(`<span class="font-mono text-xs break-all">${escape(c['url'] as string ?? '')}</span>`),
-      Status:        isFailure ? Badge('FAILED') : Badge(String(c['status'] ?? '')),
-      Duration:      c['duration'] != null ? `${c['duration']}ms` : '—',
-      'Resp Size':   c['resSize'] != null ? `${c['resSize']} bytes` : '—',
+      Method:      Badge(c['method'] as string),
+      URL:         raw(`<span class="font-mono text-xs break-all">${escape(c['url'] as string ?? '')}</span>`),
+      Status:      statusBadge,
+      Duration:    c['duration'] != null ? `${c['duration']}ms` : '—',
+      'Resp Size': c['resSize'] != null ? `${c['resSize']} bytes` : '—',
     }))}
-    ${reqHeaders ? Card('Request Headers', KeyValueTable(reqHeaders)) : ''}
-    ${c['reqBody'] !== undefined && c['reqBody'] !== null ? Card('Request Body', JsonBlock(c['reqBody'])) : ''}
-    ${resHeaders ? Card('Response Headers', KeyValueTable(resHeaders)) : ''}
-    ${c['resBody'] ? Card('Response Body', CodeBlock(String(c['resBody']), { maxHeight: '[400px]' })) : ''}
+    ${requestTabs}
+    ${responseTabs}
     ${isFailure && c['error'] ? Card('Error', raw(`<div class="text-sm text-red-600 dark:text-red-400">${escape(c['error'] as string)}</div>`)) : ''}
   `
 }
 
 const GateView: ViewFn = (entry) => {
   const c = entry.content as Record<string, unknown>
+  const args = c['args'] as unknown[] | undefined
+  const hasArgs = Array.isArray(args) && args.length > 0
+  const rows: Record<string, unknown> = {
+    Ability:        raw(`<span class="font-mono text-xs">${escape(c['ability'] as string ?? '')}</span>`),
+    Result:         Badge(c['allowed'] ? 'Allowed' : 'Denied'),
+    'Resolved Via': Badge(c['resolvedVia'] as string),
+    'User ID':      c['userId'] ?? '—',
+    Duration:       c['duration'] != null ? `${c['duration']}ms` : '—',
+  }
+  if (c['policy']) rows['Policy'] = c['policy']
+  if (c['model'])  rows['Model']  = raw(`<span class="font-mono text-xs">${escape(c['model'] as string)}</span>`)
   return html`
-    ${Card(null, KeyValueTable({
-      Ability:      raw(`<span class="font-mono text-xs">${escape(c['ability'] as string ?? '')}</span>`),
-      Result:       Badge(c['allowed'] ? 'Allowed' : 'Denied'),
-      'Resolved Via': Badge(c['resolvedVia'] as string),
-      'User ID':    c['userId'] ?? '—',
-      Duration:     c['duration'] != null ? `${c['duration']}ms` : '—',
-      Policy:       c['policy'] ?? '—',
-      Model:        c['model'] ?? '—',
-    }))}
+    ${Card(null, KeyValueTable(rows))}
+    ${hasArgs ? Card('Arguments', JsonBlock(args.length === 1 ? args[0] : args)) : ''}
   `
 }
 
@@ -339,7 +380,7 @@ const DumpView: ViewFn = (entry) => {
       Caller:   c['caller'] ? raw(`<span class="font-mono text-xs">${escape(c['caller'] as string)}</span>`) : '—',
       'Arg Count': c['count'],
     }))}
-    ${args ? args.map((arg, i) => Card(`Argument ${i + 1}`, JsonBlock(arg))).join('') : ''}
+    ${args ? args.map((arg, i) => Card(`Argument ${i + 1}`, JsonBlock(arg))) : ''}
   `
 }
 
@@ -476,7 +517,7 @@ const AiView: ViewFn = (entry) => {
 
   const requestRows: Record<string, unknown> = {
     Status:        statusBadge,
-    Agent:         c['agent'] ?? '—',
+    Agent:         c['agentName'] ?? c['agent'] ?? '—',
     Model:         c['model'] ? Badge(String(c['model'])) : raw('<span class="text-gray-300 dark:text-gray-600">—</span>'),
     Provider:      c['provider'] ?? '—',
     Duration:      c['duration'] != null ? `${c['duration']}ms` : '—',
@@ -509,21 +550,31 @@ const AiView: ViewFn = (entry) => {
       Total:      usage['totalTokens']      ?? usage['total_tokens']      ?? '—',
     })) : ''}
 
-    ${inputValue !== undefined && inputValue !== null
-      ? Card('Input', CodeBlock(inputStr, { maxHeight: '[200px]' }))
-      : ''}
-
-    ${outputValue !== undefined && outputValue !== null
-      ? Card('Output', CodeBlock(outputStr, { maxHeight: '[400px]' }))
-      : ''}
+    ${(() => {
+      const conversationTabs: { label: string; content: SafeString | string }[] = []
+      if (outputValue !== undefined && outputValue !== null) {
+        conversationTabs.push({ label: 'Output', content: CodeBlock(outputStr, { maxHeight: '[400px]' }) })
+      }
+      if (inputValue !== undefined && inputValue !== null) {
+        conversationTabs.push({ label: 'Input', content: CodeBlock(inputStr, { maxHeight: '[200px]' }) })
+      }
+      return conversationTabs.length > 0 ? Tabs(conversationTabs) : ''
+    })()}
 
     ${errorValue
       ? Card('Error', raw(`<pre class="text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap break-words">${escape(typeof errorValue === 'string' ? errorValue : JSON.stringify(errorValue, null, 2))}</pre>`))
       : ''}
 
-    ${toolCalls.length > 0 ? Card('Tool Calls', renderToolCalls(toolCalls)) : ''}
-
-    ${steps.length > 1 ? Card('Steps', renderSteps(steps)) : ''}
+    ${(() => {
+      const executionTabs: { label: string; content: SafeString | string }[] = []
+      if (toolCalls.length > 0) {
+        executionTabs.push({ label: `Tool Calls (${toolCalls.length})`, content: renderToolCalls(toolCalls) })
+      }
+      if (steps.length > 1) {
+        executionTabs.push({ label: `Steps (${steps.length})`, content: renderSteps(steps) })
+      }
+      return executionTabs.length > 0 ? Tabs(executionTabs) : ''
+    })()}
   `
 }
 
