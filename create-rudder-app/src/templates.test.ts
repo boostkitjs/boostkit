@@ -7,25 +7,25 @@ import { getTemplates, pmExec, pmRun, pmInstall, type TemplateContext } from './
 const defaultPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, boost: false,
 }
 
 const noPkgs: TemplateContext['packages'] = {
   auth: false, cache: false, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, boost: false,
 }
 
 const noAuth: TemplateContext['packages'] = {
   auth: false, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false,
+  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, boost: false,
 }
 
 const allPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: true, storage: true,
   mail: true, notifications: true, scheduler: true,
-  broadcast: true, live: true, ai: true, mcp: true, passport: true, localization: true,
+  broadcast: true, live: true, ai: true, mcp: true, passport: true, localization: true, boost: true,
 }
 
 function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
@@ -204,11 +204,12 @@ describe('getTemplates() — auth pages', () => {
     const files = getTemplates(ctx({ packages: { ...defaultPkgs, auth: true }, tailwind: true }))
     const welcome = files['app/Views/Welcome.tsx']!
     const web     = files['routes/web.ts']!
-    // The Welcome component falls back to /login and /register as defaults.
-    assert.ok(welcome.includes('/login'))
-    assert.ok(welcome.includes('/register'))
+    // Welcome receives loginUrl/registerUrl as props from the controller
+    // (Laravel's Route::has() idiom) — no hardcoded URLs in the view itself.
+    assert.ok(welcome.includes('props.loginUrl'))
+    assert.ok(welcome.includes('props.registerUrl'))
     // routes/web.ts wires registerAuthRoutes() and the welcome route.
-    assert.ok(web.includes('registerAuthRoutes'))
+    assert.ok(web.includes('registerAuthRoutes(Route'))
     assert.ok(web.includes("view('welcome'"))
   })
 
@@ -218,7 +219,8 @@ describe('getTemplates() — auth pages', () => {
     const web     = files['routes/web.ts']!
     // Welcome still ships — it just never shows a signed-in user.
     assert.ok(welcome.length > 0)
-    assert.ok(!web.includes('registerAuthRoutes'))
+    // Check the actual call, not the explanatory comment mentioning the name.
+    assert.ok(!web.includes('registerAuthRoutes(Route'))
     assert.ok(web.includes("view('welcome'"))
   })
 })
@@ -732,5 +734,23 @@ describe('getTemplates() — passport package', () => {
     const pkg = JSON.parse(files['package.json']!)
     assert.ok(!('@rudderjs/passport' in pkg.dependencies))
     assert.ok(!files['routes/api.ts']!.includes('@rudderjs/passport'))
+  })
+})
+
+// ─── boost package ───────────────────────────────────────
+
+describe('getTemplates() — boost package', () => {
+  it('boost selected → @rudderjs/boost in devDependencies (not dependencies)', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, boost: true } }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok('@rudderjs/boost' in pkg.devDependencies)
+    assert.ok(!('@rudderjs/boost' in pkg.dependencies))
+  })
+
+  it('boost not selected → @rudderjs/boost not in deps or devDeps', () => {
+    const files = getTemplates(ctx({ packages: noPkgs }))
+    const pkg = JSON.parse(files['package.json']!)
+    assert.ok(!('@rudderjs/boost' in pkg.dependencies))
+    assert.ok(!('@rudderjs/boost' in pkg.devDependencies))
   })
 })
