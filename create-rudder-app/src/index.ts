@@ -80,6 +80,7 @@ async function main(): Promise<void> {
       { value: 'mcp',           label: 'MCP',              hint: 'Model Context Protocol servers — expose tools/resources to LLMs' },
       { value: 'passport',      label: 'Passport (OAuth2)', hint: 'OAuth 2 server with JWT — requires Auth + Prisma' },
       { value: 'localization',  label: 'Localization',     hint: 'i18n — trans(), setLocale()' },
+      { value: 'boost',         label: 'Boost (AI coding DX)', hint: 'expose project internals to Claude Code / Cursor / Copilot via MCP' },
     ],
     initialValues: ['auth', 'cache'],
     required: false,
@@ -101,6 +102,7 @@ async function main(): Promise<void> {
     mcp:           selectedPackages.includes('mcp'),
     passport:      selectedPackages.includes('passport'),
     localization:  selectedPackages.includes('localization'),
+    boost:         selectedPackages.includes('boost'),
   }
 
   // Passport requires auth + prisma at runtime. Warn and drop silently if missing.
@@ -269,6 +271,7 @@ async function main(): Promise<void> {
   if (packages.ai)       hints.push('  AI chat:     /ai-chat  (set ANTHROPIC_API_KEY in .env)')
   if (packages.mcp)      hints.push('  MCP echo:    POST /mcp/echo  (see app/Mcp/EchoServer.ts)')
   if (packages.passport) hints.push('  OAuth2:      /oauth/authorize, /oauth/token  (run `rudder passport:client <name>` first)')
+  if (packages.boost)    hints.push(`  Boost:       ${pmRun(pm, 'rudder')} boost:install  (wire your AI coding assistant)`)
   const hintsStr = hints.length > 0 ? '\n\n' + hints.join('\n') : ''
 
   outro(

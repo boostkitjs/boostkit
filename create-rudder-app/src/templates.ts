@@ -27,6 +27,7 @@ export interface TemplateContext {
     mcp:           boolean
     passport:      boolean
     localization:  boolean
+    boost:         boolean
   }
 }
 
@@ -301,6 +302,7 @@ function packageJson(ctx: TemplateContext): string {
     ...dbDevDeps[db],
   }
   if (ctx.orm === 'prisma') devDeps['prisma'] = '^7.0.0'
+  if (ctx.packages.boost)   devDeps['@rudderjs/boost'] = 'latest'
 
   const builtDeps: string[] = ['esbuild']
   if (ctx.orm === 'prisma') { builtDeps.push('@prisma/engines', 'prisma') }
