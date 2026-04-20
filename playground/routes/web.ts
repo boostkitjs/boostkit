@@ -1,15 +1,11 @@
-// Auth routes (Laravel Breeze-style) — live in the `web` group because
-// sign-in / sign-up / sign-out need session (they call Auth.attempt / Auth.login
-// which require the auth ALS that AuthMiddleware sets up). The `/api/auth/...`
-// URL prefix is cosmetic; route group membership is determined by file.
-import './auth.ts'
-
 import { createRequire } from 'node:module'
 import { Route } from '@rudderjs/router'
 import { view } from '@rudderjs/view'
 import { config } from '@rudderjs/core'
 import { CsrfMiddleware } from '@rudderjs/middleware'
 import { auth } from '@rudderjs/auth'
+import { registerAuthRoutes } from '@rudderjs/auth/routes'
+import { AuthController } from '../app/Controllers/AuthController.js'
 
 // Web middleware — session + AuthMiddleware are auto-installed on the `web`
 // group by their providers (see @rudderjs/session, @rudderjs/auth). Only CSRF
@@ -18,6 +14,18 @@ import { auth } from '@rudderjs/auth'
 const webMw = [
   CsrfMiddleware(),
 ]
+
+// Auth routes (Laravel Breeze-style) — live in the `web` group because
+// sign-in / sign-up / sign-out need session (Auth.attempt / Auth.login call
+// session.regenerate). The `/api/auth/...` URL prefix on the POST handlers
+// is cosmetic; group membership is determined by the loader file.
+//
+// GET view pages — /login, /register, /forgot-password, /reset-password
+registerAuthRoutes(Route, { middleware: webMw })
+
+// POST handlers — sign-in/email, sign-up/email, sign-out, password reset.
+// Edit app/Controllers/AuthController.ts to customize.
+Route.registerController(AuthController)
 
 // Read RudderJS version from @rudderjs/core's package.json at boot time.
 const _require = createRequire(import.meta.url)
