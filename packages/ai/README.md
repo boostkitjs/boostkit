@@ -154,6 +154,25 @@ the conversation store never holds an unfulfilled `tool_use` block.
 the persisted store, executing client tools via the `clientTools` registry,
 showing the inline approval card) — see its README for the end-to-end flow.
 
+### Tailoring what the model sees with `.modelOutput()`
+
+A server tool returns its full structured result to the **UI** (via telemetry, stream chunks, observers). By default the model sees that same JSON on its next step — but big JSON eats context for no reason when the model only needs a summary. Use `.modelOutput(fn)` to map result → model-facing string while leaving the UI's view untouched:
+
+```ts
+const searchTool = toolDefinition({
+  name: 'search_docs',
+  description: 'Full-text search across the docs',
+  inputSchema: z.object({ query: z.string() }),
+})
+  .server(async ({ query }) => ({
+    results: await docs.search(query),   // [{ title, url, snippet }, ...]
+    total:   await docs.count(query),
+  }))
+  .modelOutput((r) => `Found ${r.total} results. Top: ${r.results.slice(0, 3).map(x => x.title).join(', ')}`)
+```
+
+The UI still receives `{ results, total }` in the tool-result chunk — useful for rendering a rich results card — but the model only sees the summary string on its next step. Smaller context, same UX.
+
 ### Tool execution context
 
 Server-tool executes can optionally accept a second `ctx: ToolCallContext`

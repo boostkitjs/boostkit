@@ -68,7 +68,7 @@ await Telescope.prune()        // prune all
 
 ## Entry Types
 
-Telescope records 17 entry types via the observer-registry pattern — each peer package exports a process-wide observer singleton, and the corresponding collector subscribes at boot. If a peer package isn't installed, its collector silently skips.
+Telescope records 19 entry types via the observer-registry pattern — each peer package exports a process-wide observer singleton, and the corresponding collector subscribes at boot. If a peer package isn't installed, its collector silently skips.
 
 ### Core watchers
 
@@ -88,6 +88,8 @@ Telescope records 17 entry types via the observer-registry pattern — each peer
 | `command` | CommandCollector | `@rudderjs/rudder` | CLI command invocations with args, duration, exit code |
 | `http` | HttpCollector | `@rudderjs/http` | Outgoing HTTP requests with timing, headers, response body |
 | `gate` | GateCollector | `@rudderjs/auth` | Authorization decisions — ability, allowed/denied, resolution path (ability/policy/before), timing |
+| `ai` | AiCollector | `@rudderjs/ai` | Agent runs — model, prompt, tool calls, token usage, middleware timing, streamed chunks |
+| `mcp` | McpCollector | `@rudderjs/mcp` | MCP server activity — tool calls, resource reads, prompt renders, server name + timing |
 | `dump` | DumpCollector | `@rudderjs/support` | `dump()` and `dd()` calls with arguments and caller location |
 
 ### Real-time watchers (differentiators — Laravel Telescope doesn't have these)
@@ -131,6 +133,8 @@ export default {
   recordCommands: true,
   recordHttp: true,
   recordGate: true,
+  recordAi: true,
+  recordMcp: true,
   recordDumps: true,
 
   // Real-time watchers
