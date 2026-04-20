@@ -25,22 +25,33 @@ export default defineConfig({
 That's it. `rudderjs()` handles:
 
 - **Vike registration** — auto-detects and registers `vike/plugin` for SSR + file-based routing
-- **Path alias** — `@/` resolves to `src/` in the project root
+- **View scanner** — scans `app/Views/**` and generates virtual Vike pages under `pages/__view/` for `@rudderjs/view`
+- **HMR route reload** — watches `routes/`, `bootstrap/`, and `app/` so edits there invalidate the SSR module graph without restarting the dev server
+- **Path alias** — `@/` and `App/` resolve to the app directory
 - **SSR externals** — server-only packages (database drivers, Redis, queue adapters) are externalized from the client bundle
 - **SSR no-externals** — `@rudderjs/server-hono` is forced non-external so Vite processes virtual module imports
 - **WebSocket upgrade** — intercepts `http.createServer` to attach the `__rudderjs_ws_upgrade__` handler for `@rudderjs/broadcast` and `@rudderjs/live`
+- **`x-real-ip` injection** — dev-only, populates the header from the Node socket so `req.ip` works through Vike's universal middleware
 - **Sourcemap warnings** — suppresses noisy "missing source files" warnings for `@rudderjs/*` packages
 - **Build externals** — server-only packages are excluded from production builds
 
 ## What it produces
 
-Three Vite plugins:
+Five Vite plugins:
 
 | Plugin | Purpose |
 |--------|---------|
-| `rudderjs:ws` | WebSocket upgrade handler via `configureServer` |
 | `rudderjs:config` | SSR externals, path alias, warning suppression |
+| `rudderjs:ws` | WebSocket upgrade handler via `configureServer` |
+| `rudderjs:ip` | Dev-only `x-real-ip` injection from Node socket |
+| `rudderjs:routes` | HMR watcher for `routes/` + `bootstrap/` + `app/`; invalidates SSR modules + clears `__rudderjs_instance__` and `__rudderjs_app__` globals so the next request re-bootstraps cleanly |
+| `rudderjs:views` | View scanner — generates virtual Vike pages from `app/Views/**` |
 | *(vike plugins)* | SSR rendering, file-based routing (auto-registered) |
+
+### HMR notes
+
+- `rudderjs:routes` never calls `server.restart()` — doing so closes Vite's module runner and breaks in-flight SSR requests. Module invalidation + globalThis cleanup is enough to force a full re-bootstrap on the next request.
+- Changes under `app/` require the full cleanup (not just invalidation) because models, controllers, and resources are captured in provider closures during boot.
 
 ## SSR Externals
 

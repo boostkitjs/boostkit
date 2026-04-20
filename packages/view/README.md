@@ -119,6 +119,28 @@ The id maps 1:1 to the URL path by convention. The Vite plugin scans `app/Views/
 
 Parameterized URLs (`/users/:id`) are not supported as controller views in v1 — those should stay as regular Vike pages or use a different route that returns `view()` after resolving the param.
 
+### Overriding the URL with `export const route`
+
+When the controller URL can't follow the id convention — the home page (`/`), auth views under `/login` instead of `/auth/login`, or anywhere else — export a `route` constant at the top of the view file:
+
+```tsx
+// app/Views/Welcome.tsx
+export const route = '/'              // served at /, not /welcome
+
+export default function Welcome() { /* ... */ }
+```
+
+```tsx
+// app/Views/Auth/Login.tsx
+export const route = '/login'         // served at /login, not /auth/login
+
+export default function Login() { /* ... */ }
+```
+
+**This is required whenever the controller URL diverges from the id-derived path.** Without the export, Vike's client route table doesn't match the browser URL and SPA navigation falls back to full page reloads — you won't get an error, just silent perf regression.
+
+The Vite scanner reads the export at build time and wires the Vike page to the explicit path.
+
 ---
 
 ## Shared layouts

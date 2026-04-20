@@ -61,6 +61,11 @@ const user = await User.find(1)
 // Fetch all rows
 const users = await User.all()
 
+// Static shortcuts for common queries (no builder needed)
+const firstUser = await User.first()              // first row
+const total     = await User.count()              // row count
+const page      = await User.paginate(1, 15)      // { data, total, page, perPage, lastPage }
+
 // Conditional query — returns a chainable QueryBuilder
 const admins = await User.where('role', 'admin').get()
 
@@ -571,11 +576,19 @@ Low-level registry used by adapters and the ORM itself.
 ```ts
 import { ModelRegistry } from '@rudderjs/orm'
 
+// Adapter surface
 ModelRegistry.set(adapter)     // called by provider packages
 ModelRegistry.get()            // current adapter (null if none)
 ModelRegistry.getAdapter()     // adapter or throw
 ModelRegistry.reset()          // clear (for tests)
+
+// Model discovery — models self-register on first query
+ModelRegistry.register(User)                          // manual registration
+ModelRegistry.all()                                   // Map<name, ModelClass> of every registered model
+ModelRegistry.onRegister((name, cls) => { /* ... */ }) // subscribe to new registrations (returns unsubscribe)
 ```
+
+`ModelRegistry.all()` + `onRegister()` are how downstream packages (factories, telescope, CLI introspection) enumerate models without needing explicit imports.
 
 ---
 
