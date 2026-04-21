@@ -1,10 +1,11 @@
 import { createRequire } from 'node:module'
 import { Route } from '@rudderjs/router'
 import { view } from '@rudderjs/view'
-import { config } from '@rudderjs/core'
+import { config, resolve } from '@rudderjs/core'
 import { auth } from '@rudderjs/auth'
 import { registerAuthRoutes } from '@rudderjs/auth/routes'
 import { AuthController } from '../app/Controllers/AuthController.js'
+import { TodoService } from '../app/Modules/Todo/TodoService.js'
 
 
 // GET view pages — /login, /register, /forgot-password, /reset-password
@@ -40,6 +41,23 @@ Route.get('/', async () => {
 
 Route.get('/test-get-route', (_req, res) => {
   res.send('test response')
+})
+
+// GET /demos/contact — CSRF + Zod validation demo.
+// POST handler for /api/contact lives in routes/api.ts.
+Route.get('/demos/contact', async () => view('demos.contact'))
+
+// GET /demos/live — Yjs CRDT collaborative editor (@rudderjs/live).
+Route.get('/demos/live', async () => view('demos.live'))
+
+// GET /demos/ws — WebSocket chat + presence (@rudderjs/broadcast).
+Route.get('/demos/ws', async () => view('demos.ws'))
+
+// GET /demos/todos — ORM + interactive state. Controller loads initial data,
+// view hydrates and POSTs mutations to /api/todos/* for live updates.
+Route.get('/demos/todos', async () => {
+  const todos = await resolve<TodoService>(TodoService).findAll()
+  return view('demos.todos', { todos })
 })
 
 // GET /session/demo — increments a visit counter across requests

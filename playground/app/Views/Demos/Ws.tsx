@@ -9,7 +9,7 @@ function getWsUrl() {
   return `ws://${window.location.host}/ws`
 }
 
-export default function Page() {
+export default function WsDemo() {
   const [ME, setME]               = useState('')
   useEffect(() => { setME(`User-${Math.floor(Math.random() * 1000)}`) }, [])
   const socketRef                 = useRef<BKSocket | null>(null)
@@ -24,17 +24,15 @@ export default function Page() {
     const socket = new BKSocket(getWsUrl())
     socketRef.current = socket
 
-    // ── Public chat channel ──────────────────────────────────
     const chat = socket.channel('chat')
     chat.on('message', (data) => {
       setMessages((prev) => [...prev, data as Message])
     })
 
-    // ── Presence channel — tracks who is online ──────────────
     const room = socket.presence('lobby', 'demo-token')
     room.on('presence.members', (data) => {
       setMembers(data as Member[])
-      setConnected(true)  // receiving presence.members means we're fully connected
+      setConnected(true)
     })
     room.on('presence.joined', (data) => {
       const user = data as Member
@@ -73,7 +71,6 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background flex flex-col">
-      {/* Header */}
       <div className="border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold">WebSocket Demo</h1>
@@ -101,13 +98,15 @@ export default function Page() {
       </div>
 
       <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 65px)' }}>
-        {/* Chat area */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
                 <p className="text-muted-foreground text-sm">No messages yet.</p>
-                <p className="text-muted-foreground text-xs">Open this page in another tab — messages appear in real-time.</p>
+                <p className="text-muted-foreground text-xs">
+                  Open this page in another tab — messages appear in real-time. Rendered from{' '}
+                  <code>app/Views/Demos/Ws.tsx</code> via <code>view('demos.ws')</code>.
+                </p>
               </div>
             )}
             {messages.map((m, i) => {
@@ -147,7 +146,6 @@ export default function Page() {
           </form>
         </div>
 
-        {/* Online members sidebar */}
         <div className="w-52 border-l flex flex-col shrink-0">
           <div className="px-4 py-3 border-b flex items-center gap-2">
             <span className="text-sm font-medium">Online</span>

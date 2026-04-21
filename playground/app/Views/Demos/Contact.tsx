@@ -12,21 +12,21 @@ import {
 } from '@/components/ui/card'
 
 interface FormFields {
-  name: string
-  email: string
+  name:    string
+  email:   string
   message: string
 }
 
 interface FormErrors {
-  name?: string
-  email?: string
+  name?:    string
+  email?:   string
   message?: string
 }
 
 interface FormState {
-  status: 'idle' | 'loading' | 'success' | 'error'
-  message?: string
-  errors?: FormErrors
+  status:      'idle' | 'loading' | 'success' | 'error'
+  message?:    string
+  errors?:     FormErrors
   statusCode?: number
 }
 
@@ -35,16 +35,15 @@ function ContactForm({
   description,
   protected: isProtected,
 }: {
-  title: string
+  title:       string
   description: string
-  protected: boolean
+  protected:   boolean
 }) {
   const [fields, setFields] = useState<FormFields>({ name: '', email: '', message: '' })
-  const [state, setState] = useState<FormState>({ status: 'idle' })
+  const [state,  setState ] = useState<FormState>({ status: 'idle' })
 
   function setField(key: keyof FormFields, value: string) {
     setFields(f => ({ ...f, [key]: value }))
-    // Clear per-field error on change
     if (state.errors?.[key]) {
       setState(s => ({ ...s, errors: { ...s.errors, [key]: undefined } }))
     }
@@ -150,7 +149,7 @@ function ContactForm({
   )
 }
 
-export default function ContactPage() {
+export default function ContactDemo() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-10 p-8">
       <div className="text-center">
@@ -159,6 +158,10 @@ export default function ContactPage() {
           Both forms POST to <code className="text-xs bg-muted px-1 py-0.5 rounded">/api/contact</code>.
           The unprotected form omits <code className="text-xs bg-muted px-1 py-0.5 rounded">X-CSRF-Token</code> and gets a 419.
           The protected form reads the token from the cookie and passes server-side zod validation.
+        </p>
+        <p className="mt-2 text-muted-foreground text-xs">
+          Rendered from <code>app/Views/Demos/Contact.tsx</code> via{' '}
+          <code>view('demos.contact')</code>.
         </p>
       </div>
 

@@ -7,7 +7,7 @@ function getWsUrl() {
   return `ws://${window.location.host}/ws-live`
 }
 
-export default function Page() {
+export default function LiveDemo() {
   const [connected, setConnected] = useState(false)
   const [text,      setText]      = useState('')
   const [users,     setUsers]     = useState<{ name: string; color: string }[]>([])
@@ -26,17 +26,14 @@ export default function Page() {
     docRef.current  = doc
     provRef.current = provider
 
-    // Sync shared text → local state
     ytext.observe(() => {
       setText(ytext.toString())
     })
 
-    // Connection status
     provider.on('status', ({ status }: { status: string }) => {
       setConnected(status === 'connected')
     })
 
-    // Awareness — who is online
     provider.awareness.setLocalStateField('user', { name: myName, color: myColor })
 
     const syncUsers = () => {
@@ -44,12 +41,7 @@ export default function Page() {
       setUsers(states.flatMap(s => s.user ? [s.user] : []))
     }
 
-    // Show local user immediately (don't wait for server echo)
     syncUsers()
-
-
-
-    
     provider.awareness.on('change', syncUsers)
 
     return () => {
@@ -61,14 +53,12 @@ export default function Page() {
   }, [myName, myColor])
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const doc   = docRef.current
+    const doc = docRef.current
     if (!doc) return
     const ytext = doc.getText('content')
     const next  = e.target.value
     const prev  = ytext.toString()
 
-    // Simple diff — replace entire content on change
-    // A real editor would use cursor-aware delta ops
     doc.transact(() => {
       ytext.delete(0, prev.length)
       ytext.insert(0, next)
@@ -77,7 +67,6 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background flex flex-col">
-      {/* Header */}
       <div className="border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold">Live Demo</h1>
@@ -92,10 +81,10 @@ export default function Page() {
       </div>
 
       <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 65px)' }}>
-        {/* Editor */}
         <div className="flex-1 flex flex-col p-6 gap-3">
           <p className="text-xs text-muted-foreground">
-            Open this page in another tab — edits sync in real-time via Yjs CRDT.
+            Open this page in another tab — edits sync in real-time via Yjs CRDT. Rendered from{' '}
+            <code>app/Views/Demos/Live.tsx</code> via <code>view('demos.live')</code>.
           </p>
           <textarea
             ref={textareaRef}
@@ -110,7 +99,6 @@ export default function Page() {
           </p>
         </div>
 
-        {/* Online sidebar */}
         <div className="w-52 border-l flex flex-col shrink-0">
           <div className="px-4 py-3 border-b flex items-center gap-2">
             <span className="text-sm font-medium">Online</span>

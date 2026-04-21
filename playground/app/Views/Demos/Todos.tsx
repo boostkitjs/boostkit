@@ -1,15 +1,16 @@
 import { useState, useRef } from 'react'
-import { useData } from 'vike-react/useData'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Data } from './+data.js'
-import type { Todo } from '../../app/Modules/Todo/TodoSchema.js'
+import type { Todo } from '../../Modules/Todo/TodoSchema.js'
 
-export default function TodoPage() {
-  const { todos: initial } = useData<Data>()
-  const [todos, setTodos]  = useState<Todo[]>(initial)
+interface TodosDemoProps {
+  todos: Todo[]
+}
+
+export default function TodosDemo({ todos: initial }: TodosDemoProps) {
+  const [todos, setTodos]     = useState<Todo[]>(initial)
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -17,7 +18,7 @@ export default function TodoPage() {
     const title = inputRef.current?.value.trim()
     if (!title) return
     setLoading(true)
-    const res  = await fetch('/api/todos', {
+    const res = await fetch('/api/todos', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ title }),
@@ -29,7 +30,7 @@ export default function TodoPage() {
   }
 
   async function toggleTodo(todo: Todo) {
-    const res  = await fetch(`/api/todos/${todo.id}`, {
+    const res = await fetch(`/api/todos/${todo.id}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ completed: !todo.completed }),
@@ -49,16 +50,18 @@ export default function TodoPage() {
   return (
     <div className="min-h-svh bg-background p-8">
       <div className="mx-auto max-w-lg space-y-6">
-
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Todo List</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {pending} remaining · {done} completed
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Rendered from <code>app/Views/Demos/Todos.tsx</code> via{' '}
+            <code>view('demos.todos', &#123; todos &#125;)</code>. Initial data fetched
+            by the controller, not the view.
+          </p>
         </div>
 
-        {/* Add todo */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex gap-2">
@@ -74,7 +77,6 @@ export default function TodoPage() {
           </CardContent>
         </Card>
 
-        {/* Todo list */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Tasks</CardTitle>
@@ -107,7 +109,6 @@ export default function TodoPage() {
             ))}
           </CardContent>
         </Card>
-
       </div>
     </div>
   )

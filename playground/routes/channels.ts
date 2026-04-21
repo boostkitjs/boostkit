@@ -5,7 +5,7 @@ Broadcast.channel('private-user.*', async (_req, _channel) => {
   return true  // allow all for demo
 })
 
-// Presence channel used by the /ws-demo page.
+// Presence channel used by the /demos/ws page.
 // Returns member info so the server tracks who is online.
 Broadcast.channel('presence-lobby', async (_req) => {
   const id   = `user-${Math.random().toString(36).slice(2, 7)}`
