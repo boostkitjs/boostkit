@@ -1,5 +1,15 @@
 # rudderjs-playground
 
+## 0.0.17
+
+### Patch Changes
+
+- Updated dependencies [3a1e5c7]
+  - @rudderjs/sync@0.2.0
+  - @rudderjs/telescope@7.0.0
+  - @rudderjs/vite@0.0.7
+  - @rudderjs/broadcast@0.0.8
+
 ## 0.0.16
 
 ### Patch Changes
