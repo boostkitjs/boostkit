@@ -371,38 +371,6 @@ importers:
         specifier: '>=0.33.0'
         version: 0.34.5
 
-  packages/live:
-    dependencies:
-      '@rudderjs/core':
-        specifier: workspace:^
-        version: link:../core
-      lib0:
-        specifier: ^0.2.0
-        version: 0.2.117
-      ws:
-        specifier: ^8.0.0
-        version: 8.19.0
-      yjs:
-        specifier: ^13.6.0
-        version: 13.6.29
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
-      '@types/ws':
-        specifier: ^8.0.0
-        version: 8.18.1
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-    optionalDependencies:
-      '@prisma/client':
-        specifier: ^7.0.0
-        version: 7.4.2(prisma@7.4.2(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
-      ioredis:
-        specifier: ^5.3.0
-        version: 5.9.3
-
   packages/localization:
     dependencies:
       '@rudderjs/core':
@@ -907,6 +875,38 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/sync:
+    dependencies:
+      '@rudderjs/core':
+        specifier: workspace:^
+        version: link:../core
+      lib0:
+        specifier: ^0.2.0
+        version: 0.2.117
+      ws:
+        specifier: ^8.0.0
+        version: 8.19.0
+      yjs:
+        specifier: ^13.6.0
+        version: 13.6.29
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      '@types/ws':
+        specifier: ^8.0.0
+        version: 8.18.1
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+    optionalDependencies:
+      '@prisma/client':
+        specifier: ^7.0.0
+        version: 7.4.2(prisma@7.4.2(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      ioredis:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/telescope:
     dependencies:
       '@rudderjs/cache':
@@ -955,9 +955,6 @@ importers:
       '@rudderjs/http':
         specifier: workspace:^
         version: link:../http
-      '@rudderjs/live':
-        specifier: workspace:^
-        version: link:../live
       '@rudderjs/mcp':
         specifier: workspace:^
         version: link:../mcp
@@ -967,6 +964,9 @@ importers:
       '@rudderjs/support':
         specifier: workspace:^
         version: link:../support
+      '@rudderjs/sync':
+        specifier: workspace:^
+        version: link:../sync
       '@types/better-sqlite3':
         specifier: ^7.6.0
         version: 7.6.13
@@ -1083,9 +1083,6 @@ importers:
       '@rudderjs/image':
         specifier: workspace:*
         version: link:../packages/image
-      '@rudderjs/live':
-        specifier: workspace:*
-        version: link:../packages/live
       '@rudderjs/localization':
         specifier: workspace:*
         version: link:../packages/localization
@@ -1143,6 +1140,9 @@ importers:
       '@rudderjs/support':
         specifier: workspace:*
         version: link:../packages/support
+      '@rudderjs/sync':
+        specifier: workspace:*
+        version: link:../packages/sync
       '@rudderjs/telescope':
         specifier: workspace:*
         version: link:../packages/telescope

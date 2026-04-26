@@ -44,7 +44,7 @@ RudderJS is the middle ground — **batteries-included, modular, UI-agnostic, fu
 
 - **Controller-returned views** — `return view('dashboard', { users })` renders a typed React/Vue/Solid component through Vike SSR with full SPA navigation. No Inertia adapter, no JSON envelope, ~400 bytes per nav.
 - **AI-native from day one** — 11 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure for text; Cohere, Jina for reranking + embeddings), agents with tools, streaming, middleware, conversations, attachments, MCP server support, queue integration.
-- **Real-time on one port** — WebSocket channels (`@rudderjs/broadcast`), Yjs CRDT collab (`@rudderjs/live`), and HTTP all share the same server. No separate process, no proxy.
+- **Real-time on one port** — WebSocket channels (`@rudderjs/broadcast`), Yjs CRDT collab (`@rudderjs/sync`), and HTTP all share the same server. No separate process, no proxy.
 - **Service-oriented architecture** — DI container, service providers, gates & policies, an active-record ORM (Prisma or Drizzle), scheduling, queues, notifications, and a built-in inspector — all wired through one bootstrap file and one `rudder` CLI.
 - **Pay-as-you-go modularity** — 45 first-party `@rudderjs/*` packages. Start with 3 (core, router, server-hono), bolt on what you need. Swap adapters (Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3).
 - **TypeScript-first, strict by default** — `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, ESM + NodeNext everywhere. Incremental builds. WinterCG-compatible runtime.
@@ -388,22 +388,22 @@ room.on('presence.joined', ({ user }) => console.log(`${user.name} joined`))
 room.on('presence.members', (members) => setOnlineUsers(members))
 ```
 
-### 10. Live collaboration — Yjs CRDT
+### 10. Real-time document sync — Yjs CRDT
 
 ```ts
 // bootstrap/providers.ts
 import { broadcasting } from '@rudderjs/broadcast'
-import { live }         from '@rudderjs/live'
-export default [ broadcasting(), live() ]
+import { sync }         from '@rudderjs/sync'
+export default [ broadcasting(), sync() ]
 ```
 
 ```ts
-// Client — standard yjs + y-websocket (server-side is handled by @rudderjs/live)
+// Client — standard yjs + y-websocket (server-side is handled by @rudderjs/sync)
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 const doc      = new Y.Doc()
-const provider = new WebsocketProvider(`ws://${location.host}/ws-live`, 'my-doc', doc)
+const provider = new WebsocketProvider(`ws://${location.host}/ws-sync`, 'my-doc', doc)
 const text     = doc.getText('content')
 
 text.observe(() => setContent(text.toString()))
@@ -486,7 +486,7 @@ const svc = resolve<UserService>(UserService)
 | `@rudderjs/notification` | Multi-channel notifications (mail, database) |
 | `@rudderjs/schedule` | Task scheduler, cron-based |
 | `@rudderjs/broadcast` | WebSocket channels — pub/sub, private, presence |
-| `@rudderjs/live` | Yjs CRDT real-time document sync |
+| `@rudderjs/sync` | Yjs CRDT real-time document sync (editor adapters under subpaths: `@rudderjs/sync/lexical`, `/tiptap`) |
 | `@rudderjs/localization` | i18n — `trans()`, `setLocale()`, locale-aware middleware, JSON translation files |
 
 ### Developer Experience (7)

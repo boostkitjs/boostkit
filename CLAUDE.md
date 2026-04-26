@@ -206,7 +206,7 @@ Three playgrounds exist across three repos, one per tier of the open-core stack.
 
 | Playground | Repo | Port | HMR | Purpose |
 |---|---|---|---|---|
-| `rudderjs/playground` | rudderjs | 3000 | 24678 | Pure framework demo — auth, routing, ORM, queue, mail, cache, storage, scheduling, broadcast, live, telescope/pulse/horizon, Agents (`@rudderjs/ai`). **Zero** `@pilotiq/*` or `@pilotiq-pro/*` deps. |
+| `rudderjs/playground` | rudderjs | 3000 | 24678 | Pure framework demo — auth, routing, ORM, queue, mail, cache, storage, scheduling, broadcast, sync, telescope/pulse/horizon, Agents (`@rudderjs/ai`). **Zero** `@pilotiq/*` or `@pilotiq-pro/*` deps. |
 | `pilotiq/playground` | pilotiq | 3001 | 24679 | Free pilotiq dogfood — panels + lexical (local-only) + media. **No** AI chat, **no** collab, **no** `@pilotiq-pro/*`. |
 | `pilotiq-pro/playground` | pilotiq-pro | 3002 | 24680 | Full-stack pro dogfood — framework + free pilotiq + `@pilotiq-pro/{ai,collab}`. AI chat sidebar, `✦` field actions, collab, sub-agents. |
 
@@ -247,7 +247,7 @@ playground/
 │   ├── api.ts          # JSON API routes (router.get/post/all())
 │   └── console.ts      # rudder.command() + db:seed + scheduler
 ├── pages/              # Vike file-based routing; `pages/__view/` is auto-generated
-├── prisma/schema/      # multi-file: auth, base, live, notification, app (Todo only)
+├── prisma/schema/      # multi-file: auth, base, sync, notification, app (Todo only)
 └── vite.config.ts
 ```
 

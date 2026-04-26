@@ -1,6 +1,6 @@
 # @rudderjs/vite
 
-Vite plugin for RudderJS. Registers Vike (SSR), sets the `@/` path alias, externalizes server-only packages from the client bundle, and wires up WebSocket upgrade handling for `@rudderjs/broadcast` and `@rudderjs/live`.
+Vite plugin for RudderJS. Registers Vike (SSR), sets the `@/` path alias, externalizes server-only packages from the client bundle, and wires up WebSocket upgrade handling for `@rudderjs/broadcast` and `@rudderjs/sync`.
 
 ```bash
 pnpm add @rudderjs/vite
@@ -30,7 +30,7 @@ That's it. `rudderjs()` handles:
 - **Path alias** — `@/` and `App/` resolve to the app directory
 - **SSR externals** — server-only packages (database drivers, Redis, queue adapters) are externalized from the client bundle
 - **SSR no-externals** — `@rudderjs/server-hono` is forced non-external so Vite processes virtual module imports
-- **WebSocket upgrade** — intercepts `http.createServer` to attach the `__rudderjs_ws_upgrade__` handler for `@rudderjs/broadcast` and `@rudderjs/live`
+- **WebSocket upgrade** — intercepts `http.createServer` to attach the `__rudderjs_ws_upgrade__` handler for `@rudderjs/broadcast` and `@rudderjs/sync`
 - **`x-real-ip` injection** — dev-only, populates the header from the Node socket so `req.ip` works through Vike's universal middleware
 - **Sourcemap warnings** — suppresses noisy "missing source files" warnings for `@rudderjs/*` packages
 - **Build externals** — server-only packages are excluded from production builds

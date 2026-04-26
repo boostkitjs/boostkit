@@ -5,7 +5,7 @@ RudderJS ships two real-time packages that share the same port and process as yo
 | Package | Purpose |
 |---|---|
 | `@rudderjs/broadcast` | Channel-based pub/sub — events, notifications, presence |
-| `@rudderjs/live` | Yjs CRDT — collaborative editing, shared document state |
+| `@rudderjs/sync` | Yjs CRDT — collaborative editing, shared document state |
 
 ---
 
@@ -175,14 +175,14 @@ pnpm rudder broadcast:connections
 
 ---
 
-## Live Collaboration (`@rudderjs/live`)
+## Real-time Document Sync (`@rudderjs/sync`)
 
-Yjs CRDT document sync — every client always sees the same shared state, with conflict-free merging even when offline.
+Yjs CRDT document sync — every client always sees the same shared state, with conflict-free merging even when offline. Editor-agnostic core with adapters under subpath exports.
 
 ### Installation
 
 ```bash
-pnpm add @rudderjs/live
+pnpm add @rudderjs/sync
 # Client side
 pnpm add yjs y-websocket
 ```
@@ -192,11 +192,11 @@ pnpm add yjs y-websocket
 ```ts
 // bootstrap/providers.ts
 import { broadcasting } from '@rudderjs/broadcast'
-import { live }         from '@rudderjs/live'
+import { sync }         from '@rudderjs/sync'
 
 export default [
   broadcasting(),  // /ws       — pub/sub channels
-  live(),          // /ws-live  — Yjs CRDT sync
+  sync(),          // /ws-sync  — Yjs CRDT documents
 ]
 ```
 
@@ -205,19 +205,19 @@ export default [
 By default documents are kept in memory (resets on restart). For production, use a persistence adapter:
 
 ```ts
-import { live, liveRedis, livePrisma } from '@rudderjs/live'
+import { sync, syncRedis, syncPrisma } from '@rudderjs/sync'
 
 // Redis — append-only log per document
-live({ persistence: liveRedis({ url: process.env.REDIS_URL }) })
+sync({ persistence: syncRedis({ url: process.env.REDIS_URL }) })
 
 // Prisma — store updates in a database table
-live({ persistence: livePrisma() })
+sync({ persistence: syncPrisma() })
 ```
 
 ### Auth
 
 ```ts
-live({
+sync({
   onAuth: async (req, docName) => {
     const token = req.headers['authorization']?.split(' ')[1]
     return await verifyToken(token)
@@ -230,23 +230,40 @@ live({
 Called whenever a document is updated — useful for indexing or webhooks:
 
 ```ts
-live({
+sync({
   onChange: async (docName, update) => {
     console.log(`Document "${docName}" updated`)
   },
 })
 ```
 
+### Editor adapters
+
+The core `@rudderjs/sync` package handles transport + persistence. For server-side mutations against editor-specific document shapes, import the matching adapter from a subpath:
+
+| Adapter | Subpath | Status |
+|---|---|---|
+| Lexical | `@rudderjs/sync/lexical` | Available |
+| Tiptap  | `@rudderjs/sync/tiptap`  | Scaffolded — implementation forthcoming |
+
+```ts
+import { sync }                    from '@rudderjs/sync'
+import { editBlock, insertBlock }  from '@rudderjs/sync/lexical'
+
+const doc = await sync.document('panel:articles:42:richcontent:body')
+insertBlock(doc, 'callToAction', { title: 'Subscribe' })
+```
+
 ### Client
 
-`@rudderjs/live` is server-side only. On the client use standard Yjs packages:
+`@rudderjs/sync` is server-side only. On the client use standard Yjs packages:
 
 ```ts
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 const doc      = new Y.Doc()
-const provider = new WebsocketProvider('ws://localhost:3000/ws-live', 'my-doc', doc)
+const provider = new WebsocketProvider('ws://localhost:3000/ws-sync', 'my-doc', doc)
 
 // Collaborative text
 const text = doc.getText('content')
@@ -264,8 +281,9 @@ provider.awareness.on('change', () => {
 
 | Command | Description |
 |---|---|
-| `live:docs` | List active documents and connected client count |
-| `live:clear <doc>` | Clear a document from persistence |
+| `sync:docs` | List active documents and connected client count |
+| `sync:clear <doc>` | Clear a document from persistence |
+| `sync:inspect <doc>` | Inspect the Y.Doc tree structure |
 
 ---
 
@@ -276,4 +294,4 @@ Both packages hook into Node.js HTTP `upgrade` events on your existing server �
 - **Dev (Vite):** `@rudderjs/vite` monkey-patches `http.createServer` to intercept srvx's server and attach the upgrade handler
 - **Production:** `@rudderjs/server-hono`'s `listen()` attaches the handler to the HTTP server after `serve()` starts
 
-The chain: HTTP server → `@rudderjs/broadcast` handles `/ws` → `@rudderjs/live` handles `/ws-live` → Vite HMR handles the rest.
+The chain: HTTP server → `@rudderjs/broadcast` handles `/ws` → `@rudderjs/sync` handles `/ws-sync` → Vite HMR handles the rest.

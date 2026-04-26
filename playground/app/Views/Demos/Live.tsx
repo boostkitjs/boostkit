@@ -4,7 +4,7 @@ import { WebsocketProvider } from 'y-websocket'
 
 function getWsUrl() {
   if (typeof window === 'undefined') return ''
-  return `ws://${window.location.host}/ws-live`
+  return `ws://${window.location.host}/ws-sync`
 }
 
 export default function LiveDemo() {
@@ -95,7 +95,7 @@ export default function LiveDemo() {
             className="flex-1 w-full px-4 py-3 rounded-xl border bg-background text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 font-mono"
           />
           <p className="text-xs text-muted-foreground text-right">
-            {text.length} characters · powered by <span className="font-medium">@rudderjs/live</span> + Yjs
+            {text.length} characters · powered by <span className="font-medium">@rudderjs/sync</span> + Yjs
           </p>
         </div>
 

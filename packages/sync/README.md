@@ -1,11 +1,13 @@
-# @rudderjs/live
+# @rudderjs/sync
 
-Real-time collaborative document sync via [Yjs](https://yjs.dev) CRDT. Works alongside `@rudderjs/broadcast` — live uses the same port and process, no separate server needed.
+Real-time collaborative document sync engine for RudderJS — [Yjs](https://yjs.dev) CRDT over WebSocket. Editor-agnostic core with adapters under subpath exports.
+
+Works alongside `@rudderjs/broadcast` — the sync engine uses the same port and process, no separate server needed.
 
 ## Installation
 
 ```bash
-pnpm add @rudderjs/live
+pnpm add @rudderjs/sync
 ```
 
 ## Setup
@@ -13,11 +15,11 @@ pnpm add @rudderjs/live
 ```ts
 // bootstrap/providers.ts
 import { broadcasting } from '@rudderjs/broadcast'
-import { live }         from '@rudderjs/live'
+import { sync }         from '@rudderjs/sync'
 
 export default [
-  broadcasting(),  // /ws  — pub/sub channels
-  live(),          // /ws-live — Yjs CRDT sync
+  broadcasting(),  // /ws      — pub/sub channels
+  sync(),          // /ws-sync — Yjs CRDT documents
 ]
 ```
 
@@ -28,7 +30,27 @@ export default [
 })
 ```
 
-That's it. Both `ws` and `live` share the same port — no proxy, no extra process.
+That's it. Both `ws` and `ws-sync` share the same port — no proxy, no extra process.
+
+---
+
+## Editor Adapters
+
+Yjs is editor-agnostic; the core package handles document sync. For server-side mutations against editor-specific document shapes, use the relevant adapter under a subpath import:
+
+| Adapter | Subpath | Status |
+|---|---|---|
+| Lexical | `@rudderjs/sync/lexical` | Available |
+| Tiptap  | `@rudderjs/sync/tiptap`  | Scaffolded — implementation forthcoming |
+
+```ts
+import { sync }                    from '@rudderjs/sync'
+import { editBlock, insertBlock }  from '@rudderjs/sync/lexical'
+
+const doc = await sync.document('panel:articles:42:richcontent:body')
+insertBlock(doc, 'callToAction', { title: 'Subscribe' })
+editBlock(doc, 'callToAction', 0, 'buttonText', 'Learn More')
+```
 
 ---
 
@@ -39,7 +61,7 @@ That's it. Both `ws` and `live` share the same port — no proxy, no extra proce
 Zero config. Documents live in RAM and reset on server restart. Good for development and ephemeral sessions.
 
 ```ts
-live()
+sync()
 ```
 
 ### Prisma
@@ -47,7 +69,7 @@ live()
 Documents persist in your database. Add a model to your Prisma schema:
 
 ```prisma
-model LiveDocument {
+model SyncDocument {
   id        String   @id @default(cuid())
   docName   String
   update    Bytes
@@ -60,10 +82,10 @@ model LiveDocument {
 Then pass the adapter:
 
 ```ts
-import { live, livePrisma } from '@rudderjs/live'
+import { sync, syncPrisma } from '@rudderjs/sync'
 
-live({
-  persistence: livePrisma({ model: 'liveDocument' }),
+sync({
+  persistence: syncPrisma({ model: 'syncDocument' }),
 })
 ```
 
@@ -76,10 +98,10 @@ pnpm add ioredis
 ```
 
 ```ts
-import { live, liveRedis } from '@rudderjs/live'
+import { sync, syncRedis } from '@rudderjs/sync'
 
-live({
-  persistence: liveRedis({ url: env('REDIS_URL') }),
+sync({
+  persistence: syncRedis({ url: env('REDIS_URL') }),
 })
 ```
 
@@ -90,7 +112,7 @@ live({
 Protect documents with an `onAuth` callback. Return `true` to allow, `false` to deny.
 
 ```ts
-live({
+sync({
   onAuth: async (req, docName) => {
     const token = req.token ?? req.headers['authorization']
     return verifyToken(token)
@@ -110,7 +132,7 @@ The `req` object contains:
 Called (with the raw Yjs update) whenever a document changes. Useful for indexing, webhooks, or audit logs.
 
 ```ts
-live({
+sync({
   onChange: async (docName, update) => {
     console.log(`Document "${docName}" updated`)
     await searchIndex.update(docName, update)
@@ -123,7 +145,7 @@ live({
 ## Custom Path
 
 ```ts
-live({ path: '/ws-collab' })
+sync({ path: '/ws-collab' })
 ```
 
 ---
@@ -141,7 +163,7 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 
 const doc      = new Y.Doc()
-const provider = new WebsocketProvider('ws://localhost:3000/ws-live', 'my-document', doc)
+const provider = new WebsocketProvider('ws://localhost:3000/ws-sync', 'my-document', doc)
 
 provider.on('status', ({ status }) => {
   console.log(status) // 'connecting' | 'connected' | 'disconnected'
@@ -211,8 +233,9 @@ function Editor() {
 ## Rudder Commands
 
 ```bash
-pnpm rudder live:docs          # List active documents and client counts
-pnpm rudder live:clear <doc>   # Clear a document from persistence
+pnpm rudder sync:docs          # List active documents and client counts
+pnpm rudder sync:clear <doc>   # Clear a document from persistence
+pnpm rudder sync:inspect <doc> # Inspect the Y.Doc tree structure
 ```
 
 ---
@@ -222,8 +245,8 @@ pnpm rudder live:clear <doc>   # Clear a document from persistence
 The document name is extracted from the WebSocket URL path:
 
 ```
-ws://localhost:3000/ws-live/my-document  →  docName = "my-document"
-ws://localhost:3000/ws-live/report-2026  →  docName = "report-2026"
+ws://localhost:3000/ws-sync/my-document  →  docName = "my-document"
+ws://localhost:3000/ws-sync/report-2026  →  docName = "report-2026"
 ```
 
 Multiple clients connecting to the same document name automatically share state.
@@ -235,8 +258,8 @@ Multiple clients connecting to the same document name automatically share state.
 | Driver | Persistence | Scales | Use case |
 |---|---|---|---|
 | Memory (default) | ❌ Resets on restart | Single instance | Dev, demos, ephemeral |
-| `livePrisma()` | ✅ Database | Single instance | Most production apps |
-| `liveRedis()` | ✅ Redis | Multi-instance | High-traffic, horizontal scale |
+| `syncPrisma()`   | ✅ Database         | Single instance | Most production apps |
+| `syncRedis()`    | ✅ Redis            | Multi-instance  | High-traffic, horizontal scale |
 
 For very large scale (millions of users), run [yhub](https://github.com/yjs/yhub) as a separate service — it's y-websocket compatible so clients work without any changes.
 
@@ -244,13 +267,13 @@ For very large scale (millions of users), run [yhub](https://github.com/yjs/yhub
 
 ## Custom Persistence Adapter
 
-Implement the `LivePersistence` interface to use any storage backend:
+Implement the `SyncPersistence` interface to use any storage backend:
 
 ```ts
-import type { LivePersistence } from '@rudderjs/live'
+import type { SyncPersistence } from '@rudderjs/sync'
 import * as Y from 'yjs'
 
-class MyAdapter implements LivePersistence {
+class MyAdapter implements SyncPersistence {
   async getYDoc(docName: string): Promise<Y.Doc> { ... }
   async storeUpdate(docName: string, update: Uint8Array): Promise<void> { ... }
   async getStateVector(docName: string): Promise<Uint8Array> { ... }
@@ -259,14 +282,14 @@ class MyAdapter implements LivePersistence {
   async destroy(): Promise<void> { ... }
 }
 
-live({ persistence: new MyAdapter() })
+sync({ persistence: new MyAdapter() })
 ```
 
 ---
 
 ## How It Works
 
-1. Client connects via WebSocket to `/ws-live/document-name`
+1. Client connects via WebSocket to `/ws-sync/document-name`
 2. Server sends its state vector (what it knows)
 3. Client replies with a diff (what the server is missing)
 4. Client receives a diff back (what the client is missing)
@@ -274,3 +297,25 @@ live({ persistence: new MyAdapter() })
 6. Updates are persisted via the configured adapter
 
 This is the standard [Yjs sync protocol](https://docs.yjs.dev/api/y.doc#syncing-clients) — compatible with any y-websocket client.
+
+---
+
+## Migration from `@rudderjs/live`
+
+This package was previously named `@rudderjs/live`. Renamed in `0.1.0` to better reflect its purpose (sync engine, not just "live updates"). Lexical-specific helpers moved to `@rudderjs/sync/lexical`.
+
+| Before | After |
+|---|---|
+| `@rudderjs/live`          | `@rudderjs/sync` |
+| `Live` facade             | `Sync` facade |
+| `LiveProvider`            | `SyncProvider` |
+| `LiveConfig`              | `SyncConfig` |
+| `LivePersistence`         | `SyncPersistence` |
+| `livePrisma`, `liveRedis` | `syncPrisma`, `syncRedis` |
+| `live()` factory          | `sync()` factory |
+| `/ws-live`                | `/ws-sync` |
+| `config/live.ts`          | `config/sync.ts` |
+| `'liveDocument'` (Prisma model default) | `'syncDocument'` |
+| `'rudderjs:live:'` (Redis prefix)       | `'rudderjs:sync:'` |
+| `pnpm rudder live:docs`   | `pnpm rudder sync:docs` |
+| `Live.editBlock`, `Live.insertBlock`, etc. | Imported from `@rudderjs/sync/lexical` |

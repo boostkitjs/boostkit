@@ -31,7 +31,7 @@
     "@rudderjs/horizon": "workspace:*",
     "@rudderjs/http": "workspace:*",
     "@rudderjs/image": "workspace:*",
-    "@rudderjs/live": "workspace:*",
+    "@rudderjs/sync": "workspace:*",
     "@rudderjs/localization": "workspace:*",
     "@rudderjs/log": "workspace:*",
     "@rudderjs/mail": "workspace:*",

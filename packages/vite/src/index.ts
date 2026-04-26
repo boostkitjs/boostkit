@@ -113,7 +113,7 @@ export function rudderjs(): Promise<Plugin[]> {
         name: 'rudderjs:ws',
         configureServer(server) {
           // Attach the WebSocket upgrade handler to Vite's own HTTP server.
-          // @rudderjs/broadcast and @rudderjs/live register their handlers on
+          // @rudderjs/broadcast and @rudderjs/sync register their handlers on
           // globalThis['__rudderjs_ws_upgrade__'] during provider boot. We listen
           // for 'upgrade' events and forward them to that handler.
           //

@@ -13,7 +13,7 @@ import { ScheduleCollector } from './collectors/schedule.js'
 import { ModelCollector } from './collectors/model.js'
 import { CommandCollector } from './collectors/command.js'
 import { BroadcastCollector } from './collectors/broadcast.js'
-import { LiveCollector } from './collectors/live.js'
+import { SyncCollector } from './collectors/sync.js'
 import { HttpCollector } from './collectors/http.js'
 import { GateCollector } from './collectors/gate.js'
 import { DumpCollector } from './collectors/dump.js'
@@ -39,7 +39,7 @@ export { ScheduleCollector } from './collectors/schedule.js'
 export { ModelCollector } from './collectors/model.js'
 export { CommandCollector } from './collectors/command.js'
 export { BroadcastCollector } from './collectors/broadcast.js'
-export { LiveCollector } from './collectors/live.js'
+export { SyncCollector } from './collectors/sync.js'
 export { HttpCollector } from './collectors/http.js'
 export { GateCollector } from './collectors/gate.js'
 export { DumpCollector } from './collectors/dump.js'
@@ -140,14 +140,14 @@ export class TelescopeProvider extends ServiceProvider {
     recordModels:        merged.recordModels        ?? defaultConfig.recordModels,
     recordCommands:      merged.recordCommands      ?? defaultConfig.recordCommands,
     recordBroadcasts:    merged.recordBroadcasts    ?? defaultConfig.recordBroadcasts,
-    recordLive:          merged.recordLive          ?? defaultConfig.recordLive,
+    recordSync:          merged.recordSync          ?? defaultConfig.recordSync,
     recordHttp:          merged.recordHttp          ?? defaultConfig.recordHttp,
     recordGate:          merged.recordGate          ?? defaultConfig.recordGate,
     recordDumps:         merged.recordDumps         ?? defaultConfig.recordDumps,
     recordAi:            merged.recordAi            ?? defaultConfig.recordAi,
     recordMcp:           merged.recordMcp           ?? defaultConfig.recordMcp,
     recordViews:         merged.recordViews         ?? defaultConfig.recordViews,
-    liveAwarenessSampleMs: merged.liveAwarenessSampleMs ?? defaultConfig.liveAwarenessSampleMs,
+    syncAwarenessSampleMs: merged.syncAwarenessSampleMs ?? defaultConfig.syncAwarenessSampleMs,
     ignoreRequests:      merged.ignoreRequests      ?? defaultConfig.ignoreRequests,
     slowQueryThreshold:  merged.slowQueryThreshold  ?? defaultConfig.slowQueryThreshold,
     slowAiThreshold:     merged.slowAiThreshold     ?? defaultConfig.slowAiThreshold,
@@ -200,7 +200,7 @@ export class TelescopeProvider extends ServiceProvider {
       if (resolved.recordModels)         collectors.push(new ModelCollector(storage))
       if (resolved.recordCommands)       collectors.push(new CommandCollector(storage))
       if (resolved.recordBroadcasts)     collectors.push(new BroadcastCollector(storage))
-      if (resolved.recordLive)           collectors.push(new LiveCollector(storage, resolved.liveAwarenessSampleMs))
+      if (resolved.recordSync)           collectors.push(new SyncCollector(storage, resolved.syncAwarenessSampleMs))
       if (resolved.recordHttp)           collectors.push(new HttpCollector(storage, resolved.hideRequestHeaders))
       if (resolved.recordGate)           collectors.push(new GateCollector(storage))
       if (resolved.recordDumps)          collectors.push(new DumpCollector(storage))

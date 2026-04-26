@@ -1,0 +1,839 @@
+import { ServiceProvider, rudder, config } from '@rudderjs/core'
+import { WebSocketServer, type WebSocket as WsSocket } from 'ws'
+import * as Y                                          from 'yjs'
+import { syncObservers }                               from './observers.js'
+
+// ─── Per-WebSocket client id ────────────────────────────────
+//
+// Yjs clients are identified by stable ids in the awareness map, but at the
+// transport layer we just have raw WebSockets. We stamp a short id on each
+// connecting socket so observers (e.g. telescope's SyncCollector) can group
+// events by client and present a coherent timeline per connection.
+
+let _clientCounter = 0
+function nextClientId(): string {
+  return `lv${++_clientCounter}${Math.random().toString(36).slice(2, 6)}`
+}
+function getClientId(ws: import('ws').WebSocket): string {
+  const tagged = (ws as unknown as Record<string, string | undefined>)['__syncClientId']
+  if (tagged) return tagged
+  const id = nextClientId()
+  ;(ws as unknown as Record<string, string>)['__syncClientId'] = id
+  return id
+}
+
+// ─── Persistence Contract ───────────────────────────────────
+
+/**
+ * Interface all persistence adapters must implement.
+ * Matches the y-leveldb LeveldbPersistence API so adapters are
+ * interchangeable with the broader Yjs ecosystem.
+ */
+export interface SyncPersistence {
+  getYDoc(docName: string): Promise<Y.Doc>
+  storeUpdate(docName: string, update: Uint8Array): Promise<void>
+  getStateVector(docName: string): Promise<Uint8Array>
+  getDiff(docName: string, stateVector: Uint8Array): Promise<Uint8Array>
+  clearDocument(docName: string): Promise<void>
+  destroy(): Promise<void>
+}
+
+// ─── Config ─────────────────────────────────────────────────
+
+/** Client-side Y.js providers. */
+export type SyncClientProvider = 'websocket' | 'indexeddb'
+
+export interface SyncConfig {
+  /** URL path for the Sync WebSocket endpoint. Default: `/ws-sync` */
+  path?: string
+  /** Server-side persistence adapter. Default: in-memory (resets on restart). */
+  persistence?: SyncPersistence
+  /**
+   * Client-side Y.js providers. Default: `['websocket']`.
+   *
+   * - `'websocket'` — sync with server via y-websocket (real-time collaboration)
+   * - `'indexeddb'` — cache Y.Doc in browser IndexedDB (survives refresh/restart)
+   *
+   * Multiple providers can coexist:
+   * ```ts
+   * providers: ['websocket', 'indexeddb']
+   * ```
+   */
+  providers?: SyncClientProvider[]
+  /**
+   * Auth callback — return true to allow, false to deny.
+   * Receives the upgrade request and the document name.
+   */
+  onAuth?: (req: { headers: Record<string, string | string[] | undefined>; url: string; token?: string }, docName: string) => boolean | Promise<boolean>
+  /**
+   * Called (debounced) whenever a document is updated.
+   * Useful for indexing, webhooks, or audit logs.
+   */
+  onChange?: (docName: string, update: Uint8Array) => void | Promise<void>
+}
+
+// ─── Memory Persistence (built-in) ──────────────────────────
+
+export class MemoryPersistence implements SyncPersistence {
+  private docs = new Map<string, Y.Doc>()
+
+  async getYDoc(docName: string): Promise<Y.Doc> {
+    if (!this.docs.has(docName)) this.docs.set(docName, new Y.Doc())
+    return this.docs.get(docName) ?? new Y.Doc()
+  }
+
+  async storeUpdate(docName: string, update: Uint8Array): Promise<void> {
+    const doc = await this.getYDoc(docName)
+    Y.applyUpdate(doc, update)
+  }
+
+  async getStateVector(docName: string): Promise<Uint8Array> {
+    const doc = await this.getYDoc(docName)
+    return Y.encodeStateVector(doc)
+  }
+
+  async getDiff(docName: string, stateVector: Uint8Array): Promise<Uint8Array> {
+    const doc = await this.getYDoc(docName)
+    return Y.encodeStateAsUpdate(doc, stateVector)
+  }
+
+  async clearDocument(docName: string): Promise<void> {
+    this.docs.delete(docName)
+  }
+
+  async destroy(): Promise<void> {
+    this.docs.clear()
+  }
+}
+
+// ─── Prisma Persistence (optional dep: @prisma/client) ───────
+
+export interface PrismaPersistenceConfig {
+  /**
+   * Prisma model name for storing documents.
+   * The model must have: id (String), update (Bytes), updatedAt (DateTime).
+   * Default: 'syncDocument'
+   */
+  model?: string
+  /** Pass an existing PrismaClient to avoid creating a new one per operation. */
+  client?: unknown
+}
+
+type PrismaDelegate = {
+  findMany(args: unknown): Promise<Array<{ update: Uint8Array }>>
+  create(args: unknown): Promise<unknown>
+  deleteMany(args: unknown): Promise<unknown>
+}
+
+type PrismaLikeClient = Record<string, PrismaDelegate> & { $disconnect?: () => Promise<void> }
+
+export function syncPrisma(config: PrismaPersistenceConfig = {}): SyncPersistence {
+  const modelName = config.model ?? 'syncDocument'
+  let cachedClient: PrismaLikeClient | null = (config.client as PrismaLikeClient | undefined) ?? null
+
+  async function getClient(): Promise<PrismaLikeClient> {
+    if (cachedClient) return cachedClient
+    // Try to resolve PrismaClient from DI container first (already configured)
+    try {
+      const core = await import(/* @vite-ignore */ '@rudderjs/core') as { app(): { make(k: string): unknown } }
+      const prisma = core.app().make('prisma') as PrismaLikeClient
+      if (prisma) { cachedClient = prisma; return cachedClient }
+    } catch { /* DI not available — fall back to direct instantiation */ }
+    // Fall back to creating a new PrismaClient
+    const mod = await import(/* @vite-ignore */ '@prisma/client') as unknown as Record<string, unknown>
+    const PrismaClient = (mod['PrismaClient'] ?? (mod['default'] as Record<string, unknown>)?.['PrismaClient'] ?? mod['default']) as new () => unknown
+    cachedClient = new PrismaClient() as unknown as PrismaLikeClient
+    return cachedClient
+  }
+
+  function getDelegate(prisma: PrismaLikeClient): PrismaDelegate {
+    const d = prisma[modelName]
+    if (!d) throw new Error(`[Sync] Prisma model "${modelName}" not found.`)
+    return d
+  }
+
+  return {
+    async getYDoc(docName: string): Promise<Y.Doc> {
+      const prisma = await getClient()
+      const doc    = new Y.Doc()
+      const rows   = await getDelegate(prisma).findMany({ where: { docName } })
+      for (const row of rows) Y.applyUpdate(doc, row.update)
+      return doc
+    },
+
+    async storeUpdate(docName: string, update: Uint8Array): Promise<void> {
+      const prisma = await getClient()
+      await getDelegate(prisma).create({ data: { docName, update } })
+    },
+
+    async getStateVector(docName: string): Promise<Uint8Array> {
+      const doc = await this.getYDoc(docName)
+      return Y.encodeStateVector(doc)
+    },
+
+    async getDiff(docName: string, stateVector: Uint8Array): Promise<Uint8Array> {
+      const doc = await this.getYDoc(docName)
+      return Y.encodeStateAsUpdate(doc, stateVector)
+    },
+
+    async clearDocument(docName: string): Promise<void> {
+      const prisma = await getClient()
+      await getDelegate(prisma).deleteMany({ where: { docName } })
+    },
+
+    async destroy(): Promise<void> {
+      if (!config.client && cachedClient) {
+        await cachedClient.$disconnect?.()
+      }
+    },
+  }
+}
+
+// ─── Redis Persistence (optional dep: ioredis) ───────────────
+
+export interface RedisSyncPersistenceConfig {
+  url?:      string
+  host?:     string
+  port?:     number
+  password?: string
+  /** Key prefix. Default: 'rudderjs:sync:' */
+  prefix?:   string
+}
+
+export function syncRedis(config: RedisSyncPersistenceConfig = {}): SyncPersistence {
+  const prefix = config.prefix ?? 'rudderjs:sync:'
+  let   client: unknown
+
+  async function getClient() {
+    if (!client) {
+      const ioredisModule = await import('ioredis') as unknown as { Redis?: typeof import('ioredis').Redis; default?: { Redis?: typeof import('ioredis').Redis } }
+      const Redis = ioredisModule.Redis ?? ioredisModule.default?.Redis ?? (ioredisModule.default as unknown as typeof import('ioredis').Redis)
+      client = config.url
+        ? new Redis(config.url)
+        : new Redis({ host: config.host ?? '127.0.0.1', port: config.port ?? 6379, password: config.password })
+    }
+    return client as {
+      lrange(key: string, start: number, stop: number): Promise<Buffer[]>
+      rpush(key: string, ...values: Buffer[]): Promise<number>
+      del(key: string): Promise<number>
+      quit(): Promise<void>
+    }
+  }
+
+  function key(docName: string) { return `${prefix}${docName}` }
+
+  return {
+    async getYDoc(docName: string): Promise<Y.Doc> {
+      const r       = await getClient()
+      const updates = await r.lrange(key(docName), 0, -1)
+      const doc     = new Y.Doc()
+      for (const u of updates) Y.applyUpdate(doc, new Uint8Array(u))
+      return doc
+    },
+
+    async storeUpdate(docName: string, update: Uint8Array): Promise<void> {
+      const r = await getClient()
+      await r.rpush(key(docName), Buffer.from(update))
+    },
+
+    async getStateVector(docName: string): Promise<Uint8Array> {
+      const doc = await this.getYDoc(docName)
+      return Y.encodeStateVector(doc)
+    },
+
+    async getDiff(docName: string, stateVector: Uint8Array): Promise<Uint8Array> {
+      const doc = await this.getYDoc(docName)
+      return Y.encodeStateAsUpdate(doc, stateVector)
+    },
+
+    async clearDocument(docName: string): Promise<void> {
+      const r = await getClient()
+      await r.del(key(docName))
+    },
+
+    async destroy(): Promise<void> {
+      const r = await getClient()
+      await r.quit()
+    },
+  }
+}
+
+// ─── Sync room manager ───────────────────────────────────────
+
+interface Room {
+  doc:     Y.Doc
+  clients: Set<import('ws').WebSocket>
+  /** Resolves when persisted state has been loaded into the doc. */
+  ready:   Promise<void>
+  /** Latest awareness message per client — sent to newly connected clients. */
+  awarenessMap: Map<import('ws').WebSocket, Uint8Array>
+  /** Stored AI awareness message — sent to newly connecting clients. */
+  aiAwarenessMsg?: Uint8Array
+}
+
+const g       = globalThis as Record<string, unknown>
+const KEY     = '__rudderjs_live__'
+const PERSIST_KEY = '__rudderjs_live_persistence__'
+
+/** Transaction origin used by server-side mutations (Sync.updateMap, etc.) */
+const SERVER_ORIGIN = 'rudderjs:server'
+
+function getOrCreateRoom(docName: string, persistence: SyncPersistence): Room {
+  const rooms = g[KEY] as Map<string, Room> ?? new Map<string, Room>()
+  g[KEY] = rooms
+  if (!rooms.has(docName)) {
+    const doc = new Y.Doc()
+    const loadStart = Date.now()
+    const ready = persistence.getYDoc(docName).then(persisted => {
+      const sv     = Y.encodeStateVector(doc)
+      const update = Y.encodeStateAsUpdate(persisted, sv)
+      if (update.length > 2) Y.applyUpdate(doc, update)
+      syncObservers.emit({
+        kind:       'persistence.load',
+        docName,
+        durationMs: Date.now() - loadStart,
+        byteSize:   update.length,
+      })
+    }).catch((e: unknown) => {
+      syncObservers.emit({
+        kind:    'sync.error',
+        docName,
+        error:   e instanceof Error ? e.message : String(e),
+      })
+    })
+    const room: Room = { doc, clients: new Set(), ready, awarenessMap: new Map() }
+    rooms.set(docName, room)
+
+    // Observe server-side mutations and broadcast to all connected WebSocket clients.
+    // Client-originated updates are already forwarded by the message handler,
+    // so we only broadcast updates with the SERVER_ORIGIN transaction origin.
+    doc.on('update', (update: Uint8Array, origin: unknown) => {
+      if (origin === SERVER_ORIGIN) {
+        const fwd = encodeSyncMsg(syncUpdate, update)
+        for (const client of room.clients) {
+          if (client.readyState === 1 /* OPEN */) {
+            client.send(fwd)
+          }
+        }
+        void persistence.storeUpdate(docName, update)
+      }
+    })
+  }
+  // rooms.get() is guaranteed non-null: key was inserted above if missing
+  return rooms.get(docName) as Room
+}
+
+// ─── WebSocket connection handler ────────────────────────────
+
+import type { IncomingMessage } from 'node:http'
+
+// Yjs sync message types (y-protocols)
+const messageSync        = 0
+const messageAwareness   = 1
+const syncStep1          = 0
+const syncStep2          = 1
+const syncUpdate         = 2
+
+// ── y-protocols binary format ──────────────────────────────
+// Messages follow the y-websocket wire format used by lib0/y-protocols:
+//   sync:      [msgType(varint), subType(varint), dataLen(varint), ...data]
+//   awareness: [msgType(varint), dataLen(varint), ...data]
+// There is NO extra outer length field — WebSocket frames provide their own framing.
+
+function readVarUint(buf: Uint8Array, pos: number): [number, number] {
+  let result = 0, shift = 0
+  while (true) {
+    const byte = buf[pos++] ?? 0
+    result |= (byte & 0x7f) << shift
+    shift  += 7
+    if ((byte & 0x80) === 0) break
+  }
+  return [result, pos]
+}
+
+function writeVarUint(val: number): Uint8Array {
+  const buf: number[] = []
+  while (val > 0x7f) { buf.push((val & 0x7f) | 0x80); val >>>= 7 }
+  buf.push(val)
+  return new Uint8Array(buf)
+}
+
+/** Encode a sync sub-message: [messageSync, subType, dataLen, ...data] */
+function encodeSyncMsg(subType: number, data: Uint8Array): Uint8Array {
+  const lenBytes = writeVarUint(data.length)
+  const out      = new Uint8Array(2 + lenBytes.length + data.length)
+  out[0] = messageSync
+  out[1] = subType
+  out.set(lenBytes, 2)
+  out.set(data, 2 + lenBytes.length)
+  return out
+}
+
+async function handleConnection(
+  ws:          WsSocket,
+  req:         IncomingMessage,
+  persistence: SyncPersistence,
+  onChange?:   SyncConfig['onChange'],
+): Promise<void> {
+  // Extract document name from URL path: /ws-sync/my-doc → my-doc
+  const docName  = ((req.url ?? '/').split('?')[0] ?? '/').split('/').filter(Boolean).pop() ?? 'default'
+  const clientId = getClientId(ws)
+  const room     = getOrCreateRoom(docName, persistence)
+  room.clients.add(ws)
+
+  syncObservers.emit({
+    kind:        'doc.opened',
+    docName,
+    clientId,
+    clientCount: room.clients.size,
+  })
+
+  // ── Step 1: send server state vector ──────────────────────
+  ws.send(encodeSyncMsg(syncStep1, Y.encodeStateVector(room.doc)))
+
+  // ── Step 2: send existing awareness states to the new client ─
+  for (const [client, buf] of room.awarenessMap) {
+    if (client !== ws && client.readyState === 1 /* OPEN */) {
+      ws.send(buf)
+    }
+  }
+  // Send stored AI awareness (if an AI agent is currently editing)
+  if (room.aiAwarenessMsg) {
+    ws.send(room.aiAwarenessMsg)
+  }
+
+  // ── Message handler ───────────────────────────────────────
+  ws.on('message', async (raw: Buffer) => {
+    const buf = new Uint8Array(raw)
+    let   pos = 0
+
+    const [type, pos1] = readVarUint(buf, pos)
+    pos = pos1
+
+    if (type === messageSync) {
+      const [subType, pos2] = readVarUint(buf, pos)
+      const [dataLen, pos3] = readVarUint(buf, pos2)
+      const data = buf.slice(pos3, pos3 + dataLen)
+
+      if (subType === syncStep1) {
+        // Client sent its state vector — reply with diff
+        const diff = Y.encodeStateAsUpdate(room.doc, data)
+        ws.send(encodeSyncMsg(syncStep2, diff))
+
+      } else if (subType === syncStep2 || subType === syncUpdate) {
+        // Client sent an update — apply + broadcast + persist
+        Y.applyUpdate(room.doc, data)
+
+        const fwd = encodeSyncMsg(syncUpdate, data)
+        let recipientCount = 0
+        for (const client of room.clients) {
+          if (client !== ws && client.readyState === 1 /* OPEN */) {
+            client.send(fwd)
+            recipientCount++
+          }
+        }
+
+        await persistence.storeUpdate(docName, data)
+        onChange?.(docName, data)
+
+        syncObservers.emit({
+          kind:           'update.applied',
+          docName,
+          clientId,
+          byteSize:       data.byteLength,
+          recipientCount,
+        })
+        syncObservers.emit({
+          kind:     'persistence.save',
+          docName,
+          byteSize: data.byteLength,
+        })
+      }
+
+    } else if (type === messageAwareness) {
+      // Store latest awareness message for this client
+      room.awarenessMap.set(ws, new Uint8Array(buf))
+      // Broadcast awareness (presence/cursors) to all other clients
+      for (const client of room.clients) {
+        if (client !== ws && client.readyState === 1) {
+          client.send(buf)
+        }
+      }
+      // Awareness is high-rate (every cursor/keystroke). Producers emit
+      // every event; the SyncCollector throttles in the consumer with a
+      // configurable per-(docName, clientId) sample window.
+      syncObservers.emit({
+        kind:     'awareness.changed',
+        docName,
+        clientId,
+        byteSize: buf.byteLength,
+      })
+    }
+  })
+
+  ws.on('close', () => {
+    room.clients.delete(ws)
+    room.awarenessMap.delete(ws)
+    syncObservers.emit({
+      kind:        'doc.closed',
+      docName,
+      clientId,
+      clientCount: room.clients.size,
+    })
+  })
+}
+
+// ─── globalThis key for upgrade handler ─────────────────────
+
+export const LIVE_UPGRADE_KEY = '__rudderjs_live_upgrade__'
+
+export { syncObservers, SyncObserverRegistry }      from './observers.js'
+export type { SyncEvent, SyncObserver }             from './observers.js'
+
+/** Re-export of `Y.Doc` so editor adapters (e.g. `@rudderjs/sync/lexical`)
+ *  can type their parameters without taking a direct `yjs` peer dep. */
+export type { Doc as YDoc } from 'yjs'
+
+// ─── Factory ────────────────────────────────────────────────
+
+/**
+ * Sync — real-time collaborative document sync via Yjs CRDT.
+ *
+ * Same port as HTTP and @rudderjs/ws — no separate server needed.
+ *
+ * Built-in persistence drivers: memory (default), prisma, redis.
+ *
+ * @example
+ * // bootstrap/providers.ts
+ * import { sync, syncRedis } from '@rudderjs/sync'
+ * export default [
+ *   broadcasting(),
+ *   sync(),                              // memory (dev)
+ *   sync({ persistence: syncRedis() }),  // redis (production)
+ * ]
+ */
+export class SyncProvider extends ServiceProvider {
+  private _persistence!: SyncPersistence
+  private _path!:        string
+
+  register(): void {
+    const cfg         = config<SyncConfig>('sync', {})
+    this._path        = cfg.path        ?? '/ws-sync'
+    this._persistence = cfg.persistence ?? new MemoryPersistence()
+    const persistence = this._persistence
+    this.app.bind('sync.persistence', () => persistence)
+  }
+
+  async boot(): Promise<void> {
+    const path        = this._path
+    const persistence = this._persistence
+    const cfg         = config<SyncConfig>('sync', {})
+    g[PERSIST_KEY] = persistence
+
+      const wss = new WebSocketServer({ noServer: true })
+
+      wss.on('connection', (ws, req) => {
+        void handleConnection(ws as WsSocket, req, persistence, cfg.onChange)
+      })
+
+      // Chain into the broadcast-specific handler (not the combined handler)
+      // to avoid circular references during HMR re-boots.
+      const prev = (g['__rudderjs_ws_broadcast_upgrade__'] ?? g['__rudderjs_ws_upgrade__']) as
+        | ((req: unknown, socket: unknown, head: unknown) => void)
+        | undefined
+
+      g[LIVE_UPGRADE_KEY] = (req: IncomingMessage, socket: unknown, head: unknown) => {
+        const pathname = (req.url ?? '/').split('?')[0] ?? '/'
+        if (pathname.startsWith(path)) {
+          wss.handleUpgrade(req, socket as import('net').Socket, head as Buffer, (ws) => {
+            wss.emit('connection', ws, req)
+          })
+        } else {
+          prev?.(req, socket, head)
+        }
+      }
+
+      // Register as the active upgrade handler
+      g['__rudderjs_ws_upgrade__'] = g[LIVE_UPGRADE_KEY]
+
+      rudder.command('sync:docs', async () => {
+        const rooms = g[KEY] as Map<string, Room> | undefined
+        if (!rooms || rooms.size === 0) {
+          console.log('\n  No active documents.\n')
+          return
+        }
+        console.log(`\n  Active documents: ${rooms.size}\n`)
+        for (const [name, room] of rooms) {
+          console.log(`    ${name}  —  ${room.clients.size} client(s)`)
+        }
+        console.log()
+      }).description('List active Sync documents and connected clients')
+
+      rudder.command('sync:clear <doc>', async (args) => {
+        const docName = (args as unknown as Record<string, unknown>)['doc'] as string
+        await persistence.clearDocument(docName)
+        const rooms = g[KEY] as Map<string, Room> | undefined
+        rooms?.delete(docName)
+        console.log(`\n  Cleared document: ${docName}\n`)
+      }).description('Clear a Sync document from persistence')
+
+      rudder.command('sync:inspect <doc>', async (args) => {
+        const docName = (args as unknown as Record<string, unknown>)['doc'] as string
+        const room = getOrCreateRoom(docName, persistence)
+        await room.ready
+
+        const root = room.doc.get('root', Y.XmlText)
+        console.log(`\n  Document: ${docName}`)
+        console.log(`  Clients:  ${room.clients.size}`)
+        console.log(`  Root type: ${root.constructor.name}  length: ${root.length}\n`)
+
+        // Dump the Y.Map fields (form data)
+        const fields = room.doc.getMap('fields')
+        if (fields.size > 0) {
+          console.log('  ── Y.Map "fields" ──')
+          fields.forEach((val, key) => {
+            const display = typeof val === 'string' && val.length > 80 ? val.slice(0, 80) + '…' : val
+            console.log(`    ${key}: ${JSON.stringify(display)}`)
+          })
+          console.log()
+        }
+
+        // Dump the Y.XmlText tree structure
+        if (root.length > 0) {
+          console.log('  ── Y.XmlText "root" tree ──')
+          const delta = root.toDelta()
+          for (let i = 0; i < delta.length; i++) {
+            const entry = delta[i] as { insert: unknown; attributes?: Record<string, unknown> }
+            if (typeof entry.insert === 'string') {
+              console.log(`    [${i}] text: ${JSON.stringify(entry.insert.slice(0, 100))}`)
+            } else if (entry.insert instanceof Y.XmlElement) {
+              const elem = entry.insert
+              const attrs = elem.getAttributes()
+              const text = elem.toString()
+              console.log(`    [${i}] XmlElement <${elem.nodeName}>`)
+              if (Object.keys(attrs).length > 0) {
+                for (const [k, v] of Object.entries(attrs)) {
+                  const display = typeof v === 'string' && v.length > 80 ? v.slice(0, 80) + '…' : v
+                  console.log(`          attr ${k} = ${JSON.stringify(display)}`)
+                }
+              }
+              if (text) console.log(`          text: ${JSON.stringify(text.slice(0, 100))}`)
+              // Dump inner delta for text elements
+              if (elem.length > 0) {
+                try {
+                  const innerDelta = (elem as unknown as Y.XmlText).toDelta()
+                  for (let j = 0; j < innerDelta.length; j++) {
+                    const inner = innerDelta[j] as { insert: unknown; attributes?: Record<string, unknown> }
+                    if (typeof inner.insert === 'string') {
+                      console.log(`          [${j}] inner text: ${JSON.stringify(inner.insert.slice(0, 80))}${inner.attributes ? ` attrs=${JSON.stringify(inner.attributes)}` : ''}`)
+                    } else {
+                      console.log(`          [${j}] inner ${inner.insert?.constructor?.name ?? typeof inner.insert}`)
+                    }
+                  }
+                } catch { /* not a text-like element */ }
+              }
+            } else if (entry.insert instanceof Y.XmlText) {
+              // Lexical paragraph-level node (paragraph, heading, list, quote, code).
+              const child = entry.insert as Y.XmlText
+              const childAttrs = (child as unknown as { getAttributes(): Record<string, unknown> }).getAttributes?.() ?? {}
+              const attrParts = Object.entries(childAttrs)
+                .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+                .join(' ')
+              console.log(`    [${i}] YXmlText ${attrParts}`)
+              try {
+                const innerDelta = child.toDelta() as Array<{ insert: unknown; attributes?: Record<string, unknown> }>
+                for (let j = 0; j < innerDelta.length; j++) {
+                  const inner = innerDelta[j]!
+                  if (typeof inner.insert === 'string') {
+                    console.log(`          [${j}] text: ${JSON.stringify(inner.insert.slice(0, 80))}${inner.attributes ? ` attrs=${JSON.stringify(inner.attributes)}` : ''}`)
+                  } else if (inner.insert instanceof Y.XmlElement) {
+                    const elem = inner.insert
+                    const innerAttrs = elem.getAttributes()
+                    console.log(`          [${j}] <${elem.nodeName}> ${Object.entries(innerAttrs).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : JSON.stringify(String(v).slice(0, 60))}`).join(' ')}`)
+                  } else {
+                    console.log(`          [${j}] ${inner.insert?.constructor?.name ?? typeof inner.insert}`)
+                  }
+                }
+              } catch { /* */ }
+            } else {
+              console.log(`    [${i}] ${entry.insert?.constructor?.name ?? typeof entry.insert}`)
+            }
+          }
+          console.log()
+        } else {
+          console.log('  (root is empty)\n')
+        }
+    }).description('Inspect the Y.Doc tree structure of a Sync document')
+  }
+}
+
+// ─── Lexical adapter ────────────────────────────────────────
+//
+// Lexical-shaped block / text / awareness helpers used to live on the
+// `Sync` facade as instance methods. They moved to `@rudderjs/sync/lexical`
+// (a separate subpath export) so the core stays editor-agnostic — Yjs binds
+// to many editors (Lexical, Tiptap, ProseMirror, Monaco, CodeMirror) and the
+// core surface should not assume any one tree shape. Use `sync.document(name)`
+// to get the underlying `Y.Doc`, then pass it to the adapter functions.
+
+// ─── Sync facade ──────────────────────────────────────────
+
+/**
+ * Sync facade — programmatic access to Yjs documents from server-side code.
+ *
+ * Mirrors @rudderjs/broadcast's `Broadcast` facade pattern.
+ * Resolves persistence automatically — no manual threading required.
+ *
+ * Editor-shaped helpers (Lexical block / text / awareness) live in the
+ * `@rudderjs/sync/lexical` subpath and operate on the underlying `Y.Doc`
+ * returned by `Sync.document(name)`.
+ *
+ * @example
+ * import { Sync } from '@rudderjs/sync'
+ * import { insertBlock } from '@rudderjs/sync/lexical'
+ *
+ * await Sync.seed('panel:articles:42', { title: 'Hello', body: '' })
+ * const snapshot = Sync.snapshot('panel:articles:42')
+ * const fields   = Sync.readMap('panel:articles:42', 'fields')
+ *
+ * const doc = Sync.document('panel:articles:42:richcontent:body')
+ * insertBlock(doc, 'callToAction', { title: 'Subscribe' })
+ */
+export const Sync = {
+  /** Get the configured persistence adapter. */
+  persistence(): SyncPersistence {
+    const p = g[PERSIST_KEY] as SyncPersistence | undefined
+    if (!p) throw new Error('[Sync] Not initialised — register sync() in providers.')
+    return p
+  },
+
+  /**
+   * Seed a ydoc with initial data (e.g. from a DB record).
+   * Safe to call multiple times — only seeds when the ydoc is empty.
+   */
+  async seed(docName: string, data: Record<string, unknown>): Promise<void> {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    await room.ready  // wait for persisted state to load
+
+    const sv = Y.encodeStateVector(room.doc)
+    if (sv.length > 1) return  // already has content
+
+    const fields = room.doc.getMap('fields')
+    room.doc.transact(() => {
+      for (const [key, val] of Object.entries(data)) {
+        fields.set(key, val ?? null)
+      }
+    })
+  },
+
+  /**
+   * Return the current full state of a ydoc as a snapshot (Uint8Array).
+   * Purely a read operation — does not modify persistence.
+   */
+  snapshot(docName: string): Uint8Array {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    return Y.encodeStateAsUpdate(room.doc)
+  },
+
+  /**
+   * Read a Y.Map from a ydoc as a plain JS object.
+   *
+   * @example
+   * const fields = Sync.readMap('panel:articles:42', 'fields')
+   * // { title: 'Hello', body: 'World' }
+   */
+  readMap(docName: string, mapName: string): Record<string, unknown> {
+    const persistence = this.persistence()
+    const room   = getOrCreateRoom(docName, persistence)
+    const ymap   = room.doc.getMap(mapName)
+    const result: Record<string, unknown> = {}
+    ymap.forEach((val, key) => { result[key] = val })
+    return result
+  },
+
+  /**
+   * Clear a Y.Doc room: close all WebSocket clients, remove from memory, clear persistence.
+   * Clients will reconnect and get a fresh empty room.
+   */
+  async clearDocument(docName: string): Promise<void> {
+    const persistence = this.persistence()
+    await persistence.clearDocument(docName)
+    const rooms = g[KEY] as Map<string, Room> | undefined
+    const room = rooms?.get(docName)
+    if (room) {
+      // Close all connected WebSocket clients — prevents stale Y.Doc re-sync
+      for (const client of room.clients) {
+        try { client.close(4000, 'room-cleared') } catch { /* ignore */ }
+      }
+      room.clients.clear()
+      room.awarenessMap.clear()
+    }
+    rooms?.delete(docName)
+  },
+
+  /** Get the number of active WebSocket clients for a document room. Returns 0 if the room doesn't exist. */
+  getClientCount(docName: string): number {
+    const rooms = g[KEY] as Map<string, Room> | undefined
+    return rooms?.get(docName)?.clients.size ?? 0
+  },
+
+  /**
+   * Update a single field in a Y.Map. Creates room if needed.
+   * Connected WebSocket clients receive the update in real-time.
+   *
+   * @example
+   * await Sync.updateMap('panel:articles:42', 'fields', 'title', 'New Title')
+   */
+  async updateMap(docName: string, mapName: string, field: string, value: unknown): Promise<void> {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    await room.ready
+    room.doc.transact(() => {
+      room.doc.getMap(mapName).set(field, value)
+    }, SERVER_ORIGIN)
+  },
+
+  /**
+   * Update multiple fields in a Y.Map in a single transaction.
+   * Connected WebSocket clients receive the update in real-time.
+   *
+   * @example
+   * await Sync.updateMapBatch('panel:articles:42', 'fields', {
+   *   title: 'Better Title',
+   *   slug: 'better-title',
+   * })
+   */
+  async updateMapBatch(docName: string, mapName: string, fields: Record<string, unknown>): Promise<void> {
+    const persistence = this.persistence()
+    const room = getOrCreateRoom(docName, persistence)
+    await room.ready
+    room.doc.transact(() => {
+      const map = room.doc.getMap(mapName)
+      for (const [key, val] of Object.entries(fields)) {
+        map.set(key, val)
+      }
+    }, SERVER_ORIGIN)
+  },
+
+  /**
+   * Get the underlying `Y.Doc` for a document name.
+   *
+   * Returned doc is mutated in place — pass it to `@rudderjs/sync/lexical`
+   * helpers (or any Yjs binding) to make edits. Server-originated mutations
+   * should run inside `doc.transact(() => { ... }, 'rudderjs:server')` so the
+   * WS layer broadcasts them to connected clients.
+   *
+   * @example
+   * import { sync } from '@rudderjs/sync'
+   * import { insertBlock } from '@rudderjs/sync/lexical'
+   *
+   * const doc = sync.document('panel:articles:42:richcontent:body')
+   * insertBlock(doc, 'callToAction', { title: 'Subscribe' })
+   */
+  document(docName: string): Y.Doc {
+    const persistence = this.persistence()
+    return getOrCreateRoom(docName, persistence).doc
+  },
+}

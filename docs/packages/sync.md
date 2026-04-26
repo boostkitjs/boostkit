@@ -1,11 +1,11 @@
-# @rudderjs/live
+# @rudderjs/sync
 
-Yjs CRDT real-time document sync. Every connected client always sees the same shared state with conflict-free merging — even after going offline and reconnecting.
+Yjs CRDT real-time document sync engine. Every connected client always sees the same shared state with conflict-free merging — even after going offline and reconnecting. Editor-agnostic core with adapters under subpath exports.
 
 ## Installation
 
 ```bash
-pnpm add @rudderjs/live
+pnpm add @rudderjs/sync
 # Client-side (in your app, not this package)
 pnpm add yjs y-websocket
 ```
@@ -15,13 +15,33 @@ pnpm add yjs y-websocket
 ```ts
 // bootstrap/providers.ts
 import { broadcasting } from '@rudderjs/broadcast'
-import { live }         from '@rudderjs/live'
+import { sync }         from '@rudderjs/sync'
 
 export default [
   broadcasting(),  // /ws       — pub/sub channels
-  live(),          // /ws-live  — Yjs CRDT sync (register after broadcasting)
+  sync(),          // /ws-sync  — Yjs CRDT documents (register after broadcasting)
 ]
 ```
+
+## Editor adapters
+
+The core package handles transport, persistence, and the bare Yjs document model. Editor-specific helpers live under subpath exports so they're tree-shakable and don't pull in editor peers unless you import them.
+
+| Adapter | Subpath | Status |
+|---|---|---|
+| Lexical | `@rudderjs/sync/lexical` | Available |
+| Tiptap  | `@rudderjs/sync/tiptap`  | Scaffolded — implementation forthcoming |
+
+```ts
+import { sync }                    from '@rudderjs/sync'
+import { editBlock, insertBlock }  from '@rudderjs/sync/lexical'
+
+const doc = await sync.document('panel:articles:42:richcontent:body')
+insertBlock(doc, 'callToAction', { title: 'Subscribe' })
+editBlock(doc, 'callToAction', 0, 'buttonText', 'Learn More')
+```
+
+The Lexical adapter exposes free functions that take a `Y.Doc` (or the document handle that `sync.document(name)` returns), so you can wire any background job, queue worker, scheduled task, or webhook into a collaborative document without spinning up a browser.
 
 ## Persistence
 
@@ -30,7 +50,7 @@ export default [
 Documents are kept in memory. Resets on server restart. Good for development.
 
 ```ts
-live()  // MemoryPersistence used automatically
+sync()  // MemoryPersistence used automatically
 ```
 
 ### Redis
@@ -42,10 +62,10 @@ pnpm add ioredis
 ```
 
 ```ts
-import { live, liveRedis } from '@rudderjs/live'
+import { sync, syncRedis } from '@rudderjs/sync'
 
-live({
-  persistence: liveRedis({ url: process.env.REDIS_URL }),
+sync({
+  persistence: syncRedis({ url: process.env.REDIS_URL }),
 })
 ```
 
@@ -53,34 +73,36 @@ Updates are stored as an append-only list per document — efficient writes, ful
 
 ### Prisma
 
-Requires a `LiveDocument` model in your schema:
+Requires a `SyncDocument` model in your schema:
 
 ```prisma
-model LiveDocument {
+model SyncDocument {
   id        String   @id @default(cuid())
   docName   String
   update    Bytes
   createdAt DateTime @default(now())
+
+  @@index([docName])
 }
 ```
 
 ```ts
-import { live, livePrisma } from '@rudderjs/live'
+import { sync, syncPrisma } from '@rudderjs/sync'
 
-live({
-  persistence: livePrisma({ model: 'liveDocument' }),
+sync({
+  persistence: syncPrisma({ model: 'syncDocument' }),
 })
 ```
 
 ### Custom Adapter
 
-Implement the `LivePersistence` interface to use any storage backend:
+Implement the `SyncPersistence` interface to use any storage backend:
 
 ```ts
-import type { LivePersistence } from '@rudderjs/live'
+import type { SyncPersistence } from '@rudderjs/sync'
 import * as Y from 'yjs'
 
-const myAdapter: LivePersistence = {
+const myAdapter: SyncPersistence = {
   async getYDoc(docName)              { /* load and return Y.Doc */ },
   async storeUpdate(docName, update)  { /* persist update bytes */ },
   async getStateVector(docName)       { /* return state vector */ },
@@ -89,18 +111,18 @@ const myAdapter: LivePersistence = {
   async destroy()                     { /* cleanup connections */ },
 }
 
-live({ persistence: myAdapter })
+sync({ persistence: myAdapter })
 ```
 
 ## Config
 
 ```ts
-live({
-  /** WebSocket path. Default: '/ws-live' */
-  path: '/ws-live',
+sync({
+  /** WebSocket path. Default: '/ws-sync' */
+  path: '/ws-sync',
 
   /** Persistence adapter. Default: MemoryPersistence */
-  persistence: liveRedis({ url: process.env.REDIS_URL }),
+  persistence: syncRedis({ url: process.env.REDIS_URL }),
 
   /** Auth callback — return true to allow, false to deny */
   onAuth: async (req, docName) => {
@@ -117,7 +139,7 @@ live({
 
 ## Client Usage
 
-`@rudderjs/live` is **server-side only**. On the client, use standard Yjs packages directly:
+`@rudderjs/sync` is **server-side only**. On the client, use standard Yjs packages directly:
 
 ```ts
 import * as Y from 'yjs'
@@ -125,7 +147,7 @@ import { WebsocketProvider } from 'y-websocket'
 
 const doc      = new Y.Doc()
 const provider = new WebsocketProvider(
-  `ws://${window.location.host}/ws-live`,
+  `ws://${window.location.host}/ws-sync`,
   'my-document',  // document name / room
   doc,
 )
@@ -178,47 +200,48 @@ local.on('synced', () => console.log('Local content loaded'))
 
 Edits made offline are merged back automatically when the connection restores.
 
-## Live Facade
+## Sync Facade
 
-The `Live` facade provides server-side access to ydoc operations without needing to import Yjs directly. Used by `@pilotiq/panels` for versioning.
+The `Sync` facade provides server-side access to ydoc operations without needing to import Yjs directly. Used by `@pilotiq/panels` for versioning.
 
 ```ts
-import { Live } from '@rudderjs/live'
+import { Sync } from '@rudderjs/sync'
 
 // Seed a ydoc with initial field data (idempotent — only sets fields not already in the map)
-await Live.seed('panel:articles:abc123', { title: 'Hello', excerpt: 'World' })
+await Sync.seed('panel:articles:abc123', { title: 'Hello', excerpt: 'World' })
 
 // Snapshot the current ydoc state as a Uint8Array
-const snapshot = Live.snapshot('panel:articles:abc123')
+const snapshot = Sync.snapshot('panel:articles:abc123')
 
 // Read all key-value pairs from a named Y.Map
-const fields = Live.readMap('panel:articles:abc123', 'fields')
+const fields = Sync.readMap('panel:articles:abc123', 'fields')
 // => { title: 'Hello', excerpt: 'World' }
 
 // Get the configured persistence adapter
-const persistence = Live.persistence()
+const persistence = Sync.persistence()
 ```
 
 The facade resolves the persistence adapter from:
-1. DI container (`'live.persistence'` binding) — set by `live()` provider
-2. Global key (`__rudderjs_live_persistence__`) — fallback
+1. DI container (`'sync.persistence'` binding) — set by `sync()` provider
+2. Global key (`__rudderjs_sync_persistence__`) — fallback
 
 ## Observability
 
-If `@rudderjs/telescope` is installed, document open/close events, updates applied, awareness changes (throttled by `liveAwarenessSampleMs` on the telescope config), persistence writes, and sync errors are all recorded under the **Live** tab. Awareness throttling keeps the entry count bounded even on high-traffic collaborative sessions — default is one awareness sample per 500ms per document.
+If `@rudderjs/telescope` is installed, document open/close events, updates applied, awareness changes (throttled by `liveAwarenessSampleMs` on the telescope config), persistence writes, and sync errors are all recorded under the **Sync** tab. Awareness throttling keeps the entry count bounded even on high-traffic collaborative sessions — default is one awareness sample per 500ms per document.
 
-Nothing to wire up; the live observer registry ships with the package and Telescope's `LiveCollector` subscribes at boot.
+Nothing to wire up; the sync observer registry ships with the package and Telescope's `SyncCollector` subscribes at boot.
 
 ## Rudder Commands
 
 | Command | Description |
 |---|---|
-| `live:docs` | List active documents and connected client count |
-| `live:clear <doc>` | Clear a document from memory and persistence |
+| `sync:docs` | List active documents and connected client count |
+| `sync:clear <doc>` | Clear a document from memory and persistence |
+| `sync:inspect <doc>` | Inspect the Y.Doc tree structure |
 
 ## How It Works
 
-`@rudderjs/live` implements the [y-websocket](https://github.com/yjs/y-websocket) binary sync protocol directly:
+`@rudderjs/sync` implements the [y-websocket](https://github.com/yjs/y-websocket) binary sync protocol directly:
 
 1. Client connects → server sends **SyncStep1** (server state vector)
 2. Client replies with **SyncStep2** (diff of what it has that the server doesn't)
@@ -228,3 +251,7 @@ Nothing to wire up; the live observer registry ships with the package and Telesc
 6. **Awareness** messages are broadcast as-is (no persistence)
 
 The server maintains one in-memory `Y.Doc` per document name (room). Updates are also written to the configured persistence adapter so new clients receive the full document state on connect.
+
+## Migration from `@rudderjs/live`
+
+This package was renamed in `0.1.0` to better reflect its purpose (sync engine, not just "live updates"). Lexical-specific helpers moved to `@rudderjs/sync/lexical`. See the [package README](https://github.com/rudderjs/rudder/blob/main/packages/sync/README.md#migration-from-rudderjslive) for the full rename table.

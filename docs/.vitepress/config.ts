@@ -61,7 +61,7 @@ export default defineConfig({
         {
           text: 'Real-time',
           items: [
-            { text: 'Broadcasting & Live', link: '/guide/websockets' },
+            { text: 'Broadcasting & Sync', link: '/guide/websockets' },
           ],
         },
         {
@@ -163,7 +163,7 @@ export default defineConfig({
           text: 'Real-time',
           items: [
             { text: '@rudderjs/broadcast', link: '/packages/broadcast' },
-            { text: '@rudderjs/live', link: '/packages/live' },
+            { text: '@rudderjs/sync', link: '/packages/sync' },
           ],
         },
         {

@@ -1,21 +1,21 @@
 /**
- * Live event observers — process-wide pub/sub for the Yjs document
- * lifecycle. Used today by `@rudderjs/telescope`'s LiveCollector to
+ * Sync event observers — process-wide pub/sub for the Yjs document
+ * lifecycle. Used today by `@rudderjs/telescope`'s SyncCollector to
  * record CRDT activity into the dashboard. Any package can subscribe.
  *
- * This is the abstraction contract for Live observability — the WS
+ * This is the abstraction contract for Sync observability — the WS
  * handler in `index.ts` is one producer feeding into it. If a future
- * non-WebSocket Live transport ever ships (HTTP long-poll, server-sent
+ * non-WebSocket Sync transport ever ships (HTTP long-poll, server-sent
  * events for one-way sync), it would feed into the same registry.
  *
- * Awareness throttling lives in the CONSUMER (e.g. LiveCollector),
+ * Awareness throttling lives in the CONSUMER (e.g. SyncCollector),
  * not here. Producers emit every event; consumers decide their own
  * sampling strategy. Yjs awareness fires on every cursor move which
  * could be high-rate, so consumers should expect to throttle.
  */
 
-/** Discriminated union of every event the Live layer can emit. */
-export type LiveEvent =
+/** Discriminated union of every event the sync layer can emit. */
+export type SyncEvent =
   | {
       kind:        'doc.opened'
       docName:     string
@@ -63,13 +63,13 @@ export type LiveEvent =
       error:     string
     }
 
-export type LiveObserver = (event: LiveEvent) => void
+export type SyncObserver = (event: SyncEvent) => void
 
-export class LiveObserverRegistry {
-  private observers: LiveObserver[] = []
+export class SyncObserverRegistry {
+  private observers: SyncObserver[] = []
 
   /** Subscribe; returns an unsubscribe function. */
-  subscribe(fn: LiveObserver): () => void {
+  subscribe(fn: SyncObserver): () => void {
     this.observers.push(fn)
     return () => { this.observers = this.observers.filter(o => o !== fn) }
   }
@@ -79,7 +79,7 @@ export class LiveObserverRegistry {
    * lifecycle event. Errors thrown by observers are swallowed —
    * observability must never break the sync layer.
    */
-  emit(event: LiveEvent): void {
+  emit(event: SyncEvent): void {
     for (const o of this.observers) {
       try { o(event) } catch { /* observer errors must not break sync */ }
     }
@@ -92,8 +92,8 @@ export class LiveObserverRegistry {
 // Process-wide singleton, like commandObservers in @rudderjs/rudder
 // and broadcastObservers in @rudderjs/broadcast.
 const _g = globalThis as Record<string, unknown>
-if (!_g['__rudderjs_live_observers__']) {
-  _g['__rudderjs_live_observers__'] = new LiveObserverRegistry()
+if (!_g['__rudderjs_sync_observers__']) {
+  _g['__rudderjs_sync_observers__'] = new SyncObserverRegistry()
 }
 
-export const liveObservers = _g['__rudderjs_live_observers__'] as LiveObserverRegistry
+export const syncObservers = _g['__rudderjs_sync_observers__'] as SyncObserverRegistry

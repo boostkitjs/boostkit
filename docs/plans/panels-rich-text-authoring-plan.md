@@ -1,5 +1,7 @@
 # Panels Rich Text Authoring Plan
 
+> **Note (2026-04-27):** package renamed from `@rudderjs/live` to `@rudderjs/sync`. Lexical helpers moved to `@rudderjs/sync/lexical`. References to `@rudderjs/live` / `Live` / `live:inspect` below are preserved as historical context.
+
 Give the AI agent in `@rudderjs/panels` the ability to author **structured rich text** — not just plain strings. Today the agent can `replace`/`insert_after`/`delete`/`rewrite` raw text and `update_block` custom blocks. It cannot bold a word, link a phrase, turn a paragraph into a heading, build a bulleted list, or change font family. The Y.Doc tree already supports all of this — the gap is purely on the `@rudderjs/live` API and `edit_text` tool surface.
 
 **Status:** SUPERSEDED (2026-04-08) — formatting ops delivered via `chat-update-form-state-plan.md` Phase 4 instead. The new path runs in the browser via Lexical's `editor.update()` API rather than walking Y.XmlText fragments server-side. `format_text`, `set_link`/`unset_link`, `set_paragraph_type`, `insert_paragraph` all ship as `update_form_state` ops, executed against the live `LexicalEditor` instance registered in `pages/_components/agents/lexicalRegistry.ts`. List ops (`insert_list_item`/`remove_list_item`) and font/style ops are NOT delivered — punt until concrete need.

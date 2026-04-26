@@ -183,7 +183,7 @@ export const pages: Record<string, PageConfig> = {
   },
 
   live: {
-    type:  'live',
+    type:  'sync',
     title: 'Live (Yjs)',
     columns: [
       { label: 'Kind',     key: 'entry.content.kind',                                      badge: true },

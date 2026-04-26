@@ -2,7 +2,7 @@
 
 ## Overview
 
-Native WebSocket server — public/private/presence channels with pub/sub messaging. Runs on the same port as your HTTP server (no separate process, no Pusher). Provides the `broadcast()` helper to push events from anywhere in the app, `Broadcast.channel()` for auth callbacks, and `BKSocket` (vendored client) for the browser. Shares upgrade handler with `@rudderjs/live` via `@rudderjs/vite` in dev and `@rudderjs/server-hono` in prod.
+Native WebSocket server — public/private/presence channels with pub/sub messaging. Runs on the same port as your HTTP server (no separate process, no Pusher). Provides the `broadcast()` helper to push events from anywhere in the app, `Broadcast.channel()` for auth callbacks, and `BKSocket` (vendored client) for the browser. Shares upgrade handler with `@rudderjs/sync` via `@rudderjs/vite` in dev and `@rudderjs/server-hono` in prod.
 
 ## Key Patterns
 

@@ -97,7 +97,7 @@ Telescope records 19 entry types via the observer-registry pattern — each peer
 | Type | Collector | Source | Description |
 |------|-----------|--------|-------------|
 | `broadcast` | BroadcastCollector | `@rudderjs/broadcast` | Full WebSocket lifecycle — connections, subscriptions, presence, broadcasts, auth failures. Grouped by `connectionId`. |
-| `live` | LiveCollector | `@rudderjs/live` | Yjs CRDT debugging — document open/close, updates applied, awareness changes (throttled), persistence events, sync errors |
+| `sync` | SyncCollector | `@rudderjs/sync` | Yjs CRDT debugging — document open/close, updates applied, awareness changes (throttled), persistence events, sync errors |
 
 ## Storage Drivers
 
@@ -139,8 +139,8 @@ export default {
 
   // Real-time watchers
   recordBroadcasts: true,
-  recordLive: true,
-  liveAwarenessSampleMs: 500,  // throttle Yjs awareness events
+  recordSync: true,
+  syncAwarenessSampleMs: 500,  // throttle Yjs awareness events
 
   // Filtering
   ignoreRequests: ['/telescope*', '/health'],

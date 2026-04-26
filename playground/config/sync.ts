@@ -1,13 +1,13 @@
 import { Env } from '@rudderjs/core'
-import { livePrisma } from '@rudderjs/live'
-import type { LiveConfig } from '@rudderjs/live'
+import { syncPrisma } from '@rudderjs/sync'
+import type { SyncConfig } from '@rudderjs/sync'
 
 export default {
-  path: Env.get('LIVE_PATH', '/ws-live'),
+  path: Env.get('SYNC_PATH', '/ws-sync'),
 
   // Server-side persistence — Y.Docs survive server restarts
-  persistence: livePrisma(),
+  persistence: syncPrisma(),
 
   // Client-side providers
   providers: ['websocket', 'indexeddb'],
-} satisfies LiveConfig
+} satisfies SyncConfig

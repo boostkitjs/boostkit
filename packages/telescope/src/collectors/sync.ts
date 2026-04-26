@@ -3,7 +3,7 @@ import { createEntry } from '../storage.js'
 
 /**
  * Records the Yjs document lifecycle by subscribing to the
- * `liveObservers` registry exported from `@rudderjs/live`: doc opened/
+ * `syncObservers` registry exported from `@rudderjs/sync`: doc opened/
  * closed, update applied (with byte size + recipient count), awareness
  * changes (sampled), persistence load/save, sync errors.
  *
@@ -11,23 +11,23 @@ import { createEntry } from '../storage.js'
  * selection / presence change — high rate. The collector keeps a per-
  * `(docName, clientId)` last-seen-timestamp map and drops awareness
  * events that arrive within `awarenessSampleMs` of the previous one
- * for that key. Default window: 500ms. Set `telescope.liveAwarenessSampleMs`
+ * for that key. Default window: 500ms. Set `telescope.syncAwarenessSampleMs`
  * in your config to tune. The map auto-prunes when a `doc.closed`
  * event fires for the same `clientId`.
  *
- * Hooks the abstraction layer (`liveObservers`), not the WebSocket
+ * Hooks the abstraction layer (`syncObservers`), not the WebSocket
  * handler internals. Other transports (HTTP long-poll, SSE one-way
  * sync) feeding into the registry would be captured automatically.
  */
 
-interface LiveEvent {
+interface SyncEvent {
   kind: string
   [key: string]: unknown
 }
 
-export class LiveCollector implements Collector {
-  readonly name = 'Live Collector'
-  readonly type = 'live' as const
+export class SyncCollector implements Collector {
+  readonly name = 'Sync Collector'
+  readonly type = 'sync' as const
 
   /** `(docName + '\u0000' + clientId)` → last awareness sample timestamp (ms) */
   private awarenessLastSampleAt = new Map<string, number>()
@@ -39,16 +39,16 @@ export class LiveCollector implements Collector {
 
   async register(): Promise<void> {
     try {
-      const { liveObservers } = await import('@rudderjs/live') as {
-        liveObservers: { subscribe: (fn: (e: LiveEvent) => void) => void }
+      const { syncObservers } = await import('@rudderjs/sync') as {
+        syncObservers: { subscribe: (fn: (e: SyncEvent) => void) => void }
       }
-      liveObservers.subscribe((event) => this.record(event))
+      syncObservers.subscribe((event) => this.record(event))
     } catch {
-      // @rudderjs/live not installed — skip
+      // @rudderjs/sync not installed — skip
     }
   }
 
-  private record(event: LiveEvent): void {
+  private record(event: SyncEvent): void {
     // Awareness throttling — drop events that arrive within the sample window.
     if (event.kind === 'awareness.changed' && this.awarenessSampleMs > 0) {
       const docName  = String(event['docName'] ?? '')
@@ -83,6 +83,6 @@ export class LiveCollector implements Collector {
     }
 
     const { kind: _kind, ...rest } = event
-    this.storage.store(createEntry('live', { kind: event.kind, ...rest }, opts))
+    this.storage.store(createEntry('sync', { kind: event.kind, ...rest }, opts))
   }
 }

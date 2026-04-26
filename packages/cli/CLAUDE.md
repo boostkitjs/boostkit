@@ -35,7 +35,7 @@ The `rudder` CLI — Laravel Artisan equivalent. Commander.js-based runner that 
 | `@rudderjs/queue` | `queue:work`, `queue:status`, `queue:clear`, `queue:failed`, `queue:retry` |
 | `@rudderjs/schedule` | `schedule:run`, `schedule:work`, `schedule:list` |
 | `@rudderjs/storage` | `storage:link` |
-| `@rudderjs/live` | `live:docs`, `live:clear`, `live:inspect` |
+| `@rudderjs/sync` | `sync:docs`, `sync:clear`, `sync:inspect` |
 | `@rudderjs/broadcast` | `broadcast:connections` |
 | `@rudderjs/boost` | `boost:install`, `boost:update`, `boost:mcp` |
 

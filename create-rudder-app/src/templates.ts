@@ -22,7 +22,7 @@ export interface TemplateContext {
     notifications: boolean
     scheduler:     boolean
     broadcast:     boolean
-    live:          boolean
+    sync:          boolean
     ai:            boolean
     mcp:           boolean
     passport:      boolean
@@ -121,7 +121,7 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   if (ctx.packages.cache)        files['config/cache.ts']    = configCache()
   if (ctx.packages.storage)      files['config/storage.ts']  = configStorage()
   if (ctx.packages.ai)           files['config/ai.ts']       = configAi()
-  if (ctx.packages.live)         files['config/live.ts']     = configLive(ctx)
+  if (ctx.packages.sync)         files['config/sync.ts']     = configSync(ctx)
   if (ctx.packages.passport)     files['config/passport.ts'] = configPassport()
   if (ctx.packages.localization) files['config/localization.ts'] = configLocalization()
   if (ctx.packages.telescope)    files['config/telescope.ts'] = configTelescope()
@@ -285,7 +285,7 @@ function packageJson(ctx: TemplateContext): string {
   if (ctx.packages.notifications) deps['@rudderjs/notification'] = 'latest'
   if (ctx.packages.scheduler)     deps['@rudderjs/schedule']     = 'latest'
   if (ctx.packages.broadcast)     deps['@rudderjs/broadcast']    = 'latest'
-  if (ctx.packages.live)          deps['@rudderjs/live']         = 'latest'
+  if (ctx.packages.sync)          deps['@rudderjs/sync']         = 'latest'
   if (ctx.packages.ai)            deps['@rudderjs/ai']           = 'latest'
   if (ctx.packages.mcp)           deps['@rudderjs/mcp']          = 'latest'
   if (ctx.packages.passport)      deps['@rudderjs/passport']     = 'latest'
@@ -1805,9 +1805,9 @@ function configIndex(ctx: TemplateContext): string {
     imports.push("import ai       from './ai.js'")
     keys.push('ai')
   }
-  if (ctx.packages.live) {
-    imports.push("import live     from './live.js'")
-    keys.push('live')
+  if (ctx.packages.sync) {
+    imports.push("import sync     from './sync.js'")
+    keys.push('sync')
   }
   if (ctx.packages.passport) {
     imports.push("import passport from './passport.js'")
@@ -1892,20 +1892,20 @@ export default {
 `
 }
 
-function configLive(ctx: TemplateContext): string {
-  const persistenceImport = ctx.orm === 'prisma' ? "\nimport { livePrisma } from '@rudderjs/live'" : ''
+function configSync(ctx: TemplateContext): string {
+  const persistenceImport = ctx.orm === 'prisma' ? "\nimport { syncPrisma } from '@rudderjs/sync'" : ''
   const persistenceLine   = ctx.orm === 'prisma'
-    ? '\n  // Server-side persistence — Y.Docs survive server restarts\n  persistence: livePrisma(),\n'
+    ? '\n  // Server-side persistence — Y.Docs survive server restarts\n  persistence: syncPrisma(),\n'
     : ''
   return `import { Env } from '@rudderjs/support'${persistenceImport}
-import type { LiveConfig } from '@rudderjs/live'
+import type { SyncConfig } from '@rudderjs/sync'
 
 export default {
-  path: Env.get('LIVE_PATH', '/ws-live'),
+  path: Env.get('SYNC_PATH', '/ws-sync'),
 ${persistenceLine}
   // Client-side providers
   providers: ['websocket', 'indexeddb'],
-} satisfies LiveConfig
+} satisfies SyncConfig
 `
 }
 
