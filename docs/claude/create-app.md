@@ -9,7 +9,7 @@
 1. Project name
 2. Database ORM — Prisma · Drizzle · None
 3. Database driver — SQLite · PostgreSQL · MySQL (if ORM selected)
-4. Select packages — **multiselect**: auth, cache, queue, storage, mail, notifications, scheduler, broadcast, live, **ai**, localization (defaults: auth + cache)
+4. Select packages — **multiselect**: auth, cache, queue, storage, mail, notifications, scheduler, broadcast, sync, **ai**, mcp, passport, localization, telescope, boost, demos (defaults: auth + cache)
 5. Include Todo module? — yes/no (only if ORM selected)
 6. Frontend frameworks — **multiselect**: React · Vue · Solid (default: React)
 7. Primary framework — single select, only shown when >1 framework selected
@@ -45,6 +45,7 @@ Helpers: `detectPackageManager()`, `pmExec(pm, bin)`, `pmRun(pm, script)`, `pmIn
 - `src/index.css` is always generated; contents differ by `ctx.tailwind` — Tailwind variant uses `@import "tailwindcss"` + `@apply` rules from `semanticRulesApply()`, plain variant uses hand-authored CSS from `indexCssPlain()`. Same semantic class selectors in both (`.page`, `.feature-card`, `.auth-card`, `.todo-list`, `.chat-bubble`, …) so JSX never branches on the flag
 - React + Solid together: Vite plugins use `include`/`exclude` to disambiguate `.tsx` files
 - Secondary frameworks get demo pages at `pages/{fw}-demo/` (each with its own `+config.ts`)
+- `demos` package (when `primary === 'react'`) generates `app/Views/Demos/{Index,Contact}.tsx`, plus `Ws.tsx` + `src/BKSocket.ts` when `broadcast` is selected, and `Live.tsx` (with a `y-websocket` runtime dep) when `sync` is selected. Adds `/demos`, `/demos/contact`, `/demos/ws`, `/demos/live` controllers in `routes/web.ts` and `POST /api/contact` (CSRF-gated only when `auth` is selected) plus `POST /api/ws/broadcast` + `GET /api/ws/ping` when `broadcast` is selected. Silently skipped when `primary !== 'react'`.
 - `@rudderjs/session` is in deps (providers.ts imports it)
 - `@rudderjs/log` is always a base dep — `config/log.ts` + `log()` provider always generated
 - `@rudderjs/hash` is auto-included with auth — `config/hash.ts` + `hash()` provider wired when auth selected

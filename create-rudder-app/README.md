@@ -78,12 +78,16 @@ The installer walks you through up to 9 prompts (several are conditional):
 | MCP | Model Context Protocol servers — expose tools/resources to LLMs | `@rudderjs/mcp` |
 | Passport (OAuth2) | OAuth 2 server with JWT — **requires Auth + Prisma** | `@rudderjs/passport` |
 | Localization | i18n — `trans()`, `setLocale()` | `@rudderjs/localization` |
+| Telescope | Debug dashboard | `@rudderjs/telescope` |
+| Boost (AI coding DX) | Expose project internals to Claude Code / Cursor / Copilot via MCP | `@rudderjs/boost` (devDep) |
+| Demos | Sample views (contact, ws, live) under `/demos` — **react primary only** | — |
 
 Package-specific behavior:
 
 - **AI** — generates `config/ai.ts`, AI chat demo at `/ai-chat`, `POST /api/ai/chat`.
 - **MCP** — generates `app/Mcp/EchoServer.ts` and wires `POST /mcp/echo`.
 - **Passport** — generates `config/passport.ts`, OAuth 2 routes (`/oauth/authorize`, `/oauth/token`, etc.), and `OAuthClient` + `OAuthAccessToken` Prisma models. Fails fast if Auth or Prisma isn't also selected.
+- **Demos** — generates `app/Views/Demos/{Index,Contact}.tsx` plus `Ws.tsx` (when Broadcast is selected) and `Live.tsx` (when Sync is selected). Index page lives at `/demos`. Skipped silently when the primary framework isn't React.
 
 Only selected packages get their dependencies, providers, config files, and schema files. Always-included base packages: `core`, `router`, `server-hono`, `middleware`, `vite`, `rudder`, `cli`, `log`. `session` + `hash` are pulled in automatically with Authentication.
 
