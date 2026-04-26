@@ -63,7 +63,7 @@ export class BroadcastingProvider extends ServiceProvider {
       // @rudderjs/server-hono can attach it to the http.Server without
       // a hard dependency on @rudderjs/broadcast.
       // Store both the broadcast-specific handler AND the combined handler
-      // so that @rudderjs/live can chain without circular references on HMR.
+      // so that @rudderjs/sync can chain without circular references on HMR.
       const handler = getUpgradeHandler(path)
       ;(globalThis as Record<string, unknown>)['__rudderjs_ws_broadcast_upgrade__'] = handler
       ;(globalThis as Record<string, unknown>)[UPGRADE_KEY] = handler

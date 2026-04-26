@@ -1,4 +1,4 @@
-model LiveDocument {
+model SyncDocument {
   id        String   @id @default(cuid())
   docName   String
   update    Bytes

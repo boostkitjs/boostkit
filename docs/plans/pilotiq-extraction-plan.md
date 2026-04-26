@@ -1,5 +1,7 @@
 # Pilotiq Extraction Plan
 
+> **Note (2026-04-27):** package renamed from `@rudderjs/live` to `@rudderjs/sync`. Lexical helpers moved to `@rudderjs/sync/lexical`. References to `@rudderjs/live` below are preserved as historical context.
+
 Extract `packages/panels` and `packages/panels-lexical` out of the `rudderjs/rudder` monorepo into a brand-new `pilotiq-io/pilotiq` monorepo under the `@pilotiq/*` npm scope, then carve out two private pro packages (`@pilotiq-pro/ai`, `@pilotiq-pro/collab`) into a sibling `pilotiq-io/pilotiq-pro` repo. Result: RudderJS becomes a focused Laravel-style framework, Pilotiq becomes a standalone admin/CMS product with an open core and a paid pro tier.
 
 **Status:** DRAFT 2026-04-09.

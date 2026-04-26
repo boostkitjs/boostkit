@@ -3,7 +3,7 @@ import type { TelescopeStorage, TelescopeConfig, EntryType } from '../types.js'
 
 const ENTRY_TYPES: EntryType[] = [
   'request', 'query', 'job', 'exception', 'log',
-  'mail', 'notification', 'event', 'cache', 'schedule', 'model', 'command', 'broadcast', 'live',
+  'mail', 'notification', 'event', 'cache', 'schedule', 'model', 'command', 'broadcast', 'sync',
 ]
 
 // ─── Handlers ──────────────────────────────────────────────

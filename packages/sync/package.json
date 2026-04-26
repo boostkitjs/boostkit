@@ -1,15 +1,16 @@
 {
-  "name": "@rudderjs/live",
-  "version": "0.0.7",
+  "name": "@rudderjs/sync",
+  "version": "0.1.0",
+  "description": "Real-time collaborative document sync engine for RudderJS — Yjs CRDT over WebSocket, with editor adapters under subpath exports (Lexical, Tiptap).",
   "rudderjs": {
-    "provider": "LiveProvider",
+    "provider": "SyncProvider",
     "stage": "feature"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/rudderjs/rudder",
-    "directory": "packages/live"
+    "directory": "packages/sync"
   },
   "type": "module",
   "files": [
@@ -21,6 +22,14 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./lexical": {
+      "import": "./dist/lexical/index.js",
+      "types": "./dist/lexical/index.d.ts"
+    },
+    "./tiptap": {
+      "import": "./dist/tiptap/index.js",
+      "types": "./dist/tiptap/index.d.ts"
     }
   },
   "scripts": {
@@ -29,7 +38,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "clean": "rm -rf dist",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/index.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT"
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/index.test.js dist-test/lexical/index.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT"
   },
   "dependencies": {
     "@rudderjs/core": "workspace:^",

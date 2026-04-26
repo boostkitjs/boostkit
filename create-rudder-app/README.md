@@ -73,7 +73,7 @@ The installer walks you through up to 9 prompts (several are conditional):
 | Notifications | Multi-channel notifications | `@rudderjs/notification` |
 | Scheduler | Cron-like task scheduling | `@rudderjs/schedule` |
 | WebSocket | Real-time channels | `@rudderjs/broadcast` |
-| Real-time Collab | Yjs CRDT sync | `@rudderjs/live` |
+| Sync (Yjs CRDT) | Real-time collaborative document sync | `@rudderjs/sync` |
 | AI | LLM providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure) | `@rudderjs/ai` |
 | MCP | Model Context Protocol servers — expose tools/resources to LLMs | `@rudderjs/mcp` |
 | Passport (OAuth2) | OAuth 2 server with JWT — **requires Auth + Prisma** | `@rudderjs/passport` |

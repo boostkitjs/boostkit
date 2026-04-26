@@ -47,7 +47,7 @@ Route.get('/test-get-route', (_req, res) => {
 // POST handler for /api/contact lives in routes/api.ts.
 Route.get('/demos/contact', async () => view('demos.contact'))
 
-// GET /demos/live — Yjs CRDT collaborative editor (@rudderjs/live).
+// GET /demos/live — Yjs CRDT collaborative editor (@rudderjs/sync).
 Route.get('/demos/live', async () => view('demos.live'))
 
 // GET /demos/ws — WebSocket chat + presence (@rudderjs/broadcast).

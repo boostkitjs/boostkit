@@ -14,7 +14,7 @@ export type EntryType =
   | 'model'
   | 'command'
   | 'broadcast'
-  | 'live'
+  | 'sync'
   | 'http'
   | 'gate'
   | 'dump'
@@ -92,7 +92,7 @@ export interface TelescopeConfig {
   recordModels?:         boolean | undefined
   recordCommands?:       boolean | undefined
   recordBroadcasts?:     boolean | undefined
-  recordLive?:           boolean | undefined
+  recordSync?:           boolean | undefined
   recordHttp?:           boolean | undefined
   recordGate?:           boolean | undefined
   recordDumps?:          boolean | undefined
@@ -105,7 +105,7 @@ export interface TelescopeConfig {
    * window — the rest are dropped. Default `500`. Set to `0` to record
    * every awareness change (only useful for very low-traffic debugging).
    */
-  liveAwarenessSampleMs?: number | undefined
+  syncAwarenessSampleMs?: number | undefined
   ignoreRequests?:       string[] | undefined
   slowQueryThreshold?:   number | undefined
   /** Duration threshold in ms above which an AI agent run is tagged `slow`. Default `5000`. */
@@ -147,14 +147,14 @@ export const defaultConfig: Required<Omit<TelescopeConfig, 'auth' | 'sqlitePath'
   recordModels:         true,
   recordCommands:       true,
   recordBroadcasts:     true,
-  recordLive:           true,
+  recordSync:           true,
   recordHttp:           true,
   recordGate:           true,
   recordDumps:          true,
   recordAi:             true,
   recordMcp:            true,
   recordViews:          true,
-  liveAwarenessSampleMs: 500,
+  syncAwarenessSampleMs: 500,
   ignoreRequests:       ['/telescope*', '/health'],
   slowQueryThreshold:   100,
   slowAiThreshold:      5000,

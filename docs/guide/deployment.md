@@ -331,7 +331,7 @@ server {
     }
 
     # Yjs WebSocket (collaborative editing)
-    location /ws-live {
+    location /ws-sync {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -372,7 +372,7 @@ sudo certbot --nginx -d myapp.com
 
 RudderJS uses WebSocket for:
 - **Broadcasting** (`/ws`) — real-time events, notifications
-- **Live/Yjs** (`/ws-live`) — collaborative editing
+- **Sync/Yjs** (`/ws-sync`) — collaborative document editing
 
 ### Requirements
 
@@ -474,7 +474,7 @@ Before deploying:
 - [ ] Database migrations applied (`npx prisma migrate deploy`)
 - [ ] `.env` is NOT in version control
 - [ ] API keys and secrets are set in your hosting platform's environment
-- [ ] WebSocket paths (`/ws`, `/ws-live`) are proxied with upgrade support
+- [ ] WebSocket paths (`/ws`, `/ws-sync`) are proxied with upgrade support
 - [ ] Queue worker running (if using queues)
 - [ ] Scheduler running (if using scheduled tasks)
 - [ ] SSL configured (HTTPS)

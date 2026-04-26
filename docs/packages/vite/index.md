@@ -33,7 +33,7 @@ export default defineConfig({
 | **HMR route reload** | Watches `routes/`, `bootstrap/`, and `app/` so edits invalidate the SSR module graph without restarting the dev server |
 | **`@/` / `App/` aliases** | Resolves `@/` and `App/` to the app directory in both client and SSR builds |
 | **SSR externals** | Keeps optional RudderJS peers and Node-only drivers out of the SSR bundle — see list below |
-| **WebSocket upgrade** | Intercepts `http.createServer` to attach `__rudderjs_ws_upgrade__` for `@rudderjs/broadcast` and `@rudderjs/live` |
+| **WebSocket upgrade** | Intercepts `http.createServer` to attach `__rudderjs_ws_upgrade__` for `@rudderjs/broadcast` and `@rudderjs/sync` |
 | **`x-real-ip` injection (dev)** | Populates the header from the Node socket so `req.ip` works through Vike's universal middleware |
 
 ### Plugins produced

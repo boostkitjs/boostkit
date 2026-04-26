@@ -7,25 +7,25 @@ import { getTemplates, pmExec, pmRun, pmInstall, type TemplateContext } from './
 const defaultPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
+  broadcast: false, sync: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
 }
 
 const noPkgs: TemplateContext['packages'] = {
   auth: false, cache: false, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
+  broadcast: false, sync: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
 }
 
 const noAuth: TemplateContext['packages'] = {
   auth: false, cache: true, queue: false, storage: false,
   mail: false, notifications: false, scheduler: false,
-  broadcast: false, live: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
+  broadcast: false, sync: false, ai: false, mcp: false, passport: false, localization: false, telescope: false, boost: false,
 }
 
 const allPkgs: TemplateContext['packages'] = {
   auth: true, cache: true, queue: true, storage: true,
   mail: true, notifications: true, scheduler: true,
-  broadcast: true, live: true, ai: true, mcp: true, passport: true, localization: true, telescope: true, boost: true,
+  broadcast: true, sync: true, ai: true, mcp: true, passport: true, localization: true, telescope: true, boost: true,
 }
 
 function ctx(overrides: Partial<TemplateContext> = {}): TemplateContext {
@@ -719,31 +719,31 @@ describe('getTemplates() — log and hash configs', () => {
   })
 })
 
-// ─── live config ──────────────────────────────────────────
+// ─── sync config ──────────────────────────────────────────
 
-describe('getTemplates() — live config wiring', () => {
-  it('live selected → config/live.ts generated and wired into config/index.ts', () => {
-    const files = getTemplates(ctx({ packages: { ...noPkgs, live: true } }))
-    assert.ok('config/live.ts' in files)
-    assert.ok(files['config/live.ts']!.includes('LiveConfig'))
-    assert.ok(files['config/index.ts']!.includes("from './live.js'"))
+describe('getTemplates() — sync config wiring', () => {
+  it('sync selected → config/sync.ts generated and wired into config/index.ts', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, sync: true } }))
+    assert.ok('config/sync.ts' in files)
+    assert.ok(files['config/sync.ts']!.includes('SyncConfig'))
+    assert.ok(files['config/index.ts']!.includes("from './sync.js'"))
   })
 
-  it('live + prisma → livePrisma() persistence', () => {
-    const files = getTemplates(ctx({ orm: 'prisma', packages: { ...noPkgs, live: true } }))
-    assert.ok(files['config/live.ts']!.includes('livePrisma'))
+  it('sync + prisma → syncPrisma() persistence', () => {
+    const files = getTemplates(ctx({ orm: 'prisma', packages: { ...noPkgs, sync: true } }))
+    assert.ok(files['config/sync.ts']!.includes('syncPrisma'))
   })
 
-  it('live not selected → no config/live.ts, no live import in config/index.ts', () => {
+  it('sync not selected → no config/sync.ts, no sync import in config/index.ts', () => {
     const files = getTemplates(ctx({ packages: noPkgs }))
-    assert.ok(!('config/live.ts' in files))
-    assert.ok(!files['config/index.ts']!.includes("from './live.js'"))
+    assert.ok(!('config/sync.ts' in files))
+    assert.ok(!files['config/index.ts']!.includes("from './sync.js'"))
   })
 
-  it('live selected → @rudderjs/live in deps', () => {
-    const files = getTemplates(ctx({ packages: { ...noPkgs, live: true } }))
+  it('sync selected → @rudderjs/sync in deps', () => {
+    const files = getTemplates(ctx({ packages: { ...noPkgs, sync: true } }))
     const pkg = JSON.parse(files['package.json']!)
-    assert.ok('@rudderjs/live' in pkg.dependencies)
+    assert.ok('@rudderjs/sync' in pkg.dependencies)
   })
 })
 

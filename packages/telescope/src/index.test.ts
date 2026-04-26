@@ -1,9 +1,9 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { MemoryStorage, createEntry, TelescopeRegistry, Telescope, CommandCollector, BroadcastCollector, LiveCollector, HttpCollector, GateCollector, DumpCollector } from './index.js'
+import { MemoryStorage, createEntry, TelescopeRegistry, Telescope, CommandCollector, BroadcastCollector, SyncCollector, HttpCollector, GateCollector, DumpCollector } from './index.js'
 import { commandObservers } from '@rudderjs/rudder'
 import { broadcastObservers } from '@rudderjs/broadcast'
-import { liveObservers } from '@rudderjs/live'
+import { syncObservers } from '@rudderjs/sync'
 import { httpObservers } from '@rudderjs/http/observers'
 import { gateObservers } from '@rudderjs/auth/gate-observers'
 import { dumpObservers } from '@rudderjs/support/dump-observers'
@@ -442,26 +442,26 @@ describe('BroadcastCollector', () => {
   })
 })
 
-// ─── LiveCollector ─────────────────────────────────────────
+// ─── SyncCollector ─────────────────────────────────────────
 
-describe('LiveCollector', () => {
+describe('SyncCollector', () => {
   beforeEach(() => {
-    liveObservers.reset()
+    syncObservers.reset()
   })
 
   it('records doc.opened with batchId set to clientId', async () => {
     const storage = new MemoryStorage()
-    const collector = new LiveCollector(storage)
+    const collector = new SyncCollector(storage)
     await collector.register()
 
-    liveObservers.emit({
+    syncObservers.emit({
       kind:        'doc.opened',
       docName:     'todos',
       clientId:    'lv1abc',
       clientCount: 1,
     })
 
-    const entries = storage.list({ type: 'live' }) as TelescopeEntry[]
+    const entries = storage.list({ type: 'sync' }) as TelescopeEntry[]
     assert.equal(entries.length, 1)
     const entry = entries[0]!
     assert.equal(entry.content['kind'], 'doc.opened')
@@ -473,10 +473,10 @@ describe('LiveCollector', () => {
 
   it('records update.applied with byteSize and recipientCount', async () => {
     const storage = new MemoryStorage()
-    const collector = new LiveCollector(storage)
+    const collector = new SyncCollector(storage)
     await collector.register()
 
-    liveObservers.emit({
+    syncObservers.emit({
       kind:           'update.applied',
       docName:        'todos',
       clientId:       'lv2abc',
@@ -484,7 +484,7 @@ describe('LiveCollector', () => {
       recipientCount: 3,
     })
 
-    const entries = storage.list({ type: 'live' }) as TelescopeEntry[]
+    const entries = storage.list({ type: 'sync' }) as TelescopeEntry[]
     const entry = entries[0]!
     assert.equal(entry.content['byteSize'], 128)
     assert.equal(entry.content['recipientCount'], 3)
@@ -492,12 +492,12 @@ describe('LiveCollector', () => {
 
   it('throttles awareness.changed events within sample window', async () => {
     const storage = new MemoryStorage()
-    const collector = new LiveCollector(storage, 500)
+    const collector = new SyncCollector(storage, 500)
     await collector.register()
 
     // Burst of 10 awareness events for the same (doc, client) within ~ms
     for (let i = 0; i < 10; i++) {
-      liveObservers.emit({
+      syncObservers.emit({
         kind:     'awareness.changed',
         docName:  'todos',
         clientId: 'lv3abc',
@@ -505,42 +505,42 @@ describe('LiveCollector', () => {
       })
     }
 
-    const entries = storage.list({ type: 'live' }) as TelescopeEntry[]
+    const entries = storage.list({ type: 'sync' }) as TelescopeEntry[]
     // Only the first one passes the throttle; the rest are dropped.
     assert.equal(entries.length, 1)
   })
 
   it('does not throttle awareness across different clients', async () => {
     const storage = new MemoryStorage()
-    const collector = new LiveCollector(storage, 500)
+    const collector = new SyncCollector(storage, 500)
     await collector.register()
 
-    liveObservers.emit({ kind: 'awareness.changed', docName: 'todos', clientId: 'a', byteSize: 32 })
-    liveObservers.emit({ kind: 'awareness.changed', docName: 'todos', clientId: 'b', byteSize: 32 })
-    liveObservers.emit({ kind: 'awareness.changed', docName: 'other', clientId: 'a', byteSize: 32 })
+    syncObservers.emit({ kind: 'awareness.changed', docName: 'todos', clientId: 'a', byteSize: 32 })
+    syncObservers.emit({ kind: 'awareness.changed', docName: 'todos', clientId: 'b', byteSize: 32 })
+    syncObservers.emit({ kind: 'awareness.changed', docName: 'other', clientId: 'a', byteSize: 32 })
 
-    const entries = storage.list({ type: 'live' }) as TelescopeEntry[]
+    const entries = storage.list({ type: 'sync' }) as TelescopeEntry[]
     assert.equal(entries.length, 3) // distinct (doc, client) pairs all pass
   })
 
   it('records persistence.load and sync.error', async () => {
     const storage = new MemoryStorage()
-    const collector = new LiveCollector(storage)
+    const collector = new SyncCollector(storage)
     await collector.register()
 
-    liveObservers.emit({
+    syncObservers.emit({
       kind:       'persistence.load',
       docName:    'todos',
       durationMs: 7,
       byteSize:   2048,
     })
-    liveObservers.emit({
+    syncObservers.emit({
       kind:    'sync.error',
       docName: 'todos',
       error:   'boom',
     })
 
-    const entries = storage.list({ type: 'live' }) as TelescopeEntry[]
+    const entries = storage.list({ type: 'sync' }) as TelescopeEntry[]
     assert.equal(entries.length, 2)
     const errorEntry = entries.find(e => e.content['kind'] === 'sync.error')!
     assert.ok(errorEntry.tags.includes('error'))

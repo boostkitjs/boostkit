@@ -48,8 +48,9 @@ rudderjs/
 │   ├── mail/           # Mailable, Mail facade, LogAdapter + SMTP (Nodemailer), mail() factory
 │   ├── notification/   # Multi-channel notifications (mail, database)
 │   ├── broadcast/      # WebSocket broadcasting — public, private, presence channels
-│   ├── live/           # Real-time collaborative document sync via Yjs CRDT — /ws-live endpoint
-│   │                   #   Built-in: MemoryPersistence. Optional: livePrisma(), liveRedis()
+│   ├── sync/           # Real-time collaborative document sync via Yjs CRDT — /ws-sync endpoint
+│   │                   #   Built-in: MemoryPersistence. Optional: syncPrisma(), syncRedis()
+│   │                   #   Editor adapters under subpaths: @rudderjs/sync/lexical, /tiptap
 │   ├── image/          # Fluent image processing — resize, crop, convert, optimize. Thin wrapper over sharp.
 │   ├── ai/             # AI engine — 9 providers, Agent class, tools, streaming, middleware, structured output,
 │   │                   #   conversations, attachments, queue, image gen, TTS/STT, provider tools (WebSearch/WebFetch),
@@ -113,7 +114,7 @@ rudderjs/
 | `@rudderjs/mail` | 0.0.5 | Mailable, Mail facade, LogAdapter + SMTP (Nodemailer), `FailoverAdapter` (ordered mailer fallback), `MarkdownMailable` (markdown->responsive HTML, components: button/panel/table/header/footer), `Mail.to().queue()`/`.later(delay)` (queued via `@rudderjs/queue`), `mailPreview()` route handler, mail() factory, `Mail.fake()` (FakeMailAdapter: assertSent/assertNotSent/assertQueued/assertNothingSent) |
 | `@rudderjs/notification` | 0.0.5 | Notifiable, Notification, ChannelRegistry, notify(), `ShouldQueue` (queued notifications via `@rudderjs/queue`), `BroadcastChannel` (WebSocket via `@rudderjs/broadcast`), `AnonymousNotifiable`/`Notification.route()` (on-demand notifications), `Notification.fake()` (NotificationFake: assertSentTo/assertNotSentTo/assertCount) |
 | `@rudderjs/broadcast` | 0.0.1 | WebSocket channels — broadcasting(), broadcast(), broadcasting.auth(), BKSocket client |
-| `@rudderjs/live` | 0.0.1 | Yjs CRDT real-time sync — live(), MemoryPersistence, livePrisma(), liveRedis() |
+| `@rudderjs/sync` | 0.1.0 | Yjs CRDT real-time document sync — sync(), MemoryPersistence, syncPrisma(), syncRedis(); editor adapters under subpaths (`@rudderjs/sync/lexical` available, `@rudderjs/sync/tiptap` scaffolded). Renamed from `@rudderjs/live` in 0.1.0. |
 | `@rudderjs/image` | 0.0.1 | Fluent image processing — resize, crop, convert, optimize. Wraps sharp. |
 | `@rudderjs/ai` | 0.0.1 | AI engine — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), Agent class, tool system (server + client), async-generator tool execute with `tool-update` chunks, `.modelOutput(fn)` for decoupling model-input from UI/result, generative-UI registry consumed by `@pilotiq/panels`, **`ToolCallContext`** (optional second arg to `ToolExecuteFn` carrying `toolCallId`), **`pauseForClientTools(toolCalls, handle)`** control chunk a server tool can yield to halt the loop and surface nested client-tool calls upward (the building block for `@pilotiq/panels`'s sub-agent client-tool round-trip), streaming, middleware (wired into agent loop), structured output, conversation memory (`forUser()`/`continue()`), file/image attachments (`Document`/`Image`), queue integration (`agent.queue()`), image generation (`AI.image()`/`ImageGenerator`), TTS (`AI.audio()`/`AudioGenerator`), STT (`AI.transcribe()`/`Transcription`), provider tools (`WebSearch`/`WebFetch`/`CodeExecution`), Vercel AI Data Stream Protocol (`toVercelDataStream`/`toVercelResponse`), cached embeddings (`CachedEmbeddingAdapter`), batch embedding auto-chunking, Google+Mistral embeddings, AI facade, AiFake |
 | `@rudderjs/boost` | 0.0.1 | AI dev tools — MCP server (11 tools: app_info, db_schema, route_list, model_list, config_get, last_error, db_query, read_logs, browser_logs, get_absolute_url, search_docs), MCP resources (guidelines://), `boost:install`/`boost:update` commands, `Boost.registerAgent()` for custom agents, auto-generated AI guidelines and skills from installed packages |

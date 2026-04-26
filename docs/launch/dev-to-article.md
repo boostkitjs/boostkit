@@ -26,7 +26,7 @@ RudderJS is a batteries-included, modular TypeScript framework for Node.js. 45 f
 
 - **Controller-returned SSR views** through [Vike](https://vike.dev) + [Vite](https://vitejs.dev) with real SPA navigation. No Inertia adapter. No JSON envelope. Just typed props passing from your route handler to a React / Vue / Solid component — and ~400 bytes per navigation.
 - **AI-native from day one** — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), agents with tools, streaming, conversations, MCP server support, queue integration.
-- **Real-time on one port** — WebSocket channels (`@rudderjs/broadcast`) and Yjs CRDT collab (`@rudderjs/live`) share the same HTTP server. No separate process, no reverse proxy.
+- **Real-time on one port** — WebSocket channels (`@rudderjs/broadcast`) and Yjs CRDT collab (`@rudderjs/sync`) share the same HTTP server. No separate process, no reverse proxy.
 - **Service-oriented architecture** — DI container, service providers, gates & policies, an active-record ORM (Prisma or Drizzle), scheduling, queues, notifications, built-in inspector — all wired through one bootstrap file and one `rudder` CLI.
 - **Pay-as-you-go** — start with 3 packages (core, router, server-hono), bolt on what you need. Swap adapters (Prisma ↔ Drizzle, BullMQ ↔ Inngest, local ↔ S3).
 - **TypeScript-first, strict by default** — `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, ESM + NodeNext everywhere.

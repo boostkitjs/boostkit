@@ -77,7 +77,7 @@ All `@rudderjs/*` packages are published to npm individually. Install only what 
 | Package | Description | Install |
 |---|---|---|
 | [@rudderjs/broadcast](./broadcast) | WebSocket broadcasting — `broadcasting()`, `Broadcast.channel()`, public/private/presence channels, BKSocket client. | `pnpm add @rudderjs/broadcast` |
-| [@rudderjs/live](./live) | Yjs CRDT real-time document sync — `live()`, `MemoryPersistence`, `liveRedis()`, `livePrisma()`. | `pnpm add @rudderjs/live` |
+| [@rudderjs/sync](./sync) | Yjs CRDT real-time document sync — `sync()`, `MemoryPersistence`, `syncRedis()`, `syncPrisma()`; editor adapters under `@rudderjs/sync/lexical` (available) and `@rudderjs/sync/tiptap` (scaffolded). | `pnpm add @rudderjs/sync` |
 
 ## Admin
 

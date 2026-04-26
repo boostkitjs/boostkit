@@ -100,7 +100,8 @@ rudderjs/
 │   │                       #   ShouldQueue (queued notifications), BroadcastChannel (WebSocket),
 │   │                       #   AnonymousNotifiable, Notification.route() (on-demand)
 │   ├── broadcast/          # WebSocket broadcasting — public, private, presence channels
-│   ├── live/               # Real-time collaborative sync via Yjs CRDT — /ws-live endpoint
+│   ├── sync/               # Real-time collaborative document sync via Yjs CRDT — /ws-sync endpoint
+│   │                       #   Editor adapters under subpaths (@rudderjs/sync/lexical, /tiptap)
 │   ├── ai/                 # AI engine — 11 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek,
 │   │                       #   xAI, Mistral, Azure text; Cohere, Jina reranking+embeddings), Agent class,
 │   │                       #   tool system, streaming, middleware, structured output, model registry
@@ -121,7 +122,7 @@ rudderjs/
 ├── .github/workflows/      # CI (build, typecheck, lint, test) + Release (Changesets auto-publish)
 ├── docs/                   # VitePress documentation site
 └── playground/             # Framework demo app (port 3000) — auth, routing, ORM, queue, mail,
-                            #   cache, storage, scheduling, broadcast, live, AI agents, monitoring
+                            #   cache, storage, scheduling, broadcast, sync, AI agents, monitoring
 ```
 
 **Merged/removed packages** (code absorbed, originals deleted):
@@ -175,7 +176,7 @@ cd playground && pnpm dev
 |---|---|---|
 | `rudderjs:routes` | `routes/`, `bootstrap/` | Clears `__rudderjs_instance__` + `__rudderjs_app__` singletons, invalidates all SSR modules, sends `full-reload` to browser |
 | `views-scanner` | `app/Views/` | Regenerates Vike page stubs (`pages/__view/`) and triggers Vike HMR |
-| `rudderjs:ws` | — | Patches WebSocket upgrade on Vite's HTTP server for broadcast/live |
+| `rudderjs:ws` | — | Patches WebSocket upgrade on Vite's HTTP server for broadcast/sync |
 
 **Why route files need special handling:** `withRouting({ web: () => import('../routes/web.ts') })` uses lazy dynamic imports stored in closures — Vite never adds them to its SSR module graph, so changes are invisible to HMR. The `rudderjs:routes` plugin explicitly watches these directories and triggers a clean re-bootstrap.
 
@@ -308,7 +309,7 @@ RudderJS Framework
 │    ├── @rudderjs/mail               Mailable, SMTP, Failover, Markdown, Mail.fake()
 │    ├── @rudderjs/notification       Multi-channel, queued, Notification.fake()
 │    ├── @rudderjs/broadcast          WebSocket channels (public, private, presence)
-│    └── @rudderjs/live               Yjs CRDT real-time sync
+│    └── @rudderjs/sync               Yjs CRDT document sync engine + editor adapters (Lexical available, Tiptap scaffolded)
 │
 ├─── Utilities
 │    ├── @rudderjs/log                Structured logging, channels, LogFake

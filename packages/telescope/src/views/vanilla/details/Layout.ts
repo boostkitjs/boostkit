@@ -209,7 +209,7 @@ function entrySummary(type: string, c: Record<string, unknown>): string {
     case 'gate':         return `${c['ability'] ?? ''} → ${c['allowed'] ? 'allowed' : 'denied'}`
     case 'dump':         return `${c['method'] ?? ''}(${c['count'] ?? 0} args)`
     case 'broadcast':    return `${c['kind'] ?? ''}${c['channel'] ? ' ' + c['channel'] : ''}`
-    case 'live':         return `${c['kind'] ?? ''}${c['docName'] ? ' ' + c['docName'] : ''}`
+    case 'sync':         return `${c['kind'] ?? ''}${c['docName'] ? ' ' + c['docName'] : ''}`
     case 'view':         return `${c['id'] ?? ''} (${Array.isArray(c['propKeys']) ? (c['propKeys'] as unknown[]).length : 0} props)`
     default:             return ''
   }
