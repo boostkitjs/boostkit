@@ -1,5 +1,4 @@
 import { usePageContext } from 'vike-react/usePageContext'
-import { Button } from '@/components/ui/button'
 
 const errors: Record<number | 'default', { title: string; message: string }> = {
   404: {
@@ -23,6 +22,13 @@ const errors: Record<number | 'default', { title: string; message: string }> = {
     message: 'An unexpected error occurred. Please try again.',
   },
 }
+
+// Self-contained styling so this page works in any playground/scaffold,
+// even when no shadcn UI components are installed. Visually matches the
+// outline + default Button variants from `@/components/ui/button`.
+const buttonBase    = 'inline-flex items-center justify-center h-8 px-2.5 rounded-lg text-sm font-medium transition-colors'
+const buttonOutline = `${buttonBase} border border-border bg-background text-foreground hover:bg-muted`
+const buttonPrimary = `${buttonBase} bg-primary text-primary-foreground hover:bg-primary/80`
 
 export default function ErrorPage() {
   const { is404, abortStatusCode, abortReason } = usePageContext() as {
@@ -49,10 +55,10 @@ export default function ErrorPage() {
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={() => window.history.back()}>
+        <button type="button" className={buttonOutline} onClick={() => window.history.back()}>
           Go back
-        </Button>
-        <a href="/"><Button>Go home</Button></a>
+        </button>
+        <a href="/" className={buttonPrimary}>Go home</a>
       </div>
 
     </div>
