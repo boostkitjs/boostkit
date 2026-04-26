@@ -82,6 +82,7 @@ async function main(): Promise<void> {
       { value: 'localization',  label: 'Localization',     hint: 'i18n — trans(), setLocale()' },
       { value: 'telescope',     label: 'Telescope',        hint: 'debug dashboard — requests, queries, jobs, exceptions, AI, mail, cache' },
       { value: 'boost',         label: 'Boost (AI coding DX)', hint: 'expose project internals to Claude Code / Cursor / Copilot via MCP' },
+      { value: 'demos',         label: 'Demos',            hint: 'sample views (contact, todos, ws, live) under /demos — react primary only' },
     ],
     initialValues: ['auth', 'cache'],
     required: false,
@@ -105,6 +106,7 @@ async function main(): Promise<void> {
     localization:  selectedPackages.includes('localization'),
     telescope:     selectedPackages.includes('telescope'),
     boost:         selectedPackages.includes('boost'),
+    demos:         selectedPackages.includes('demos'),
   }
 
   // Passport requires auth + prisma at runtime. Warn and drop silently if missing.

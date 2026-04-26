@@ -58,6 +58,11 @@ const features: Feature[] = [
     description: 'Session-backed auth, password reset, gates, and RequireAuth / RequireGuest middleware — all through one provider.',
     href:        `${DEFAULT_DOCS}#auth`,
   },
+  {
+    title:       'Demos →',
+    description: 'Small examples wired into this playground: contact form, todos, WebSocket chat, and a Yjs collaborative editor.',
+    href:        '/demos',
+  },
 ]
 
 export default function Welcome(props: WelcomeProps) {

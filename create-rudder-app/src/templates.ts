@@ -29,6 +29,7 @@ export interface TemplateContext {
     localization:  boolean
     telescope:     boolean
     boost:         boolean
+    demos:         boolean
   }
 }
 
@@ -182,7 +183,25 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
     files[`pages/${fw}-demo/+Page${dext}`] = demoPage(fw, ctx)
   }
 
+  // Demos — react primary only; ws/live require their respective packages.
+  if (shouldScaffoldDemos(ctx)) {
+    files['app/Views/Demos/Index.tsx']   = demosIndexView(ctx)
+    files['app/Views/Demos/Contact.tsx'] = demosContactView(ctx)
+    if (ctx.packages.broadcast) {
+      files['app/Views/Demos/Ws.tsx'] = demosWsView()
+      files['src/BKSocket.ts']        = bkSocketSource()
+    }
+    if (ctx.packages.sync) {
+      files['app/Views/Demos/Live.tsx'] = demosLiveView()
+    }
+  }
+
   return files
+}
+
+/** Demos are React-primary only for v1 — vue/solid variants aren't written yet. */
+function shouldScaffoldDemos(ctx: TemplateContext): boolean {
+  return ctx.packages.demos && ctx.primary === 'react'
 }
 
 // ─── package.json ──────────────────────────────────────────
@@ -286,6 +305,7 @@ function packageJson(ctx: TemplateContext): string {
   if (ctx.packages.scheduler)     deps['@rudderjs/schedule']     = 'latest'
   if (ctx.packages.broadcast)     deps['@rudderjs/broadcast']    = 'latest'
   if (ctx.packages.sync)          deps['@rudderjs/sync']         = 'latest'
+  if (shouldScaffoldDemos(ctx) && ctx.packages.sync) deps['y-websocket']           = '^2.0.0'
   if (ctx.packages.ai)            deps['@rudderjs/ai']           = 'latest'
   if (ctx.packages.mcp)           deps['@rudderjs/mcp']          = 'latest'
   if (ctx.packages.passport)      deps['@rudderjs/passport']     = 'latest'
@@ -2207,6 +2227,43 @@ router.get('/api/passport/me', async (req, res) => {
 }, [RequireBearer(), scope('read')])`)
   }
 
+  if (shouldScaffoldDemos(ctx)) {
+    imports.push(`import { z } from '@rudderjs/core'`)
+    if (ctx.packages.auth) imports.push(`import { CsrfMiddleware } from '@rudderjs/middleware'`)
+    if (ctx.packages.broadcast) imports.push(`import { broadcast, broadcastStats } from '@rudderjs/broadcast'`)
+
+    lines.push('')
+    lines.push(`// ── Demos ────────────────────────────────────────────────
+// POST /api/contact — Zod validation${ctx.packages.auth ? ' + CSRF' : ''}.
+const contactSchema = z.object({
+  name:    z.string().min(2,  'Name must be at least 2 characters.'),
+  email:   z.string().email('Please enter a valid email address.'),
+  message: z.string().min(10, 'Message must be at least 10 characters.'),
+})
+
+router.post('/api/contact', async (req, res) => {
+  const result = contactSchema.safeParse(req.body)
+  if (!result.success) {
+    const errors = Object.fromEntries(result.error.issues.map(i => [i.path[0], i.message]))
+    return res.status(422).json({ errors })
+  }
+  return res.json({ ok: true, message: \`Thanks \${result.data.name}, your message has been received!\` })
+}${ctx.packages.auth ? ', [CsrfMiddleware()]' : ''})`)
+
+    if (ctx.packages.broadcast) {
+      lines.push('')
+      lines.push(`// POST /api/ws/broadcast — push a chat message to subscribers of the 'chat' channel.
+router.post('/api/ws/broadcast', async (req, res) => {
+  const { user, text } = req.body as { user: string; text: string }
+  broadcast('chat', 'message', { user, text, ts: Date.now() })
+  res.json({ ok: true })
+})
+
+// GET /api/ws/ping — current connection / channel counts.
+router.get('/api/ws/ping', (_req, res) => res.json(broadcastStats()))`)
+    }
+  }
+
   lines.push('')
   lines.push("// Catch-all: any unmatched /api/* route returns 404")
   lines.push("router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Route not found.' }))")
@@ -2294,8 +2351,27 @@ Route.get('/', async () => {${hasAuth ? `
 `
     : ''
 
+  // ── demos wiring ────────────────────────────────────────
+  // Controllers for /demos and /demos/<name>. Views live under app/Views/Demos/.
+  let demosBlock = ''
+  if (shouldScaffoldDemos(ctx)) {
+    if (!hasWelcome) {
+      // Demo files exist but routesWeb already has `view` imports if hasWelcome.
+      // For multi-framework projects (no welcome) we still need the view import here.
+      imports.push(`import { view } from '@rudderjs/view'`)
+    }
+    const lines = [
+      `// Demos — see app/Views/Demos/`,
+      `Route.get('/demos',         async () => view('demos.index'))`,
+      `Route.get('/demos/contact', async () => view('demos.contact'))`,
+    ]
+    if (ctx.packages.broadcast) lines.push(`Route.get('/demos/ws',      async () => view('demos.ws'))`)
+    if (ctx.packages.sync)      lines.push(`Route.get('/demos/live',    async () => view('demos.live'))`)
+    demosBlock = '\n' + lines.join('\n') + '\n'
+  }
+
   return `${imports.join('\n')}
-${webMwBlock}${authBlock}${welcomeBlock}
+${webMwBlock}${authBlock}${welcomeBlock}${demosBlock}
 // Web routes — HTML redirects, guards, and non-API server responses
 // These run before Vike's file-based page routing
 // Use this file for: redirects, server-side auth guards, download routes, sitemaps, etc.
@@ -3975,3 +4051,477 @@ export default function Page() {
   }
 }
 
+// ─── Demos ─────────────────────────────────────────────────
+
+function demosIndexView(ctx: TemplateContext): string {
+  const cards: { title: string; desc: string; href: string; show: boolean; pkgs: string }[] = [
+    {
+      title: 'Contact form',
+      desc:  'CSRF-protected form with Zod validation. Demonstrates getCsrfToken() and FormRequest-style error handling.',
+      href:  '/demos/contact',
+      pkgs:  '@rudderjs/middleware · @rudderjs/core',
+      show:  true,
+    },
+    {
+      title: 'WebSocket chat',
+      desc:  'Real-time chat + presence using @rudderjs/broadcast — multi-channel pub/sub over a single WebSocket connection.',
+      href:  '/demos/ws',
+      pkgs:  '@rudderjs/broadcast',
+      show:  ctx.packages.broadcast,
+    },
+    {
+      title: 'Collaborative editor',
+      desc:  'Yjs CRDT live document with awareness cursors. Open in two tabs to see real-time sync over @rudderjs/sync.',
+      href:  '/demos/live',
+      pkgs:  '@rudderjs/sync',
+      show:  ctx.packages.sync,
+    },
+  ].filter(c => c.show)
+
+  const cardsJsx = cards.map(c => `        <a key="${c.href}" href="${c.href}" className="feature-card">
+          <h3 className="feature-title">${c.title}</h3>
+          <p className="feature-desc">${c.desc}</p>
+          <p className="feature-desc" style={{ fontSize: '0.7rem', opacity: 0.7 }}>${c.pkgs}</p>
+        </a>`).join('\n')
+
+  return `import '@/index.css'
+
+// Override the id-derived URL ('/demos/index') so SPA nav matches the controller ('/demos').
+export const route = '/demos'
+
+export default function DemosIndex() {
+  return (
+    <div className="page">
+      <nav className="page-nav">
+        <div className="brand">
+          <span className="brand-dot" />
+          RudderJS
+        </div>
+        <div className="nav-right">
+          <a href="/" className="nav-link">Home</a>
+        </div>
+      </nav>
+
+      <section className="hero">
+        <h1 className="hero-title">Demos</h1>
+        <p className="hero-lead">
+          Small, focused examples of what the framework can do. Each one is a single
+          controller returning <code className="inline-code">view('demos.&lt;name&gt;')</code>.
+        </p>
+      </section>
+
+      <section className="feature-section">
+        <div className="feature-grid">
+${cardsJsx}
+        </div>
+      </section>
+    </div>
+  )
+}
+`
+}
+
+function demosContactView(ctx: TemplateContext): string {
+  // CSRF is only enforced when @rudderjs/auth is installed (CsrfMiddleware
+  // wraps the /api/contact route in routes/api.ts). Without auth, the
+  // unprotected form just succeeds.
+  const sendsCsrf = ctx.packages.auth ? 'true' : 'false'
+
+  return `import '@/index.css'
+import { useState } from 'react'
+import { getCsrfToken } from '@rudderjs/middleware'
+
+interface FormFields { name: string; email: string; message: string }
+interface FormErrors { name?: string; email?: string; message?: string }
+
+export default function ContactDemo() {
+  const [fields, setFields] = useState<FormFields>({ name: '', email: '', message: '' })
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+
+  function setField(key: keyof FormFields, value: string) {
+    setFields(f => ({ ...f, [key]: value }))
+    if (errors[key]) setErrors(e => ({ ...e, [key]: undefined }))
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setStatus('loading')
+    setErrors({})
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (${sendsCsrf}) headers['X-CSRF-Token'] = getCsrfToken()
+
+    const res  = await fetch('/api/contact', {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify(fields),
+    })
+    const data = await res.json() as { ok?: boolean; message?: string; errors?: FormErrors }
+
+    if (res.ok) {
+      setStatus('success')
+      setMessage(data.message ?? 'Thanks!')
+      setFields({ name: '', email: '', message: '' })
+    } else if (res.status === 422) {
+      setStatus('error')
+      setErrors(data.errors ?? {})
+    } else {
+      setStatus('error')
+      setMessage(\`\${res.status} — \${data.message ?? 'Request failed.'}\`)
+    }
+  }
+
+  return (
+    <div className="page">
+      <nav className="page-nav">
+        <div className="brand">
+          <span className="brand-dot" />
+          RudderJS
+        </div>
+        <div className="nav-right">
+          <a href="/demos" className="nav-link">← Demos</a>
+        </div>
+      </nav>
+
+      <section className="hero">
+        <h1 className="hero-title">Contact</h1>
+        <p className="hero-lead">
+          POSTs to <code className="inline-code">/api/contact</code>${ctx.packages.auth
+        ? ' with an X-CSRF-Token header.'
+        : '. Add @rudderjs/auth to require CSRF.'}{' '}
+          Server-side validated with Zod.
+        </p>
+      </section>
+
+      <section className="feature-section" style={{ maxWidth: '32rem', margin: '0 auto' }}>
+        <form onSubmit={submit} className="form-card">
+          <div>
+            <label className="form-label" htmlFor="name">Name</label>
+            <input id="name" className="form-input" value={fields.name}
+              onChange={e => setField('name', e.target.value)} />
+            {errors.name && <p className="form-error">{errors.name}</p>}
+          </div>
+          <div>
+            <label className="form-label" htmlFor="email">Email</label>
+            <input id="email" type="email" className="form-input" value={fields.email}
+              onChange={e => setField('email', e.target.value)} />
+            {errors.email && <p className="form-error">{errors.email}</p>}
+          </div>
+          <div>
+            <label className="form-label" htmlFor="message">Message</label>
+            <textarea id="message" rows={4} className="form-input" value={fields.message}
+              onChange={e => setField('message', e.target.value)} />
+            {errors.message && <p className="form-error">{errors.message}</p>}
+          </div>
+          <button type="submit" className="form-submit" disabled={status === 'loading'}>
+            {status === 'loading' ? 'Sending…' : 'Send message'}
+          </button>
+          {status === 'success' && <p className="form-success">{message}</p>}
+          {status === 'error' && message && <p className="form-error">{message}</p>}
+        </form>
+      </section>
+    </div>
+  )
+}
+`
+}
+
+function demosWsView(): string {
+  return `import '@/index.css'
+import { useEffect, useRef, useState } from 'react'
+import { BKSocket } from '@/BKSocket'
+
+type Message = { user: string; text: string; ts: number }
+type Member  = { id: string; name: string }
+
+function getWsUrl() {
+  if (typeof window === 'undefined') return ''
+  return \`ws://\${window.location.host}/ws\`
+}
+
+export default function WsDemo() {
+  const [me, setMe]               = useState('')
+  const socketRef                 = useRef<BKSocket | null>(null)
+  const [connected, setConnected] = useState(false)
+  const [messages,  setMessages]  = useState<Message[]>([])
+  const [members,   setMembers]   = useState<Member[]>([])
+  const [input,     setInput]     = useState('')
+
+  useEffect(() => { setMe(\`User-\${Math.floor(Math.random() * 1000)}\`) }, [])
+
+  useEffect(() => {
+    if (!me) return
+    const socket = new BKSocket(getWsUrl())
+    socketRef.current = socket
+
+    const chat = socket.channel('chat')
+    chat.on('message', d => setMessages(prev => [...prev, d as Message]))
+
+    const room = socket.presence('lobby', 'demo-token')
+    room.on('presence.members', d => {
+      setMembers(d as Member[])
+      setConnected(true)
+    })
+    room.on('presence.joined', d => {
+      const u = d as Member
+      setMembers(prev => [...prev.filter(m => m.id !== u.id), u])
+    })
+    room.on('presence.left', d => {
+      const id = (d as { id: string }).id
+      setMembers(prev => prev.filter(m => m.id !== id))
+    })
+
+    return () => { socket.close() }
+  }, [me])
+
+  async function send() {
+    if (!input.trim()) return
+    await fetch('/api/ws/broadcast', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ user: me, text: input.trim() }),
+    })
+    setInput('')
+  }
+
+  return (
+    <div className="page">
+      <nav className="page-nav">
+        <div className="brand">
+          <span className="brand-dot" />
+          RudderJS
+        </div>
+        <div className="nav-right">
+          <a href="/demos" className="nav-link">← Demos</a>
+        </div>
+      </nav>
+
+      <section className="hero">
+        <h1 className="hero-title">WebSocket chat</h1>
+        <p className="hero-lead">
+          Pub/sub + presence over a single WebSocket. Connected as <strong>{me}</strong>.{' '}
+          {connected ? '🟢 connected' : '⚪ connecting…'}
+        </p>
+      </section>
+
+      <section className="feature-section" style={{ maxWidth: '40rem', margin: '0 auto' }}>
+        <p className="form-label">Members ({members.length})</p>
+        <ul style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {members.map(m => (
+            <li key={m.id} className="inline-code">{m.name}</li>
+          ))}
+        </ul>
+
+        <div style={{ minHeight: '12rem', marginBottom: '1rem' }}>
+          {messages.map((m, i) => (
+            <p key={i} style={{ margin: '0.25rem 0' }}>
+              <strong>{m.user}:</strong> {m.text}
+            </p>
+          ))}
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); void send() }} style={{ display: 'flex', gap: '0.5rem' }}>
+          <input className="form-input" value={input}
+            onChange={e => setInput(e.target.value)} placeholder="Say something…" />
+          <button type="submit" className="form-submit" style={{ width: 'auto' }}>Send</button>
+        </form>
+      </section>
+    </div>
+  )
+}
+`
+}
+
+function demosLiveView(): string {
+  return `import '@/index.css'
+import { useEffect, useRef, useState } from 'react'
+import * as Y from 'yjs'
+import { WebsocketProvider } from 'y-websocket'
+
+function getWsUrl() {
+  if (typeof window === 'undefined') return ''
+  return \`ws://\${window.location.host}/ws-sync\`
+}
+
+export default function LiveDemo() {
+  const [connected, setConnected] = useState(false)
+  const [text,      setText]      = useState('')
+  const [users,     setUsers]     = useState<{ name: string; color: string }[]>([])
+  const [myName]                  = useState(() => \`User-\${Math.floor(Math.random() * 1000)}\`)
+  const [myColor]                 = useState(() => \`hsl(\${Math.floor(Math.random() * 360)}, 70%, 50%)\`)
+
+  const docRef      = useRef<Y.Doc | null>(null)
+  const provRef     = useRef<WebsocketProvider | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const doc      = new Y.Doc()
+    const ytext    = doc.getText('content')
+    const provider = new WebsocketProvider(getWsUrl(), 'live-demo', doc)
+
+    docRef.current  = doc
+    provRef.current = provider
+
+    ytext.observe(() => setText(ytext.toString()))
+    provider.on('status', ({ status }: { status: string }) => setConnected(status === 'connected'))
+    provider.awareness.setLocalStateField('user', { name: myName, color: myColor })
+
+    const syncUsers = () => {
+      const states = [...provider.awareness.getStates().values()] as { user?: { name: string; color: string } }[]
+      setUsers(states.map(s => s.user).filter((u): u is { name: string; color: string } => Boolean(u)))
+    }
+    provider.awareness.on('change', syncUsers)
+    syncUsers()
+
+    return () => { provider.destroy(); doc.destroy() }
+  }, [myName, myColor])
+
+  function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const ytext = docRef.current?.getText('content')
+    if (!ytext) return
+    docRef.current?.transact(() => {
+      ytext.delete(0, ytext.length)
+      ytext.insert(0, e.target.value)
+    })
+  }
+
+  return (
+    <div className="page">
+      <nav className="page-nav">
+        <div className="brand">
+          <span className="brand-dot" />
+          RudderJS
+        </div>
+        <div className="nav-right">
+          <a href="/demos" className="nav-link">← Demos</a>
+        </div>
+      </nav>
+
+      <section className="hero">
+        <h1 className="hero-title">Collaborative editor</h1>
+        <p className="hero-lead">
+          Yjs CRDT over @rudderjs/sync. Open this page in two tabs to see real-time updates.{' '}
+          {connected ? '🟢 connected' : '⚪ connecting…'}
+        </p>
+      </section>
+
+      <section className="feature-section" style={{ maxWidth: '40rem', margin: '0 auto' }}>
+        <p className="form-label">Active users:</p>
+        <ul style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {users.map((u, i) => (
+            <li key={i} className="inline-code" style={{ borderLeft: \`3px solid \${u.color}\`, paddingLeft: '0.5rem' }}>
+              {u.name}
+            </li>
+          ))}
+        </ul>
+        <textarea
+          ref={textareaRef}
+          className="form-input"
+          rows={10}
+          value={text}
+          onChange={onChange}
+          placeholder="Start typing…"
+        />
+      </section>
+    </div>
+  )
+}
+`
+}
+
+function bkSocketSource(): string {
+  return `// BKSocket — RudderJS WebSocket client
+//
+// Multiplexes channels and presence rooms over a single WebSocket connection.
+// Mirrors the API expected by @rudderjs/broadcast on the server.
+
+type Listener = (data: unknown) => void
+
+class Channel {
+  private listeners = new Map<string, Set<Listener>>()
+
+  constructor(
+    private readonly socket: BKSocket,
+    public readonly name: string,
+  ) {}
+
+  on(event: string, fn: Listener): this {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set())
+    this.listeners.get(event)!.add(fn)
+    return this
+  }
+
+  off(event: string, fn: Listener): this {
+    this.listeners.get(event)?.delete(fn)
+    return this
+  }
+
+  /** @internal — invoked by BKSocket on incoming messages */
+  receive(event: string, data: unknown) {
+    this.listeners.get(event)?.forEach(fn => fn(data))
+  }
+
+  /** @internal — invoked by BKSocket to (re)subscribe after connect */
+  subscribe() {
+    this.socket.send({ type: 'subscribe', channel: this.name })
+  }
+}
+
+class Presence extends Channel {
+  constructor(socket: BKSocket, name: string, private readonly token: string) {
+    super(socket, name)
+  }
+
+  override subscribe() {
+    this.socket.send({ type: 'presence.join', channel: this.name, token: this.token })
+  }
+}
+
+export class BKSocket {
+  private ws?: WebSocket
+  private readonly channels = new Map<string, Channel>()
+  private reconnectTimer?: ReturnType<typeof setTimeout>
+
+  constructor(private readonly url: string) {
+    this.connect()
+  }
+
+  channel(name: string): Channel {
+    let ch = this.channels.get(name)
+    if (!ch) { ch = new Channel(this, name); this.channels.set(name, ch); ch.subscribe() }
+    return ch
+  }
+
+  presence(name: string, token: string): Channel {
+    let ch = this.channels.get(name)
+    if (!ch) { ch = new Presence(this, name, token); this.channels.set(name, ch); ch.subscribe() }
+    return ch
+  }
+
+  send(payload: Record<string, unknown>) {
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(payload))
+  }
+
+  close() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.ws?.close()
+  }
+
+  private connect() {
+    this.ws = new WebSocket(this.url)
+    this.ws.onopen = () => this.channels.forEach(ch => ch.subscribe())
+    this.ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data as string) as { channel?: string; event?: string; data?: unknown }
+        if (msg.channel && msg.event) this.channels.get(msg.channel)?.receive(msg.event, msg.data)
+      } catch { /* ignore non-JSON frames */ }
+    }
+    this.ws.onclose = () => {
+      this.reconnectTimer = setTimeout(() => this.connect(), 1500)
+    }
+  }
+}
+`
+}
