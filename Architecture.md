@@ -132,10 +132,7 @@ rudderjs/
 - `@rudderjs/cache-redis` → merged into `@rudderjs/cache`
 - `@rudderjs/mail-nodemailer` → merged into `@rudderjs/mail`
 - `@rudderjs/events` → merged into `@rudderjs/core`
-- `@rudderjs/panels` → extracted to `@pilotiq/panels` (pilotiq repo)
-- `@rudderjs/panels-lexical` → extracted to `@pilotiq/lexical` (pilotiq repo)
-- `@rudderjs/media` → extracted to `@pilotiq/media` (pilotiq repo)
-- `@rudderjs/workspaces` → extracted to `@pilotiq-pro/workspaces` (pilotiq-pro repo)
+- `@rudderjs/panels`, `@rudderjs/panels-lexical`, `@rudderjs/media`, `@rudderjs/workspaces` → extracted to a separate admin/CMS-flavored project (no longer part of the framework)
 
 ---
 
@@ -339,11 +336,7 @@ RudderJS Framework
 
 **Clean DAG — no cycles**: `@rudderjs/contracts` holds all shared types. `@rudderjs/router` and `@rudderjs/server-hono` depend only on contracts, not on core. `@rudderjs/core` loads `@rudderjs/router` at runtime via `resolveOptionalPeer`. Never add `@rudderjs/core` to router's dependencies.
 
-**AI separation**: `@rudderjs/ai` is a generic backend engine (no UI, no Prisma). Panel-specific AI features (chat sidebar, PanelAgent, field actions) live in `@pilotiq-pro/ai`. Never add panel dependencies to `@rudderjs/ai`.
-
-**Open-core ecosystem**: RudderJS is the framework layer. Two sibling repos build on it:
-- **pilotiq** (`@pilotiq/{panels,lexical,media}`) — open-source admin panel builder (MIT)
-- **pilotiq-pro** (`@pilotiq-pro/{ai,collab,workspaces}`) — commercial extensions (AI agents, real-time collab)
+**AI separation**: `@rudderjs/ai` is a generic backend engine (no UI, no Prisma). Higher-level AI features that need a UI (chat sidebars, panel-specific agents, field actions) belong in apps or downstream packages, never in `@rudderjs/ai` itself.
 
 ### Package Merge Policy (Tight-Coupling Only)
 
@@ -934,4 +927,4 @@ All optional peer packages **must** include `"default": "./dist/index.js"` in th
 | Phase 5 | Plan 7: Monitoring & Observability — Telescope ✅ verified end-to-end (19 collectors), Pulse ⬜ untested, Horizon ⬜ untested | ◐ Partial |
 | Phase 5 | Plan 8: AI, Boost & MCP — AI loop parity, MCP HTTP transport + DI, Boost guidelines & tools, Passport OAuth2 all shipped | ✅ Complete |
 | — | Production Build Fixes (node:crypto, WS upgrade, vite externals) | ✅ Complete |
-| — | Open-core extraction (pilotiq + pilotiq-pro repos) | ✅ Complete |
+| — | Open-core extraction (admin/CMS packages moved to a separate project) | ✅ Complete |

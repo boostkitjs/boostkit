@@ -87,10 +87,10 @@ export interface ModelQuery {
 
 /**
  * Static surface of an Eloquent-style ORM Model — the contract that
- * downstream tools (e.g. `@pilotiq/pilotiq` for auto-wired CRUD) target
- * when they want to call into "the model" without depending on the
- * `@rudderjs/orm` package directly. `@rudderjs/orm`'s `Model` base
- * class satisfies this structurally.
+ * downstream tools (e.g. admin panels with auto-wired CRUD, generic
+ * resource browsers) target when they want to call into "the model"
+ * without depending on the `@rudderjs/orm` package directly.
+ * `@rudderjs/orm`'s `Model` base class satisfies this structurally.
  */
 export interface ModelLike {
   /** Primary-key column name. Defaults to `'id'`. */

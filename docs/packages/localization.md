@@ -141,50 +141,50 @@ If a key is missing in the current locale, RudderJS automatically checks the con
 
 ## Pre-loading namespaces
 
-Some packages need a namespace available **synchronously** (e.g. `@pilotiq/panels` resolves UI strings during render). Use `preloadNamespace()` from a service provider's `boot()` to warm the cache:
+Some packages need a namespace available **synchronously** — e.g. when UI strings are resolved during render and there is no `await`. Use `preloadNamespace()` from a service provider's `boot()` to warm the cache:
 
 ```ts
 import { preloadNamespace, LocalizationRegistry } from '@rudderjs/localization'
 
 const { locale, fallback } = LocalizationRegistry.getConfig()
-await preloadNamespace(locale, 'pilotiq')
-if (fallback !== locale) await preloadNamespace(fallback, 'pilotiq')
+await preloadNamespace(locale, 'mypkg')
+if (fallback !== locale) await preloadNamespace(fallback, 'mypkg')
 ```
 
-After this runs, `__('pilotiq.signOut')` resolves without an `await`.
+After this runs, `__('mypkg.signOut')` resolves without an `await`.
 
 ## Typed cache access
 
-Packages that bundle their own translations and need a sync, typed read path can use `LocalizationRegistry`'s static methods directly. Useful when implementing a sync resolver (e.g. `getPanelI18n()`) that can't `await trans()` from a render path:
+Packages that bundle their own translations and need a sync, typed read path can use `LocalizationRegistry`'s static methods directly. Useful when implementing a sync resolver that can't `await trans()` from a render path:
 
 ```ts
 import { LocalizationRegistry } from '@rudderjs/localization'
 
 // Read a pre-loaded namespace
-const data = LocalizationRegistry.getCached('en', 'pilotiq')
+const data = LocalizationRegistry.getCached('en', 'mypkg')
 //    ^? Record<string, unknown> | undefined
 
 // Seed the cache (for tests, fixtures, or programmatic translations)
-LocalizationRegistry.setCached('en', 'pilotiq', { signOut: 'Logout' })
+LocalizationRegistry.setCached('en', 'mypkg', { signOut: 'Logout' })
 
 // Clear a single namespace entry (for test teardown)
-LocalizationRegistry.deleteCached('en', 'pilotiq')
+LocalizationRegistry.deleteCached('en', 'mypkg')
 
 // Reset everything (cache + config)
 LocalizationRegistry.reset()
 ```
 
-These methods are the **typed boundary** for any package that needs to read or write the localization cache directly. Prefer them over reaching into `globalThis['__rudderjs_localization_cache__']` — even though both end up at the same Map, the static methods are the public, type-safe contract that won't break if the internal cache shape changes. The reference implementation is `@pilotiq/panels`'s `getOverride()`, which captures the `LocalizationRegistry` reference at boot time and reads through it from sync render paths.
+These methods are the **typed boundary** for any package that needs to read or write the localization cache directly. Prefer them over reaching into `globalThis['__rudderjs_localization_cache__']` — even though both end up at the same Map, the static methods are the public, type-safe contract that won't break if the internal cache shape changes. A typical pattern: capture the `LocalizationRegistry` reference at boot time and read through it from sync render paths.
 
 ## Overriding bundled translations (vendor namespaces)
 
-Some packages ship their own bundled translations as the canonical schema (e.g. `@pilotiq/panels`). To override individual strings or add a new locale, drop a JSON file at `lang/<locale>/<short-name>.json` (the short name is documented per package — for `@pilotiq/panels` it is `pilotiq`):
+Some packages ship their own bundled translations as the canonical schema. To override individual strings or add a new locale, drop a JSON file at `lang/<locale>/<short-name>.json` (the short name is documented per package):
 
 ```json
-// lang/en/pilotiq.json
+// lang/en/mypkg.json
 {
   "signOut": "Logout"
 }
 ```
 
-Only the keys you specify are overridden; missing keys fall back to the bundled defaults. See `docs/contributing/new-package.md` § "Bundled translations & overrides" for the convention all RudderJS packages should follow when shipping UI strings; the canonical implementation lives in [`@pilotiq/panels`](https://github.com/pilotiq-io/pilotiq).
+Only the keys you specify are overridden; missing keys fall back to the bundled defaults. See `docs/contributing/new-package.md` § "Bundled translations & overrides" for the convention all RudderJS packages should follow when shipping UI strings.

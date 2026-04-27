@@ -246,7 +246,7 @@ This avoids bundling packages the user may not have installed and prevents circu
 
 ## Bundled translations & overrides
 
-If your package ships its own UI strings (panel chrome, buttons, toasts, error messages — anything the end user reads), follow the **bundled defaults + JSON overrides** convention so apps can localize your package without forking it. `@pilotiq/panels` (in [pilotiq-io/pilotiq](https://github.com/pilotiq-io/pilotiq)) is the reference implementation; do the same in your package.
+If your package ships its own UI strings (UI chrome, buttons, toasts, error messages — anything the end user reads), follow the **bundled defaults + JSON overrides** convention so apps can localize your package without forking it.
 
 ### 1. Ship bundled defaults as TypeScript
 
@@ -426,7 +426,7 @@ Point users at your bundled `en.ts` as the canonical key list — that's the sou
 | Bundled defaults       | `src/i18n/<locale>.ts`, schema in `en.ts`             |
 | Resolver function      | `get<PackageName>I18n(locale)`                        |
 
-For example, `@pilotiq/panels` uses the short name `pilotiq`. Pick a short, distinct name so multiple packages don't collide on the same override file.
+Pick a short, distinct name so multiple packages don't collide on the same override file (e.g. `@your-org/panels` → `panels`, `@your-org/billing` → `billing`).
 
 ---
 

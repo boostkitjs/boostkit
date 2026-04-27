@@ -599,10 +599,11 @@ export abstract class Model {
 
 // ─── Compile-time contract check ───────────────────────────
 // Asserts that `Model`'s static surface conforms to the `ModelLike`
-// contract from `@rudderjs/contracts`. Downstream tools (e.g.
-// `@pilotiq/pilotiq` resource auto-wiring) target `ModelLike` so they
-// don't need to depend on `@rudderjs/orm` directly. This line will
-// fail to compile if a future change to Model breaks that contract.
+// contract from `@rudderjs/contracts`. Downstream tools (admin panels
+// with auto-wired CRUD, generic resource browsers, etc.) target
+// `ModelLike` so they don't need to depend on `@rudderjs/orm` directly.
+// This line will fail to compile if a future change to Model breaks
+// that contract.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _modelSatisfiesContract: ModelLike = Model
 void _modelSatisfiesContract
