@@ -17,9 +17,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Guide', link: '/guide/', activeMatch: '/guide/' },
-      { text: 'Packages', link: '/packages/', activeMatch: '/packages/' },
-      { text: 'CLI', link: '/cli/', activeMatch: '/cli/' },
-      { text: 'Integrations', link: '/integrations/', activeMatch: '/integrations/' },
+      { text: 'Packages', link: '/packages/boost', activeMatch: '/packages/' },
       { text: 'Contributing', link: '/contributing/', activeMatch: '/contributing/' },
       {
         text: 'v0.1.0',
@@ -73,18 +71,42 @@ export default defineConfig({
           ],
         },
         {
-          text: 'Database',
-          items: [
-            { text: 'Getting Started', link: '/guide/database' },
-          ],
-        },
-        {
           text: 'Digging Deeper',
           items: [
             { text: 'Rudder Console', link: '/guide/rudder' },
-            { text: 'Broadcasting & Sync', link: '/guide/websockets' },
+            { text: 'Broadcasting', link: '/guide/broadcasting' },
+            { text: 'Cache', link: '/guide/cache' },
+            { text: 'Contracts', link: '/guide/contracts' },
+            { text: 'Events', link: '/guide/events' },
+            { text: 'File Storage', link: '/guide/storage' },
+            { text: 'HTTP Client', link: '/guide/http-client' },
+            { text: 'Localization', link: '/guide/localization' },
+            { text: 'Mail', link: '/guide/mail' },
+            { text: 'Notifications', link: '/guide/notifications' },
+            { text: 'Queues', link: '/guide/queues' },
+            { text: 'Rate Limiting', link: '/guide/rate-limiting' },
+            { text: 'Sync', link: '/guide/sync' },
+            { text: 'Task Scheduling', link: '/guide/scheduling' },
             { text: 'AI', link: '/guide/ai' },
             { text: 'MCP', link: '/guide/mcp' },
+          ],
+        },
+        {
+          text: 'Security',
+          items: [
+            { text: 'Authentication', link: '/guide/authentication' },
+            { text: 'Authorization', link: '/guide/authorization' },
+            { text: 'Encryption', link: '/guide/encryption' },
+            { text: 'Hashing', link: '/guide/hashing' },
+          ],
+        },
+        {
+          text: 'Database',
+          items: [
+            { text: 'Getting Started', link: '/guide/database' },
+            { text: 'Models', link: '/guide/database/models' },
+            { text: 'Prisma Adapter', link: '/guide/database/prisma' },
+            { text: 'Drizzle Adapter', link: '/guide/database/drizzle' },
           ],
         },
         {
@@ -97,133 +119,13 @@ export default defineConfig({
 
       '/packages/': [
         {
-          text: 'Core',
+          text: 'Packages',
           items: [
-            { text: '@rudderjs/core', link: '/packages/core/' },
-            { text: '@rudderjs/contracts', link: '/packages/core/contracts' },
-            { text: '@rudderjs/support', link: '/packages/core/support' },
-            { text: 'DI Container', link: '/packages/core/di' },
-            { text: 'Rate Limiting & CSRF', link: '/packages/rate-limit' },
-          ],
-        },
-        {
-          text: 'Build',
-          items: [
-            { text: '@rudderjs/vite', link: '/packages/vite/' },
-            { text: '@rudderjs/view', link: '/packages/view' },
-            { text: '@rudderjs/image', link: '/packages/image/' },
-          ],
-        },
-        {
-          text: 'Server',
-          items: [
-            { text: '@rudderjs/server-hono', link: '/packages/server/hono' },
-          ],
-        },
-        {
-          text: 'ORM',
-          items: [
-            { text: '@rudderjs/orm', link: '/packages/orm/' },
-            { text: '@rudderjs/orm-prisma', link: '/packages/orm/prisma' },
-            { text: '@rudderjs/orm-drizzle', link: '/packages/orm/drizzle' },
-          ],
-        },
-        {
-          text: 'Queue',
-          items: [
-            { text: '@rudderjs/queue', link: '/packages/queue/' },
-            { text: '@rudderjs/queue-bullmq', link: '/packages/queue/bullmq' },
-            { text: '@rudderjs/queue-inngest', link: '/packages/queue/inngest' },
-          ],
-        },
-        {
-          text: 'Auth',
-          items: [
-            { text: '@rudderjs/auth', link: '/packages/auth/' },
-            { text: '@rudderjs/passport', link: '/packages/passport' },
-          ],
-        },
-        {
-          text: 'Session',
-          items: [
-            { text: '@rudderjs/session', link: '/packages/session' },
-          ],
-        },
-        {
-          text: 'Cache',
-          items: [
-            { text: '@rudderjs/cache', link: '/packages/cache/' },
-            { text: 'Redis Driver', link: '/packages/cache/redis' },
-          ],
-        },
-        {
-          text: 'Storage',
-          items: [
-            { text: '@rudderjs/storage', link: '/packages/storage/' },
-            { text: 'S3 / R2 / MinIO', link: '/packages/storage/s3' },
-          ],
-        },
-        {
-          text: 'Mail',
-          items: [
-            { text: '@rudderjs/mail', link: '/packages/mail/' },
-            { text: 'SMTP (Nodemailer)', link: '/packages/mail/nodemailer' },
-          ],
-        },
-        {
-          text: 'Real-time',
-          items: [
-            { text: '@rudderjs/broadcast', link: '/packages/broadcast' },
-            { text: '@rudderjs/sync', link: '/packages/sync' },
-          ],
-        },
-        {
-          text: 'Features',
-          items: [
-            { text: 'Events (core)', link: '/packages/events' },
-            { text: '@rudderjs/schedule', link: '/packages/schedule' },
-            { text: '@rudderjs/notification', link: '/packages/notification' },
-            { text: '@rudderjs/rudder', link: '/packages/rudder' },
-          ],
-        },
-        {
-          text: 'AI',
-          items: [
-            { text: 'Overview', link: '/packages/ai/' },
-            { text: 'Agents', link: '/packages/ai/agents' },
-            { text: 'Tools', link: '/packages/ai/tools' },
-            { text: 'Streaming', link: '/packages/ai/streaming' },
-            { text: 'Middleware & Testing', link: '/packages/ai/middleware' },
-            { text: '@rudderjs/mcp', link: '/packages/mcp' },
-          ],
-        },
-        {
-          text: 'Tooling',
-          items: [
-            { text: '@rudderjs/cli', link: '/packages/cli' },
-            { text: '@rudderjs/telescope', link: '/packages/telescope' },
-          ],
-        },
-      ],
-
-      '/cli/': [
-        {
-          text: 'RudderJS CLI',
-          items: [
-            { text: 'Overview', link: '/cli/' },
-            { text: 'make: Commands', link: '/cli/make-commands' },
-            { text: 'module: Commands', link: '/cli/module-commands' },
-          ],
-        },
-      ],
-
-      '/integrations/': [
-        {
-          text: 'Integrations',
-          items: [
-            { text: 'Authentication', link: '/integrations/auth' },
-            { text: 'Notifications', link: '/integrations/notifications' },
-            { text: 'Deployment', link: '/integrations/deployment' },
+            { text: 'Boost', link: '/packages/boost' },
+            { text: 'Passport', link: '/packages/passport' },
+            { text: 'Sanctum', link: '/packages/sanctum' },
+            { text: 'Socialite', link: '/packages/socialite' },
+            { text: 'Telescope', link: '/packages/telescope' },
           ],
         },
       ],
