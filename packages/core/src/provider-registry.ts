@@ -22,6 +22,13 @@ export interface ProviderEntry {
    * to force explicit registration. Default: true.
    */
   autoDiscover?: boolean
+  /**
+   * Subpath to import the provider class from, e.g. `./server`. When set, the
+   * loader imports `<package>/<providerSubpath>` instead of the package's main
+   * entry. Used by packages that split their server-only code (e.g. `@rudderjs/ai`)
+   * away from a runtime-agnostic main entry.
+   */
+  providerSubpath?: string
 }
 
 export interface ProviderManifest {

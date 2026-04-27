@@ -18,6 +18,20 @@ pnpm add cohere-ai            # Cohere (reranking + embeddings)
 # Ollama, Jina — no extra package needed
 ```
 
+## Runtime Compatibility
+
+`@rudderjs/ai` is runtime-agnostic via subpath exports:
+
+| Entry | Runtimes | Use for |
+|---|---|---|
+| `@rudderjs/ai` | Node, browser, Electron main+renderer, React Native | Agents, tools, streaming, providers — any `fetch`-capable JS runtime |
+| `@rudderjs/ai/node` | Node only | `documentFromPath()`, `imageFromPath()`, `transcribeFromPath()` (filesystem helpers) |
+| `@rudderjs/ai/server` | Node only | `AiProvider` (the RudderJS `ServiceProvider` — auto-discovered, you rarely import it) |
+
+The main entry has zero `node:*` static imports, so you can call agents and tools directly from a React Native screen, an Electron renderer, or a browser. `@rudderjs/core` is an optional peer — only `/server` consumers pull it in.
+
+**Security:** Calling LLM providers directly from a client leaks your API key. Use a server-side proxy in production. The main client-side use case is BYOK desktop apps (Electron) where the user supplies their own key.
+
 ## Setup
 
 ```ts
@@ -330,12 +344,25 @@ await AI.audio('Welcome').model('openai/tts-1').store('audio/welcome.mp3')
 ```ts
 import { AI } from '@rudderjs/ai'
 
-const result = await AI.transcribe('./meeting.mp3')
+const bytes = new Uint8Array(/* recorded audio */)
+
+const result = await AI.transcribe(bytes)
   .model('openai/whisper-1')
   .language('en')
   .generate()
 
 // result.text → transcribed text
+```
+
+In Node, load the file with the `/node` helper:
+
+```ts
+import { transcribeFromPath } from '@rudderjs/ai/node'
+
+const result = await (await transcribeFromPath('./meeting.mp3'))
+  .model('openai/whisper-1')
+  .language('en')
+  .generate()
 ```
 
 ### Provider Tools (WebSearch, WebFetch)

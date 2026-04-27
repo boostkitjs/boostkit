@@ -4,11 +4,12 @@ import { sortByStageAndDepends } from '../provider-sort.js'
 import type { ProviderEntry, ProviderManifest } from '../provider-registry.js'
 
 interface RudderJsField {
-  provider:      string
-  stage:         ProviderEntry['stage']
-  depends?:      string[]
-  optional?:     boolean
-  autoDiscover?: boolean
+  provider:        string
+  stage:           ProviderEntry['stage']
+  depends?:        string[]
+  optional?:       boolean
+  autoDiscover?:   boolean
+  providerSubpath?: string
 }
 
 /**
@@ -76,8 +77,9 @@ function scanNodeModules(nodeModules: string): ProviderEntry[] {
           provider: field.provider,
           stage:    field.stage,
         }
-        if (field.depends)  entry.depends  = field.depends
-        if (field.optional) entry.optional = field.optional
+        if (field.depends)         entry.depends         = field.depends
+        if (field.optional)        entry.optional        = field.optional
+        if (field.providerSubpath) entry.providerSubpath = field.providerSubpath
 
         out.push(entry)
       } catch {

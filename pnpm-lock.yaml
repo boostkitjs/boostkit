@@ -60,13 +60,13 @@ importers:
 
   packages/ai:
     dependencies:
-      '@rudderjs/core':
-        specifier: workspace:^
-        version: link:../core
       zod:
         specifier: ^4.0.0
         version: 4.3.6
     devDependencies:
+      '@rudderjs/core':
+        specifier: workspace:^
+        version: link:../core
       '@rudderjs/rudder':
         specifier: workspace:^
         version: link:../rudder

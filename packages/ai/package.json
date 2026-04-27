@@ -4,6 +4,7 @@
   "description": "AI engine — providers, agents, tools, streaming, middleware",
   "rudderjs": {
     "provider": "AiProvider",
+    "providerSubpath": "./server",
     "stage": "feature"
   },
   "license": "MIT",
@@ -24,6 +25,14 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./node": {
+      "import": "./dist/node/index.js",
+      "types": "./dist/node/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
+    },
     "./commands/make-agent": {
       "import": "./dist/commands/make-agent.js",
       "types": "./dist/commands/make-agent.d.ts"
@@ -37,12 +46,17 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/index.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/*.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@rudderjs/core": "workspace:^",
     "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@rudderjs/core": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@rudderjs/core": { "optional": true }
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": ">=0.30.0",
@@ -51,6 +65,7 @@
     "cohere-ai": ">=7.0.0"
   },
   "devDependencies": {
+    "@rudderjs/core": "workspace:^",
     "@rudderjs/rudder": "workspace:^",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"

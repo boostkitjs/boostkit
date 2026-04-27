@@ -15,6 +15,22 @@ AI agent framework — Laravel ergonomics + Vercel/TanStack execution model + Ru
 - `src/registry.ts` — Provider/model registry
 - `src/fake.ts` — `AiFake` for testing without real API calls
 
+## Runtime Compatibility
+
+`@rudderjs/ai` is runtime-agnostic via subpath exports:
+
+| Entry | Runtimes | Use for |
+|---|---|---|
+| `@rudderjs/ai` | Node, browser, Electron main+renderer, React Native | Agents, tools, streaming, providers — any `fetch`-capable JS runtime |
+| `@rudderjs/ai/node` | Node only | `documentFromPath()`, `imageFromPath()`, `transcribeFromPath()` |
+| `@rudderjs/ai/server` | Node only | `AiProvider` (requires `@rudderjs/core`) |
+
+The main entry has **zero `node:` static imports** — enforced by `src/isomorphic-check.test.ts`. `@rudderjs/core` is an optional peer; only `/server` consumers pull it in.
+
+Provider auto-discovery reads `rudderjs.providerSubpath` from `package.json` (`"./server"` here) so `defaultProviders()` imports the class from the right entry.
+
+**Security caveat:** Calling LLM providers directly from a client (browser/RN) leaks your API key. Use server-side proxies for production; BYOK desktop apps (Electron) are the main client-side use case.
+
 ## Architecture Rules
 
 - **Lazy SDK loading**: provider adapters import their SDK only on first use — all SDKs are optional peers

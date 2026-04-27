@@ -50,11 +50,13 @@ export class AI {
     return AudioGenerator.of(text)
   }
 
-  /** Create a speech-to-text transcription */
-  static transcribe(pathOrBuffer: string | Buffer): Transcription {
-    return typeof pathOrBuffer === 'string'
-      ? Transcription.fromPath(pathOrBuffer)
-      : Transcription.fromBuffer(pathOrBuffer)
+  /**
+   * Create a speech-to-text transcription from raw audio bytes.
+   *
+   * For Node-only path-based loading, use `transcribeFromPath` from `@rudderjs/ai/node`.
+   */
+  static transcribe(bytes: Uint8Array): Transcription {
+    return Transcription.fromBytes(bytes)
   }
 
   /**
