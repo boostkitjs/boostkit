@@ -1,5 +1,16 @@
 # @rudderjs/contracts
 
+## 0.2.0
+
+### Minor Changes
+
+- be10c83: Add `ModelLike` + `ModelQuery` interfaces to `@rudderjs/contracts` so downstream
+  tools (e.g. `@pilotiq/pilotiq` for auto-wired CRUD) can target the Eloquent-style
+  Model surface without depending on `@rudderjs/orm` directly. `Model` from
+  `@rudderjs/orm` already structurally satisfies `ModelLike`, asserted at compile
+  time via a `const _: ModelLike = Model` guard in `@rudderjs/orm`'s entry — any
+  future change to `Model` that breaks the contract fails the build.
+
 ## 0.1.0
 
 ### Minor Changes
