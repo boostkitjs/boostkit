@@ -10,7 +10,7 @@ import {
   ListPromptsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import type { McpServer } from './McpServer.js'
-import type { McpTool } from './McpTool.js'
+import type { McpTool, McpToolResult, McpToolReturn, McpToolProgress } from './McpTool.js'
 import type { McpResource } from './McpResource.js'
 import type { McpPrompt } from './McpPrompt.js'
 import { zodToJsonSchema } from './zod-to-json-schema.js'
@@ -49,6 +49,51 @@ function matchUriTemplate(template: string, uri: string): Record<string, string>
 
 function getProtected<T>(server: McpServer, key: string, fallback: T): T {
   return ((server as unknown as Record<string, T>)[key]) ?? fallback
+}
+
+/** SDK request handler `extra` shape — minimal; we only use sendNotification. */
+type SdkRequestExtra = {
+  sendNotification?: (notification: { method: string; params: Record<string, unknown> }) => Promise<void> | void
+}
+
+/**
+ * Run a tool's `handle()` return value to completion.
+ *
+ * - Plain `Promise<McpToolResult>` → just await it.
+ * - `AsyncGenerator<McpToolProgress, McpToolResult>` → iterate, forwarding each
+ *   yield as a `notifications/progress` message to the client (only when the
+ *   request supplied a `progressToken` in `_meta`), and resolve to the final
+ *   value the generator returns.
+ *
+ * Errors propagate normally so the outer try/catch handles them.
+ */
+export async function consumeToolReturn(
+  ret: McpToolReturn,
+  extra: SdkRequestExtra | undefined,
+  meta: Record<string, unknown> | undefined,
+): Promise<McpToolResult> {
+  // Detect an async generator. Plain Promises don't have Symbol.asyncIterator.
+  const maybeIter = ret as unknown as { [Symbol.asyncIterator]?: unknown; next?: unknown }
+  const isGenerator = maybeIter
+    && typeof maybeIter.next === 'function'
+    && typeof maybeIter[Symbol.asyncIterator] === 'function'
+
+  if (!isGenerator) return await (ret as Promise<McpToolResult>)
+
+  const iter = ret as AsyncGenerator<McpToolProgress, McpToolResult, unknown>
+  const progressToken = meta?.['progressToken']
+  const sendNotification = extra?.sendNotification
+
+  while (true) {
+    const next = await iter.next()
+    if (next.done) return next.value
+    if (progressToken !== undefined && sendNotification) {
+      await sendNotification({
+        method: 'notifications/progress',
+        params: { progressToken, ...next.value },
+      })
+    }
+  }
 }
 
 type Ctor<T = unknown> = new (...args: any[]) => T
@@ -158,7 +203,7 @@ export function createSdkServer(server: McpServer): Server {
     }),
   }))
 
-  sdk.setRequestHandler(CallToolRequestSchema, async (request) => {
+  sdk.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const tool = tools.find((t) => t.name() === request.params.name)
     if (!tool) {
       return { content: [{ type: 'text' as const, text: `Unknown tool: ${request.params.name}` }], isError: true }
@@ -167,7 +212,8 @@ export function createSdkServer(server: McpServer): Server {
     const start = performance.now()
     try {
       const extras = resolveHandleDeps(tool, 'handle')
-      const result = await tool.handle(input, ...extras as [])
+      const ret = tool.handle(input, ...extras as [])
+      const result = await consumeToolReturn(ret, extra, request.params._meta)
       getMcpObservers()?.emit({
         kind: 'tool.called', serverName: meta.name, name: tool.name(),
         input, output: result, duration: performance.now() - start,
@@ -292,6 +338,8 @@ export async function startStdio(server: McpServer): Promise<void> {
   const sdk = createSdkServer(server)
   const transport = new StdioServerTransport()
   await sdk.connect(transport)
+  // Stdio is process-lifetime — no detach needed; the SDK lives until exit.
+  server.attachSdk(sdk)
 }
 
 // ─── HTTP Transport ─────────────────────────────────────
@@ -353,6 +401,8 @@ export async function mountHttpTransport(
         const transport = new WebStandardStreamableHTTPServerTransport()
         const sdk = createSdkServer(server)
         await sdk.connect(transport)
+        // Stateless transport lives for the lifetime of the route — never detaches.
+        server.attachSdk(sdk)
         entry = { transport, sdk }
         sessions.set('__stateless__', entry)
       }
@@ -372,7 +422,9 @@ export async function mountHttpTransport(
       return honoCtx.res
     }
 
-    // New session — create transport + server pair
+    // New session — create transport + server pair. Detach is captured in a
+    // closure so onsessionclosed can call it without holding the SDK ref.
+    let detach: (() => void) | undefined
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: sessionIdGen,
       onsessioninitialized: (id: string) => {
@@ -380,11 +432,13 @@ export async function mountHttpTransport(
       },
       onsessionclosed: (id: string) => {
         sessions.delete(id)
+        detach?.()
       },
     })
 
     const sdk = createSdkServer(server)
     await sdk.connect(transport)
+    detach = server.attachSdk(sdk)
 
     const response = await transport.handleRequest(nativeRequest)
     honoCtx.res = response

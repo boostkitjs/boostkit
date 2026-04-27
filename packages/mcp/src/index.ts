@@ -1,7 +1,7 @@
 export { McpServer } from './McpServer.js'
 export type { McpServerMetadata } from './McpServer.js'
 export { McpTool } from './McpTool.js'
-export type { McpToolResult } from './McpTool.js'
+export type { McpToolResult, McpToolProgress, McpToolReturn } from './McpTool.js'
 export { McpResource } from './McpResource.js'
 export { McpPrompt } from './McpPrompt.js'
 export type { McpPromptMessage } from './McpPrompt.js'
