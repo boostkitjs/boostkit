@@ -17,7 +17,6 @@ This file provides guidance to Claude Code when working in this repository.
 - **npm scope**: `@rudderjs/*`
 - **GitHub**: https://github.com/rudderjs/rudder
 - **Status**: Early development
-- **Open-core**: Panels/media/lexical extracted to [pilotiq](https://github.com/pilotiq-io/pilotiq); AI agents/collab to pilotiq-pro
 
 ---
 
@@ -200,31 +199,17 @@ For third-party package authors writing their own provider, see `docs/guide/auto
 
 ---
 
-## Playgrounds
+## Playground
 
-Three playgrounds exist across three repos, one per tier of the open-core stack. All three can run simultaneously.
-
-| Playground | Repo | Port | HMR | Purpose |
-|---|---|---|---|---|
-| `rudderjs/playground` | rudderjs | 3000 | 24678 | Pure framework demo — auth, routing, ORM, queue, mail, cache, storage, scheduling, broadcast, sync, telescope/pulse/horizon, Agents (`@rudderjs/ai`). **Zero** `@pilotiq/*` or `@pilotiq-pro/*` deps. |
-| `pilotiq/playground` | pilotiq | 3001 | 24679 | Free pilotiq dogfood — panels + lexical (local-only) + media. **No** AI chat, **no** collab, **no** `@pilotiq-pro/*`. |
-| `pilotiq-pro/playground` | pilotiq-pro | 3002 | 24680 | Full-stack pro dogfood — framework + free pilotiq + `@pilotiq-pro/{ai,collab}`. AI chat sidebar, `✦` field actions, collab, sub-agents. |
-
-### Running
+`playground/` is the framework's own demo app — exercises auth, routing, ORM, queue, mail, cache, storage, scheduling, broadcast, sync, telescope/pulse/horizon, Agents (`@rudderjs/ai`). Pure framework, no extra dependencies.
 
 ```bash
-cd ~/Projects/rudder/playground    && pnpm dev   # :3000
-cd ~/Projects/pilotiq/playground   && pnpm dev   # :3001
-cd ~/Projects/pilotiq-pro/playground && pnpm dev # :3002
+cd playground && pnpm dev   # :3000
 ```
 
-> Always run `pnpm build` from the **rudderjs** root before running any playground — packages must be compiled first.
+> Always run `pnpm build` from the repo root before running the playground — packages must be compiled first.
 
-### Cross-repo wiring
-
-All three resolve `@rudderjs/*` to `link:../rudder/packages/<name>` via `pnpm.overrides` in each repo's root `package.json`. `pilotiq-pro` also overrides `@pilotiq/*` to `link:../pilotiq/packages/<name>`. No git submodules; just sibling clones on disk.
-
-### rudderjs/playground structure
+### Playground structure
 
 ```
 playground/

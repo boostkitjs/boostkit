@@ -116,7 +116,7 @@ rudderjs/
 | `@rudderjs/broadcast` | 0.0.1 | WebSocket channels — broadcasting(), broadcast(), broadcasting.auth(), BKSocket client |
 | `@rudderjs/sync` | 0.1.0 | Yjs CRDT real-time document sync — sync(), MemoryPersistence, syncPrisma(), syncRedis(); editor adapters under subpaths (`@rudderjs/sync/lexical` available, `@rudderjs/sync/tiptap` scaffolded). Renamed from `@rudderjs/live` in 0.1.0. |
 | `@rudderjs/image` | 0.0.1 | Fluent image processing — resize, crop, convert, optimize. Wraps sharp. |
-| `@rudderjs/ai` | 0.0.1 | AI engine — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), Agent class, tool system (server + client), async-generator tool execute with `tool-update` chunks, `.modelOutput(fn)` for decoupling model-input from UI/result, generative-UI registry consumed by `@pilotiq/panels`, **`ToolCallContext`** (optional second arg to `ToolExecuteFn` carrying `toolCallId`), **`pauseForClientTools(toolCalls, handle)`** control chunk a server tool can yield to halt the loop and surface nested client-tool calls upward (the building block for `@pilotiq/panels`'s sub-agent client-tool round-trip), streaming, middleware (wired into agent loop), structured output, conversation memory (`forUser()`/`continue()`), file/image attachments (`Document`/`Image`), queue integration (`agent.queue()`), image generation (`AI.image()`/`ImageGenerator`), TTS (`AI.audio()`/`AudioGenerator`), STT (`AI.transcribe()`/`Transcription`), provider tools (`WebSearch`/`WebFetch`/`CodeExecution`), Vercel AI Data Stream Protocol (`toVercelDataStream`/`toVercelResponse`), cached embeddings (`CachedEmbeddingAdapter`), batch embedding auto-chunking, Google+Mistral embeddings, AI facade, AiFake |
+| `@rudderjs/ai` | 0.0.1 | AI engine — 9 providers (Anthropic, OpenAI, Google, Ollama, Groq, DeepSeek, xAI, Mistral, Azure), Agent class, tool system (server + client), async-generator tool execute with `tool-update` chunks, `.modelOutput(fn)` for decoupling model-input from UI/result, generative-UI registry, **`ToolCallContext`** (optional second arg to `ToolExecuteFn` carrying `toolCallId`), **`pauseForClientTools(toolCalls, handle)`** control chunk a server tool can yield to halt the loop and surface nested client-tool calls upward (the building block for sub-agent client-tool round-trips), streaming, middleware (wired into agent loop), structured output, conversation memory (`forUser()`/`continue()`), file/image attachments (`Document`/`Image`), queue integration (`agent.queue()`), image generation (`AI.image()`/`ImageGenerator`), TTS (`AI.audio()`/`AudioGenerator`), STT (`AI.transcribe()`/`Transcription`), provider tools (`WebSearch`/`WebFetch`/`CodeExecution`), Vercel AI Data Stream Protocol (`toVercelDataStream`/`toVercelResponse`), cached embeddings (`CachedEmbeddingAdapter`), batch embedding auto-chunking, Google+Mistral embeddings, AI facade, AiFake |
 | `@rudderjs/boost` | 0.0.1 | AI dev tools — MCP server (11 tools: app_info, db_schema, route_list, model_list, config_get, last_error, db_query, read_logs, browser_logs, get_absolute_url, search_docs), MCP resources (guidelines://), `boost:install`/`boost:update` commands, `Boost.registerAgent()` for custom agents, auto-generated AI guidelines and skills from installed packages |
 | `@rudderjs/mcp` | 0.0.1 | MCP server framework — `McpServer`, `McpTool`, `McpResource`, `McpPrompt` base classes, `@Name`/`@Version`/`@Instructions`/`@Description` decorators, `Mcp.web()`/`Mcp.local()` registration, stdio transport, `McpTestClient` for testing, `mcp:start`/`mcp:list` CLI commands, `make:mcp-server`/`make:mcp-tool`/`make:mcp-resource`/`make:mcp-prompt` scaffolders |
 | `@rudderjs/log` | 0.0.1 | Structured logging — channels (console, single, daily, stack, null), RFC 5424 levels, LineFormatter/JsonFormatter, per-channel + shared context, listeners, `LogFake` for testing, `extendLog()` for custom drivers |
@@ -138,13 +138,9 @@ rudderjs/
 - `@rudderjs/cache-redis` -> merged into `@rudderjs/cache`
 - `@rudderjs/mail-nodemailer` -> merged into `@rudderjs/mail`
 - `@rudderjs/events` -> merged into `@rudderjs/core`
-- `@rudderjs/dashboards` -> merged into `@pilotiq/panels` (see Extracted packages below)
 
-**Extracted packages** (moved out of this monorepo):
-- `@rudderjs/panels` -> `@pilotiq/panels` (in [pilotiq-io/pilotiq](https://github.com/pilotiq-io/pilotiq))
-- `@rudderjs/panels-lexical` -> `@pilotiq/lexical`
-- `@rudderjs/media` -> `@pilotiq/media`
-- `@rudderjs/workspaces` -> `@pilotiq/workspaces`
+**Extracted packages** (moved out of this monorepo to a separate project):
+- `@rudderjs/panels`, `@rudderjs/panels-lexical`, `@rudderjs/media`, `@rudderjs/workspaces` were extracted into a separate admin/CMS-flavored project. They are not part of the framework anymore.
 
 ## Adding a New Provider Package
 

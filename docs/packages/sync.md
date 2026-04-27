@@ -202,7 +202,7 @@ Edits made offline are merged back automatically when the connection restores.
 
 ## Sync Facade
 
-The `Sync` facade provides server-side access to ydoc operations without needing to import Yjs directly. Used by `@pilotiq/panels` for versioning.
+The `Sync` facade provides server-side access to ydoc operations without needing to import Yjs directly — useful for server-driven document edits, versioning, and migrations.
 
 ```ts
 import { Sync } from '@rudderjs/sync'

@@ -119,7 +119,7 @@ const snapshot = Sync.snapshot('panel:articles:abc123')
 const fields = Sync.readMap('panel:articles:abc123', 'fields')
 ```
 
-Used by `@pilotiq/panels` for versioning. Resolves persistence via DI (`'sync.persistence'` binding) or the `__rudderjs_sync_persistence__` globalThis fallback.
+Useful for server-driven document edits, versioning, and migrations. Resolves persistence via DI (`'sync.persistence'` binding) or the `__rudderjs_sync_persistence__` globalThis fallback.
 
 ### Editor adapters
 

@@ -557,17 +557,6 @@ pnpm test
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for dependency conventions and the package merge policy.
 
-### Open-Core Ecosystem
-
-RudderJS is the framework layer. Two sibling projects build on it:
-
-| Project | Packages | Description |
-|---|---|---|
-| **[Pilotiq](https://github.com/pilotiq-io/pilotiq)** | `@pilotiq/{panels,lexical,media}` | Open-source admin panel builder (MIT) |
-| **[Pilotiq Pro](https://github.com/pilotiq-io/pilotiq-pro)** | `@pilotiq-pro/{ai,collab}` | Commercial tier — AI chat sidebar, sub-agents, collaborative editing |
-
----
-
 ## License
 
 MIT © [RudderJS](https://github.com/rudderjs/rudder)

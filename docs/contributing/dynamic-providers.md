@@ -38,7 +38,7 @@ export class AppServiceProvider {
 
 ### Plugin factories
 
-A plugin factory can dynamically register child providers when its own boot runs. Pilotiq's `panels()` factory is a good example — it accepts an extensions array and calls `app().register()` for each extension during its boot phase, so apps can opt into media, workspaces, lexical, etc. without wiring them up in `providers.ts` directly. See the [Pilotiq docs](https://github.com/pilotiq-io/pilotiq) for the panels-specific shape.
+A plugin factory can dynamically register child providers when its own boot runs. A typical shape: a top-level `panels()` (or similar) factory accepts an extensions array and calls `app().register()` for each extension during its boot phase, so apps can opt into media, workspaces, lexical, etc. without wiring them up in `providers.ts` directly.
 
 ### Conditional features
 

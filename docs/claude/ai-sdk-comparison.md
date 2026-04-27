@@ -111,7 +111,7 @@
 | **Object streaming** | — | — | ✅ `useObject()` | — |
 | **Framework support** | Server-side (any Node.js) | PHP/Laravel (backend only) | React, Vue, Svelte, Angular, Expo | React, Solid, Preact |
 
-> RudderJS and Laravel are server-side SDKs. Frontend chat UI is handled by consuming the Vercel AI protocol stream or custom SSE. `@pilotiq-pro/ai` implements the chat UI on the frontend.
+> RudderJS and Laravel are server-side SDKs. Frontend chat UI is handled by consuming the Vercel AI protocol stream or custom SSE — wire up your own UI or use any frontend chat library that speaks the protocol.
 
 ---
 
@@ -169,7 +169,7 @@ Features in `@rudderjs/ai` not found in the other three:
 
 | Feature | Why Not |
 |---|---|
-| **Frontend hooks** (`useChat`, etc.) | RudderJS is a server framework. Frontend consumes Vercel AI protocol via `toVercelResponse()`. `@pilotiq-pro/ai` owns the chat UI. |
+| **Frontend hooks** (`useChat`, etc.) | RudderJS is a server framework. Frontend consumes Vercel AI protocol via `toVercelResponse()` — bring your own chat UI. |
 | **Vector stores** | Provider-specific, low abstraction value. Users call provider SDKs directly. |
 | **Durable agents** | RudderJS agents use queue integration + conversation persistence instead. Different pattern, same outcome. |
 | **Video generation** | Niche. Can be added as a provider adapter later. |

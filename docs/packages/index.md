@@ -79,10 +79,6 @@ All `@rudderjs/*` packages are published to npm individually. Install only what 
 | [@rudderjs/broadcast](./broadcast) | WebSocket broadcasting — `broadcasting()`, `Broadcast.channel()`, public/private/presence channels, BKSocket client. | `pnpm add @rudderjs/broadcast` |
 | [@rudderjs/sync](./sync) | Yjs CRDT real-time document sync — `sync()`, `MemoryPersistence`, `syncRedis()`, `syncPrisma()`; editor adapters under `@rudderjs/sync/lexical` (available) and `@rudderjs/sync/tiptap` (scaffolded). | `pnpm add @rudderjs/sync` |
 
-## Admin
-
-The admin panel builder, rich-text editor, media library, and workspaces canvas live in the standalone [Pilotiq](https://github.com/pilotiq-io/pilotiq) project — `@pilotiq/panels`, `@pilotiq/lexical`, `@pilotiq/media`, `@pilotiq/workspaces`. Pilotiq is built on top of RudderJS and shares the same conventions.
-
 ## Features
 
 | Package | Description | Install |

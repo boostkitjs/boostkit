@@ -272,8 +272,8 @@
 **Effort**: Large — this is a standalone product, not just a plugin.
 
 **Two options:**
-1. **Panel plugin** (`@pilotiq/nightwatch`) — self-hosted monitoring within Pilotiq
-2. **SaaS product** — hosted service at `nightwatch.pilotiq.dev` (long-term)
+1. **Self-hosted dashboard** — a separate package (e.g. `@rudderjs/nightwatch`) that surfaces monitoring inside an admin app
+2. **Hosted SaaS product** — long-term, run by us
 
 **Monitored Event Types (9):**
 - Requests — trace with detailed interaction + performance metrics
