@@ -200,7 +200,6 @@ AI.assertCalled((call) => call.prompt.includes('summarize'))
 
 ## Pitfalls
 
-- **Bare model names.** `model: 'claude-sonnet-4-5'` throws — must be `provider/model`. The error message names the missing provider prefix.
-- **Tool handlers throwing.** The agent gets the error message back as the tool result. Catch known errors inside the handler and return a structured failure shape; let unexpected errors propagate.
-- **Streaming without consuming `finalResponse`.** If you only iterate `textStream` and never await `finalResponse`, hooks that depend on the final response (middleware, conversation persistence) silently skip. Always either await `finalResponse` or break out of the loop and `await stream.cancel()`.
-- **Telescope not recording AI calls.** Install `@rudderjs/telescope` — the AI collector subscribes via the observer registry on `globalThis`. Without telescope, the calls still work, just no UI.
+- **Bare model names.** `model: 'claude-sonnet-4-5'` throws — must be `provider/model`.
+- **Tool handlers throwing.** The agent gets the error message back as the tool result. Catch known errors inside the handler and return a structured failure shape.
+- **Streaming without `finalResponse`.** Iterating `textStream` without awaiting `finalResponse` skips hooks that depend on it (middleware, conversation persistence). Always await it or `await stream.cancel()`.
