@@ -6,7 +6,9 @@ import {
   Mcp, McpServer, McpTool, McpResource, McpPrompt, McpResponse,
   Name, Version, Instructions, Description, Handle,
   McpTestClient,
+  type McpToolProgress, type McpToolResult,
 } from './index.js'
+import { consumeToolReturn } from './runtime.js'
 import { toKebabCase } from './utils.js'
 import { zodToJsonSchema } from './zod-to-json-schema.js'
 
@@ -142,6 +144,102 @@ describe('zodToJsonSchema', () => {
     const prop = (result.properties as Record<string, Record<string, unknown>>)['role']
     assert.equal(prop!['type'], 'string')
     assert.deepStrictEqual(prop!['enum'], ['admin', 'user'])
+  })
+
+  // ─── Expanded type coverage (v3 real + v4 synthetic) ────
+
+  it('handles nested object fields', () => {
+    const schema = z.object({
+      profile: z.object({ name: z.string(), age: z.number() }),
+    })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['profile']
+    assert.equal(prop!['type'], 'object')
+    const nested = prop!['properties'] as Record<string, Record<string, unknown>>
+    assert.equal(nested['name']!['type'], 'string')
+    assert.equal(nested['age']!['type'], 'number')
+    assert.deepStrictEqual(prop!['required'], ['name', 'age'])
+  })
+
+  it('handles union fields → anyOf', () => {
+    const schema = z.object({ id: z.union([z.string(), z.number()]) })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['id']
+    assert.ok(Array.isArray(prop!['anyOf']))
+    const types = (prop!['anyOf'] as Record<string, unknown>[]).map((p) => p['type'])
+    assert.deepStrictEqual(types, ['string', 'number'])
+  })
+
+  it('handles literal fields → const (single value)', () => {
+    const schema = z.object({ kind: z.literal('user') })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['kind']
+    assert.equal(prop!['const'], 'user')
+  })
+
+  it('handles nullable fields → type union with null', () => {
+    const schema = z.object({ name: z.nullable(z.string()) })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['name']
+    assert.deepStrictEqual(prop!['type'], ['string', 'null'])
+    // Nullable is still required — JSON Schema separates required from nullability.
+    assert.deepStrictEqual(zodToJsonSchema(schema).required, ['name'])
+  })
+
+  it('handles date fields → string with date-time format', () => {
+    const schema = z.object({ created: z.date() })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['created']
+    assert.equal(prop!['type'], 'string')
+    assert.equal(prop!['format'], 'date-time')
+  })
+
+  it('handles record fields → object with additionalProperties', () => {
+    const schema = z.object({ counts: z.record(z.string(), z.number()) })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['counts']
+    assert.equal(prop!['type'], 'object')
+    const ap = prop!['additionalProperties'] as Record<string, unknown>
+    assert.equal(ap['type'], 'number')
+  })
+
+  it('handles tuple fields → prefixItems with items: false', () => {
+    const schema = z.object({ pair: z.tuple([z.string(), z.number()]) })
+    const prop = (zodToJsonSchema(schema).properties as Record<string, Record<string, unknown>>)['pair']
+    assert.equal(prop!['type'], 'array')
+    const prefix = prop!['prefixItems'] as Record<string, unknown>[]
+    assert.equal(prefix.length, 2)
+    assert.equal(prefix[0]!['type'], 'string')
+    assert.equal(prefix[1]!['type'], 'number')
+    assert.equal(prop!['items'], false)
+  })
+
+  // ─── v4-synthetic shapes for the new types ──────────────
+
+  it('handles v4-shape literal with multiple values → enum', () => {
+    const fakeV4Literal = { _def: { type: 'literal', values: ['a', 'b'] } }
+    const fakeSchema = { shape: { role: fakeV4Literal } } as unknown as z.ZodObject<z.ZodRawShape>
+    const prop = (zodToJsonSchema(fakeSchema).properties as Record<string, Record<string, unknown>>)['role']
+    assert.deepStrictEqual(prop!['enum'], ['a', 'b'])
+  })
+
+  it('handles v4-shape union (options array)', () => {
+    const fakeV4Union = {
+      _def: { type: 'union', options: [
+        { _def: { type: 'string' } },
+        { _def: { type: 'number' } },
+      ] },
+    }
+    const fakeSchema = { shape: { id: fakeV4Union } } as unknown as z.ZodObject<z.ZodRawShape>
+    const prop = (zodToJsonSchema(fakeSchema).properties as Record<string, Record<string, unknown>>)['id']
+    const types = (prop!['anyOf'] as Record<string, unknown>[]).map((p) => p['type'])
+    assert.deepStrictEqual(types, ['string', 'number'])
+  })
+
+  it('handles v4-shape nested object (recurses into shape)', () => {
+    const fakeV4Inner = {
+      _def: { type: 'object' },
+      shape: { name: { _def: { type: 'string' } } },
+    }
+    const fakeSchema = { shape: { profile: fakeV4Inner } } as unknown as z.ZodObject<z.ZodRawShape>
+    const prop = (zodToJsonSchema(fakeSchema).properties as Record<string, Record<string, unknown>>)['profile']
+    assert.equal(prop!['type'], 'object')
+    const nested = prop!['properties'] as Record<string, Record<string, unknown>>
+    assert.equal(nested['name']!['type'], 'string')
   })
 })
 
@@ -461,6 +559,84 @@ describe('McpTestClient', () => {
   })
 })
 
+// ─── Streaming tools (progress notifications) ────────────
+
+describe('Streaming tools — progress notifications', () => {
+  class CountTool extends McpTool {
+    schema() { return z.object({ n: z.number() }) }
+    async *handle(input: Record<string, unknown>): AsyncGenerator<McpToolProgress, McpToolResult> {
+      const n = Number(input['n'])
+      for (let i = 1; i <= n; i++) {
+        yield { progress: i, total: n, message: `tick ${i}/${n}` }
+      }
+      return McpResponse.text(`done: ${n}`)
+    }
+  }
+  class CountServer extends McpServer { protected tools = [CountTool] }
+
+  it('McpTestClient drains progress yields and returns the final value', async () => {
+    const client = new McpTestClient(CountServer)
+    const progress: McpToolProgress[] = []
+    const result = await client.callTool('count', { n: 3 }, (p) => progress.push(p))
+    assert.equal((result.content[0] as { text: string }).text, 'done: 3')
+    assert.equal(progress.length, 3)
+    assert.deepStrictEqual(progress.map((p) => p.progress), [1, 2, 3])
+    assert.equal(progress[2]!.total, 3)
+    assert.equal(progress[2]!.message, 'tick 3/3')
+  })
+
+  it('McpTestClient with no onProgress drops yields silently', async () => {
+    const client = new McpTestClient(CountServer)
+    const result = await client.callTool('count', { n: 5 })
+    assert.equal((result.content[0] as { text: string }).text, 'done: 5')
+  })
+
+  it('consumeToolReturn forwards yields as notifications/progress when meta.progressToken is present', async () => {
+    const sent: { method: string; params: Record<string, unknown> }[] = []
+    const tool = new CountTool()
+    const ret = tool.handle({ n: 2 })
+    const result = await consumeToolReturn(
+      ret,
+      { sendNotification: async (n) => { sent.push(n) } },
+      { progressToken: 'tok-123' },
+    )
+    assert.equal((result.content[0] as { text: string }).text, 'done: 2')
+    assert.equal(sent.length, 2)
+    assert.equal(sent[0]!.method, 'notifications/progress')
+    assert.deepStrictEqual(sent[0]!.params, { progressToken: 'tok-123', progress: 1, total: 2, message: 'tick 1/2' })
+  })
+
+  it('consumeToolReturn drops yields when no progressToken is supplied', async () => {
+    const sent: unknown[] = []
+    const tool = new CountTool()
+    const ret = tool.handle({ n: 4 })
+    const result = await consumeToolReturn(
+      ret,
+      { sendNotification: async (n) => { sent.push(n) } },
+      undefined,
+    )
+    assert.equal((result.content[0] as { text: string }).text, 'done: 4')
+    assert.equal(sent.length, 0)
+  })
+
+  it('consumeToolReturn with a plain Promise return is a no-op pass-through', async () => {
+    class Plain extends McpTool {
+      schema() { return z.object({}) }
+      async handle(_input: Record<string, unknown>) { return McpResponse.text('plain') }
+    }
+    const tool = new Plain()
+    const ret = tool.handle({})
+    const sent: unknown[] = []
+    const result = await consumeToolReturn(
+      ret,
+      { sendNotification: async (n) => { sent.push(n) } },
+      { progressToken: 'unused' },
+    )
+    assert.equal((result.content[0] as { text: string }).text, 'plain')
+    assert.equal(sent.length, 0)
+  })
+})
+
 // ─── @Handle DI injection ─────────────────────────────────
 
 describe('@Handle DI injection', () => {
@@ -527,6 +703,67 @@ describe('@Handle DI injection', () => {
     const client = new McpTestClient(PlainServer)
     const result = await client.callTool('plain', { n: 7 })
     assert.equal((result.content[0] as { text: string }).text, 'got 7')
+  })
+})
+
+// ─── Server-initiated notifications ──────────────────────
+
+describe('Server-initiated notifications', () => {
+  class NotifyServer extends McpServer {}
+
+  it('attached SDKs receive notify() fan-out, detach removes them', async () => {
+    const server = new NotifyServer()
+    const got1: { method: string; params?: unknown }[] = []
+    const got2: { method: string; params?: unknown }[] = []
+    const detach1 = server.attachSdk({ notification: async (n) => { got1.push(n) } })
+    server.attachSdk({ notification: async (n) => { got2.push(n) } })
+
+    assert.equal(server.attachedCount(), 2)
+
+    await server.notifyResourceUpdated('file:///foo.txt')
+    await server.notifyResourceListChanged()
+    await server.notifyToolListChanged()
+    await server.notifyPromptListChanged()
+
+    assert.deepStrictEqual(got1.map((n) => n.method), [
+      'notifications/resources/updated',
+      'notifications/resources/list_changed',
+      'notifications/tools/list_changed',
+      'notifications/prompts/list_changed',
+    ])
+    assert.deepStrictEqual(got1[0]!.params, { uri: 'file:///foo.txt' })
+    // List-changed methods send no params
+    assert.equal(got1[1]!.params, undefined)
+    assert.deepStrictEqual(got1.length, got2.length)
+
+    detach1()
+    assert.equal(server.attachedCount(), 1)
+    await server.notifyToolListChanged()
+    assert.equal(got1.length, 4) // unchanged after detach
+    assert.equal(got2.length, 5) // got the new one
+  })
+
+  it('notify() swallows errors from one target so others still receive', async () => {
+    const server = new NotifyServer()
+    const good: string[] = []
+    server.attachSdk({ notification: () => { throw new Error('dead transport') } })
+    server.attachSdk({ notification: async (n) => { good.push(n.method) } })
+    await server.notifyToolListChanged()
+    assert.deepStrictEqual(good, ['notifications/tools/list_changed'])
+  })
+
+  it('notify() with no attached targets is a no-op', async () => {
+    const server = new NotifyServer()
+    assert.equal(server.attachedCount(), 0)
+    await server.notifyToolListChanged() // must not throw
+  })
+
+  it('custom method via notify() escape hatch', async () => {
+    const server = new NotifyServer()
+    const got: { method: string; params?: unknown }[] = []
+    server.attachSdk({ notification: async (n) => { got.push(n) } })
+    await server.notify('notifications/custom', { foo: 'bar' })
+    assert.deepStrictEqual(got, [{ method: 'notifications/custom', params: { foo: 'bar' } }])
   })
 })
 

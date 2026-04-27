@@ -1,8 +1,8 @@
 import type { McpServer } from './McpServer.js'
-import type { McpTool, McpToolResult } from './McpTool.js'
+import type { McpTool, McpToolResult, McpToolProgress } from './McpTool.js'
 import type { McpResource } from './McpResource.js'
 import type { McpPrompt, McpPromptMessage } from './McpPrompt.js'
-import { resolveHandleDeps } from './runtime.js'
+import { resolveHandleDeps, consumeToolReturn } from './runtime.js'
 
 export class McpTestClient {
   private tools: McpTool[]
@@ -26,11 +26,32 @@ export class McpTestClient {
     ).map((P) => new P())
   }
 
-  async callTool(name: string, input: Record<string, unknown> = {}): Promise<McpToolResult> {
+  /**
+   * Invoke a tool by name. Handles both plain async tools and streaming
+   * generator tools — for the latter, progress yields are captured if a
+   * collector is supplied via `onProgress`, otherwise dropped silently.
+   */
+  async callTool(
+    name: string,
+    input: Record<string, unknown> = {},
+    onProgress?: (p: McpToolProgress) => void,
+  ): Promise<McpToolResult> {
     const tool = this.tools.find((t) => t.name() === name)
     if (!tool) throw new Error(`Tool "${name}" not found`)
     const extras = resolveHandleDeps(tool, 'handle')
-    return tool.handle(input, ...extras as [])
+    const ret = tool.handle(input, ...extras as [])
+    const extra = onProgress
+      ? {
+          sendNotification: async (n: { method: string; params: Record<string, unknown> }) => {
+            if (n.method === 'notifications/progress') {
+              const { progressToken: _t, ...rest } = n.params as Record<string, unknown>
+              onProgress(rest as unknown as McpToolProgress)
+            }
+          },
+        }
+      : undefined
+    // Pass a synthetic progressToken so the runtime forwards yields to onProgress.
+    return consumeToolReturn(ret, extra, onProgress ? { progressToken: 'test' } : undefined)
   }
 
   async listTools(): Promise<Array<{ name: string; description: string }>> {

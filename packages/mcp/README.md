@@ -57,6 +57,56 @@ export class CurrentWeatherTool extends McpTool {
 }
 ```
 
+### Streaming progress
+
+For long-running tools, declare `handle` as an async generator and yield
+`McpToolProgress` updates. The runtime forwards each yield as a
+`notifications/progress` message — but only when the calling client supplied a
+`progressToken`; otherwise yields are dropped silently.
+
+```ts
+import { McpTool, McpResponse, type McpToolProgress, type McpToolResult } from '@rudderjs/mcp'
+
+export class CountTool extends McpTool {
+  schema() { return z.object({ n: z.number() }) }
+
+  async *handle(input: Record<string, unknown>): AsyncGenerator<McpToolProgress, McpToolResult> {
+    const n = Number(input.n)
+    for (let i = 1; i <= n; i++) {
+      yield { progress: i, total: n, message: `tick ${i}/${n}` }
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    return McpResponse.text(`done: ${n}`)
+  }
+}
+```
+
+Don't take a `send` callback parameter — the generator pattern matches
+`@rudderjs/ai` and lets the runtime choose where progress lands (HTTP SSE,
+in-process collector, etc.).
+
+### Server-initiated notifications
+
+Push events to all connected clients via `McpServer` instance methods. The
+runtime tracks every active SDK session per `McpServer` instance, so a single
+`notifyToolListChanged()` reaches every connected client.
+
+```ts
+class WeatherServer extends McpServer {
+  async refresh() {
+    // Re-load config, then tell every connected client the tools changed:
+    await this.notifyToolListChanged()
+    // Or push a specific resource refresh:
+    await this.notifyResourceUpdated('weather://today')
+  }
+}
+```
+
+Available helpers: `notifyResourceUpdated(uri)`,
+`notifyResourceListChanged()`, `notifyToolListChanged()`,
+`notifyPromptListChanged()`. For arbitrary methods, use the `notify(method,
+params?)` escape hatch.
+
 ## Resources
 
 ```ts

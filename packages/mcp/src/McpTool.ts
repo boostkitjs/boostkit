@@ -7,6 +7,26 @@ export interface McpToolResult {
   isError?: boolean
 }
 
+/**
+ * Progress update yielded by a streaming tool. Forwarded as a
+ * `notifications/progress` message when the calling client supplied a
+ * `progressToken` in the request `_meta`. Streaming tools that run without a
+ * progressToken still execute; the runtime drops the yields silently.
+ */
+export interface McpToolProgress {
+  /** Current progress value — typically 0..total or unbounded. */
+  progress: number
+  /** Optional total — if set, clients can render a progress bar. */
+  total?: number
+  /** Optional human-readable status message. */
+  message?: string
+}
+
+/** Return shape for a tool's `handle()` — a plain Promise *or* an async generator that yields progress updates. */
+export type McpToolReturn =
+  | Promise<McpToolResult>
+  | AsyncGenerator<McpToolProgress, McpToolResult, unknown>
+
 export abstract class McpTool {
   /** Tool name — derived from class name if not overridden. ClassName -> kebab-case minus "Tool" suffix */
   name(): string {
@@ -27,6 +47,14 @@ export abstract class McpTool {
   /**
    * Handle the tool call.
    *
+   * Two shapes are accepted:
+   * 1. `async handle(input)` returning the final result.
+   * 2. `async *handle(input)` yielding `McpToolProgress` updates and returning
+   *    the final result. Yields are forwarded to the client as
+   *    `notifications/progress` messages when the caller supplied a
+   *    `progressToken`. Mirror of @rudderjs/ai's streaming-tool pattern —
+   *    don't take a "send" callback parameter.
+   *
    * Extra parameters beyond `input` are resolved from the DI container when
    * the method is decorated with `@Handle(Token1, …)`. Example:
    *
@@ -35,5 +63,5 @@ export abstract class McpTool {
    * async handle(input, logger: Logger) { ... }
    * ```
    */
-  abstract handle(input: Record<string, unknown>, ...deps: unknown[]): Promise<McpToolResult>
+  abstract handle(input: Record<string, unknown>, ...deps: unknown[]): McpToolReturn
 }
