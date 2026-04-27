@@ -1,85 +1,50 @@
 # Directory Structure
 
-A scaffolded RudderJS application has the following layout:
+A scaffolded RudderJS app puts each concern in a predictable place — bootstrap, config, app code, routes, schema — with a small Vite/Vike layer for the frontend.
 
 ```
 my-app/
 ├── bootstrap/
-│   ├── app.ts              # Application entry — configure() + create()
-│   └── providers.ts        # Ordered array of service provider classes
-├── config/
-│   ├── app.ts              # APP_NAME, APP_ENV, APP_DEBUG
-│   ├── server.ts           # PORT, CORS, TRUST_PROXY
-│   ├── database.ts         # DB_CONNECTION, DATABASE_URL
-│   ├── auth.ts             # AUTH_SECRET, APP_URL, social providers
-│   ├── queue.ts            # Queue driver, connections
-│   ├── mail.ts             # Default mailer, from address
-│   └── index.ts            # Collects all configs into a single default-exported object
+│   ├── app.ts              # Application.configure() — entry point
+│   └── providers.ts        # Ordered service providers
+├── config/                 # Typed config objects (read .env via Env)
 ├── app/
-│   ├── Models/
-│   │   └── User.ts         # ORM models — extends Model
-│   ├── Services/
-│   │   └── UserService.ts  # Business logic — bound in AppServiceProvider
-│   ├── Providers/
-│   │   └── AppServiceProvider.ts       # Binds services and singletons
-│   ├── Middleware/
-│   │   └── RequestIdMiddleware.ts      # Attaches X-Request-Id to every response
-│   ├── Jobs/
-│   │   └── SendWelcomeEmail.ts         # Queue jobs — extends Job
-│   ├── Notifications/
-│   │   └── WelcomeNotification.ts      # Notifications — extends Notification
-│   ├── Views/
-│   │   ├── Welcome.tsx                 # Controller-returned views — served via view('welcome', props)
-│   │   └── Auth/
-│   │       └── Login.tsx               # Nested views — id is 'auth.login'; override path with `export const route`
-│   └── Http/
-│       └── Requests/
-│           └── CreateUserRequest.ts    # Form requests — extends FormRequest
+│   ├── Models/             # ORM models — extend Model
+│   ├── Services/           # Business logic — bound in providers
+│   ├── Providers/          # Service provider classes
+│   ├── Middleware/         # Custom middleware
+│   ├── Jobs/               # Queue jobs — extend Job
+│   ├── Notifications/      # Notification classes
+│   ├── Views/              # Controller-returned views (`view('id', props)`)
+│   └── Http/Requests/      # Form-request validators
 ├── routes/
-│   ├── api.ts              # router.get/post/all() — side-effect file, no exports
-│   ├── web.ts              # Non-API server routes (redirects, guards) — side-effect file
-│   └── console.ts          # rudder.command() — side-effect file, no exports
-├── +server.ts              # Wires Vike to bootstrap/app.ts (fetch handler)
-├── pages/                  # Vike file-based SSR pages
-│   ├── +config.ts          # Root Vike config (UI renderer for single-framework apps)
-│   ├── index/
-│   │   ├── +config.ts      # Framework config (extends vike-react / vike-vue / vike-solid)
-│   │   ├── +data.ts        # SSR data loader
-│   │   └── +Page.tsx|.vue  # Home page — extension depends on primary framework
-│   ├── _error/
-│   │   └── +Page.tsx|.vue  # Error page (404, 401, 500)
-│   └── {fw}-demo/          # Demo pages for secondary frameworks (when multiple selected)
-│       └── +Page.tsx|.vue
-├── src/
-│   └── index.css           # Global stylesheet — only generated when Tailwind is selected
-├── prisma/
-│   └── schema/             # Multi-file Prisma schema — one file per domain
-│       ├── base.prisma     #   datasource + generator config
-│       ├── auth.prisma     #   published by `@rudderjs/auth` via vendor:publish
-│       └── app.prisma      #   app-specific models (Todo, etc.)
-├── .env                    # Secrets and environment-specific values
-├── .env.example            # Template for team members
-├── package.json
+│   ├── api.ts              # API routes — router.get/post/all()
+│   ├── web.ts              # Web routes — controller views, redirects, guards
+│   └── console.ts          # Rudder commands — rudder.command()
+├── pages/                  # Vike file-based SSR pages (optional)
+├── prisma/schema/          # Multi-file Prisma schema
+├── src/index.css           # Stylesheet — only when Tailwind is selected
+├── +server.ts              # Wires Vike to bootstrap/app.ts
+├── vite.config.ts
 ├── tsconfig.json
-├── prisma.config.ts        # Prisma CLI config (schema path, datasource)
-└── vite.config.ts          # Vite + framework plugins (react/vue/solid — conditional)
+└── .env
 ```
 
-## Key Directories
+## Key directories
 
 ### `bootstrap/`
 
-The wiring layer. `app.ts` is the equivalent of Laravel's `bootstrap/app.php`. It configures the server adapter, registers providers, and declares route loaders. **Do not put business logic here.**
+The wiring layer. `app.ts` configures the server adapter, lists providers, and declares route loaders. Do not put business logic here.
 
-`providers.ts` exports an ordered array of service provider classes. Provider **boot order matters** — `prismaProvider(configs.database)` must appear first so `PrismaClient` is bound to the DI container before any other provider that needs it (auth, ORM models, etc.).
+`providers.ts` exports an ordered array of provider classes. The order matters: providers boot in array order, so anything depending on the database must come after the database provider. See [Service Providers](/guide/service-providers).
 
 ### `config/`
 
-Named, typed configuration objects that read values from `.env` via `Env`. Think of these as Laravel's `config/` directory. Each file is a plain object exported by default:
+Named, typed configuration objects. Each file is a plain object exported by default:
 
 ```ts
 // config/server.ts
-import { Env } from '@rudderjs/core/support'
+import { Env } from '@rudderjs/support'
 
 export default {
   port: Env.getNumber('PORT', 3000),
@@ -87,43 +52,50 @@ export default {
 }
 ```
 
-`config/index.ts` collects all of them into a single default export so `bootstrap/app.ts` can import via `import configs from '../config/index.ts'`.
+`config/index.ts` collects them all into one default export so `bootstrap/app.ts` can pull a single `configs` object.
 
 ### `app/`
 
-Your application code. Structured by concern:
+Your application code, organized by concern.
 
-- **`Models/`** — ORM model classes, one per file
-- **`Services/`** — pure business logic, injected via the DI container
-- **`Providers/`** — service provider classes that wire up dependencies
-- **`Jobs/`** — queue job classes
-- **`Notifications/`** — notification classes
-- **`Views/`** — controller-returned view components, rendered via `view('id', props)` from route handlers. Scanned by `@rudderjs/vite` and auto-wired to Vike pages. PascalCase file name → kebab-case id (`AdminUsers.tsx` → `admin-users`); nested directories map to dotted ids (`Auth/Login.tsx` → `auth.login`). Override the URL with `export const route = '/...'` when the id-derived path doesn't match. See [@rudderjs/view](https://github.com/rudderjs/rudder/tree/main/packages/view).
-- **`Http/Requests/`** — form request validation classes
+| Folder | Contains |
+|---|---|
+| `Models/` | ORM model classes — one per file, extend `Model` |
+| `Services/` | Pure business logic — injected via the DI container |
+| `Providers/` | Service providers wiring up dependencies |
+| `Middleware/` | Custom middleware classes |
+| `Jobs/` | Queue jobs extending `Job` |
+| `Notifications/` | Notification classes |
+| `Views/` | Controller-returned views — see [Frontend](/guide/frontend) |
+| `Http/Requests/` | Form-request validation classes |
+
+PascalCase filenames in `Views/` map to kebab-case ids: `AdminUsers.tsx` → `admin-users`. Nested directories use dotted ids: `Auth/Login.tsx` → `auth.login`.
 
 ### `routes/`
 
-Side-effect files — they run for their side effects (registering routes/commands) and export nothing.
+Side-effect files — they run for their side effects (registering routes or commands) and export nothing.
 
-- `api.ts` — HTTP routes via `router.get/post/all()`
-- `web.ts` — Non-API server routes: redirects, server-side auth guards, download endpoints, sitemaps
-- `console.ts` — Rudder commands via `rudder.command()`
+- **`api.ts`** — API routes via `router.get/post/all()`. Tagged `'api'`, stateless by default.
+- **`web.ts`** — Controller-view routes, redirects, server-side guards. Tagged `'web'`, gets session + auth middleware automatically.
+- **`console.ts`** — Rudder commands via `rudder.command()`.
 
-These are loaded lazily by RudderJS via the `withRouting()` configuration.
+These files are loaded lazily by the framework. `web.ts` and `api.ts` are loaded on the first HTTP request; `console.ts` only when you run `pnpm rudder`.
 
 ### `pages/`
 
-Vike file-based SSR pages. The file extension depends on your primary framework — `.tsx` for React or Solid, `.vue` for Vue. Each page directory has a `+config.ts` that extends the appropriate vike framework config. This directory is optional — you can build a pure API app without any pages.
+Vike file-based SSR pages. The file extension matches your primary framework — `.tsx` for React or Solid, `.vue` for Vue. Each page directory has a `+config.ts` that extends the appropriate `vike-*` config.
 
-When multiple frameworks are selected via the scaffolder, secondary frameworks get demo pages under `pages/{fw}-demo/`.
+This directory is **optional**. Pure API apps omit it entirely and remove Vike from `vite.config.ts`. See [Frontend](/guide/frontend) for the full Vike + controller-view model.
 
-### `prisma/`
+### `prisma/schema/`
 
-Uses Prisma's multi-file schema layout under `prisma/schema/`. Each `@rudderjs/*` package that ships models (e.g. `@rudderjs/auth`) publishes its own `<name>.prisma` file via `pnpm rudder vendor:publish`; your app-specific models live in `app.prisma`. The `datasource` + `generator` blocks live in `base.prisma`. Run `pnpm exec prisma generate` after any schema change. SQLite is the default datasource in development.
+Multi-file Prisma schema. Each `@rudderjs/*` package that ships models (e.g. `@rudderjs/auth`) publishes its own `<name>.prisma` file via `pnpm rudder vendor:publish`. Your app-specific models live in `app.prisma`. The `datasource` and `generator` blocks live in `base.prisma`.
 
-### `bootstrap/app.ts` — The Entry Point
+Run `pnpm exec prisma generate` after any schema change.
 
-`bootstrap/app.ts` is both the bootstrap and the HTTP entry point. It must have `import 'reflect-metadata'` at the top, and it `export default`s the `RudderJS` instance returned by `.create()`.
+## The entry point
+
+`bootstrap/app.ts` is both the bootstrap file and the HTTP entry point. `import 'reflect-metadata'` must be the first line — it enables the entire DI container.
 
 `+server.ts` at the project root wires Vike to the RudderJS instance:
 
@@ -132,25 +104,22 @@ Uses Prisma's multi-file schema layout under `prisma/schema/`. Each `@rudderjs/*
 import type { Server } from 'vike/types'
 import app from './bootstrap/app.js'
 
-export default {
-  fetch: app.fetch,
-} satisfies Server
+export default { fetch: app.fetch } satisfies Server
 ```
 
-No separate `src/index.ts` is needed — Vike consumes the `RudderJS` instance directly via `+server.ts`.
+No separate `src/index.ts` is needed — Vike consumes the RudderJS instance directly.
 
-## Module Structure (optional)
+## Modules (optional)
 
-For larger apps, you can organize features into modules — cohesive folders that contain their own models, services, providers, and routes:
+For larger apps, organize features into self-contained modules under `app/Modules/`:
 
 ```
 app/
 └── Modules/
     └── Blog/
         ├── Blog.prisma             # merged by module:publish
-        ├── BlogSchema.ts
         ├── BlogService.ts
         └── BlogServiceProvider.ts
 ```
 
-Use `pnpm rudder make:module Blog` to scaffold a module, then `pnpm rudder module:publish` to merge Prisma shards.
+Generate one with `pnpm rudder make:module Blog`, then `pnpm rudder module:publish` merges the module's Prisma shard into the main schema. Modules are an organizational convention — the framework treats `app/Modules/Blog/` no differently from `app/Services/`. The benefit is keeping a feature's models, services, providers, and routes co-located.

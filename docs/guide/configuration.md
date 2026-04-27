@@ -1,18 +1,16 @@
 # Configuration
 
-RudderJS uses three distinct configuration layers. Understanding which layer handles what prevents confusion and duplication.
-
-## The Three Layers
+RudderJS configuration spans three layers. Each has a clear responsibility, and putting a value in the wrong layer is the most common source of confusion for developers new to the framework.
 
 | Layer | File(s) | Purpose |
-|-------|---------|---------|
-| **Environment** | `.env` | Secrets and environment-specific values |
-| **Runtime config** | `config/*.ts` | Named, typed objects that read from `.env` |
-| **Framework wiring** | `bootstrap/app.ts` | Server adapter, providers, routing loaders |
+|---|---|---|
+| Environment | `.env` | Secrets and environment-specific values |
+| Runtime config | `config/*.ts` | Named, typed objects that read from `.env` |
+| Framework wiring | `bootstrap/app.ts` | Server adapter, providers, routing loaders |
 
-There is no `rudderjs.config.ts`. The `bootstrap/app.ts` file is where you wire the framework — the equivalent of Laravel's `bootstrap/app.php`.
+There is no `rudderjs.config.ts`. `bootstrap/app.ts` is the framework wiring file — pure structural decisions, no business logic.
 
-## Environment Variables (`.env`)
+## Environment variables
 
 Secrets and environment-specific values live in `.env`:
 
@@ -23,29 +21,24 @@ APP_DEBUG=true
 
 PORT=3000
 CORS_ORIGIN=http://localhost:3000
-TRUST_PROXY=false
 
 DATABASE_URL="file:./dev.db"
-
 AUTH_SECRET=change-me-in-production
 APP_URL=http://localhost:3000
 
 QUEUE_DRIVER=sync
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
 MAIL_DRIVER=log
 ```
 
-Never commit `.env` to version control. Provide `.env.example` as a template.
+Never commit `.env`. Provide `.env.example` as a template for teammates.
 
-## Runtime Config (`config/*.ts`)
+## Runtime config
 
-Each `config/*.ts` file exports a plain object that reads values from the environment using `Env`:
+Each `config/*.ts` file exports a plain object that reads values from the environment using the `Env` helper:
 
 ```ts
 // config/server.ts
-import { Env } from '@rudderjs/core/support'
+import { Env } from '@rudderjs/support'
 
 export default {
   port:       Env.getNumber('PORT', 3000),
@@ -58,21 +51,19 @@ export default {
 }
 ```
 
-### The `Env` Helper
+### The Env helper
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `Env.get` | `(key, fallback?)` | String value or fallback |
-| `Env.getNumber` | `(key, fallback?)` | Parsed integer |
-| `Env.getBool` | `(key, fallback?)` | Parses `'true'`/`'false'` strings |
-| `Env.require` | `(key)` | Throws if key is missing |
+| Method | Description |
+|---|---|
+| `Env.get(key, fallback?)` | String value or fallback |
+| `Env.getNumber(key, fallback?)` | Parsed integer |
+| `Env.getBool(key, fallback?)` | Parses `'true'` / `'false'` strings |
+| `Env.require(key)` | Throws if the key is missing |
 
-### Validated Env with `defineEnv`
-
-For critical environment variables, use `defineEnv` with a Zod schema to validate at startup:
+For critical values, validate at startup with `defineEnv`:
 
 ```ts
-import { defineEnv } from '@rudderjs/core/support'
+import { defineEnv } from '@rudderjs/support'
 import { z } from 'zod'
 
 export const env = defineEnv(
@@ -84,26 +75,22 @@ export const env = defineEnv(
 )
 ```
 
-This throws at boot time if any required variable is missing or malformed — before your app starts serving traffic.
+This throws at boot if any required variable is missing or malformed — before your app starts serving traffic.
 
-### Barrel Export
+### Barrel export
 
-`config/index.ts` collects all config files into a single default export:
+`config/index.ts` collects every config file into a single default export:
 
 ```ts
 import app      from './app.js'
 import server   from './server.js'
 import database from './database.js'
 import auth     from './auth.js'
-import queue    from './queue.js'
-import mail     from './mail.js'
-import cache    from './cache.js'
-import storage  from './storage.js'
 
-export default { app, server, database, auth, queue, mail, cache, storage }
+export default { app, server, database, auth }
 ```
 
-Then `bootstrap/app.ts` imports it as a single object:
+`bootstrap/app.ts` then imports it as one object:
 
 ```ts
 import configs from '../config/index.ts'
@@ -111,11 +98,11 @@ import configs from '../config/index.ts'
 Application.configure({
   server: hono(configs.server),
   config: configs,
-  ...
+  providers,
 })
 ```
 
-Passing `config: configs` to `Application.configure()` binds each config object in the DI container, so you can retrieve it anywhere via:
+Passing `config: configs` binds each object in the DI container, so any service can retrieve a config slice on demand:
 
 ```ts
 import { app } from '@rudderjs/core'
@@ -123,15 +110,16 @@ import { app } from '@rudderjs/core'
 const serverConfig = app().make<typeof configs.server>('config.server')
 ```
 
-## Framework Wiring (`bootstrap/app.ts`)
+## Framework wiring
 
-This file wires the framework together. It should contain **only structural decisions** — not business logic or environment values.
+`bootstrap/app.ts` is where the framework comes together. It contains structural decisions only — server adapter, registered providers, route loaders — never environment values or business logic.
 
 ```ts
 import 'reflect-metadata'
 import 'dotenv/config'
 import { Application } from '@rudderjs/core'
 import { hono } from '@rudderjs/server-hono'
+import { RateLimit } from '@rudderjs/middleware'
 import providers from './providers.ts'
 import configs from '../config/index.ts'
 
@@ -146,52 +134,50 @@ export default Application.configure({
     commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    // m.use(new CorsMiddleware().toHandler())
+    m.use(RateLimit.perMinute(60).toHandler())
   })
-  .withExceptions((_e) => {})
   .create()
 ```
 
-### `Application.configure()` options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `server` | `ServerAdapterProvider` | HTTP adapter (e.g. `hono(...)`) |
-| `config` | `Record<string, unknown>` | Config objects to bind in the container |
-| `providers` | `(typeof ServiceProvider)[]` | Service provider classes |
-
-### `.withRouting()` options
+### `Application.configure()`
 
 | Option | Description |
-|--------|-------------|
-| `web` | Web routes (redirects, server guards) — loaded lazily on first HTTP request |
-| `api` | API routes — loaded lazily on first HTTP request |
-| `commands` | Rudder commands — loaded at CLI boot |
+|---|---|
+| `server` | HTTP adapter (e.g. `hono(...)`) |
+| `config` | Config objects to bind in the container |
+| `providers` | Service provider classes, in boot order |
+
+### `.withRouting()`
+
+| Option | Description |
+|---|---|
+| `web` | Web routes — tagged `'web'`, get the web middleware group (session, auth) |
+| `api` | API routes — tagged `'api'`, stateless by default |
+| `commands` | Rudder commands — loaded only when running the CLI |
+
+Routes loaded via `web` automatically receive session and auth middleware. Routes loaded via `api` are stateless — opt into auth per-route with `RequireBearer()` from `@rudderjs/passport`. See [Middleware](/guide/middleware) for the full middleware-group model.
 
 ### `.withMiddleware()`
 
-Receives a middleware configurator. Register global middleware here:
+The middleware configurator registers global middleware and group-specific middleware. `m.use(...)` appends to every request; `m.web(...)` and `m.api(...)` append to the matching group's stack.
 
 ```ts
 .withMiddleware((m) => {
-  m.use(new LoggerMiddleware().toHandler())
-  m.use(RateLimit.perMinute(60).byIp().toHandler())
+  m.use(RateLimit.perMinute(60).toHandler())     // every request
+  m.web(SomeWebOnlyMiddleware().toHandler())     // web routes only
+  m.api(SomeApiOnlyMiddleware().toHandler())     // api routes only
 })
 ```
 
-## Provider Boot Order
+## Provider boot order
 
-Providers boot in array order. Most framework providers (auth, queue, mail, cache, etc.) don't access the ORM during `boot()` — they only configure their own adapters. `DatabaseServiceProvider` just needs to appear **before `AppServiceProvider`** and any other provider whose `boot()` uses ORM models:
+Providers boot in the order you list them. Most providers don't access the ORM during `boot()` — they only configure their own adapters. The database provider just needs to come **before any provider whose `boot()` uses ORM models**:
 
 ```ts
 export default [
-  prismaProvider(configs.database), // binds PrismaClient to DI as 'prisma'
-  auth(configs.auth),               // auto-discovers 'prisma' from DI
-  queue(configs.queue),
-  mail(configs.mail),
-  notifications(),                  // must come after mail()
-  cache(configs.cache),
-  DatabaseServiceProvider,          // sets ModelRegistry — must precede AppServiceProvider
-  AppServiceProvider,               // may use ORM models during boot
+  ...(await defaultProviders()),  // includes orm, auth, cache, queue, mail, etc.
+  AppServiceProvider,             // your code — runs last so everything is ready
 ]
 ```
+
+For the full mechanics — stages, dependencies, opt-out paths — see [Service Providers](/guide/service-providers).
