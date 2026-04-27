@@ -43,6 +43,27 @@ Models are always `provider/model`. A bare model name throws.
 
 The provider is auto-discovered.
 
+## Runtime compatibility
+
+`@rudderjs/ai` works in any `fetch`-capable JS runtime — Node, browser, Electron (main and renderer), React Native. The main entry has zero `node:*` static imports.
+
+| Import | Runtimes | What's inside |
+|---|---|---|
+| `@rudderjs/ai` | Node, browser, RN, Electron | Agents, tools, streaming, providers, attachments, structured output |
+| `@rudderjs/ai/node` | Node only | `documentFromPath()`, `imageFromPath()`, `transcribeFromPath()` filesystem helpers |
+| `@rudderjs/ai/server` | Node only | `AiProvider` (the framework `ServiceProvider`, auto-discovered) |
+
+In a client runtime use byte-based factories instead of paths:
+
+```ts
+import { Image } from '@rudderjs/ai'
+
+const img = Image.fromBase64(cameraBase64, 'image/jpeg')
+const url = Image.fromUrl('https://example.com/photo.jpg')
+```
+
+Calling LLM providers directly from a browser or RN client leaks your API key — use a server-side proxy in production. The main client-side use case is BYOK desktop apps.
+
 ## Three agent shapes
 
 Pick whichever reads best at the call site:

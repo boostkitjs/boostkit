@@ -75,12 +75,13 @@ const loggingMiddleware: AiMiddleware = {
 
 ### Attachments
 
-Send images and documents alongside prompts:
+Send images and documents alongside prompts. The main entry has runtime-agnostic factories (`fromBase64`, `fromUrl`, `fromString`); for path-based loading import from `@rudderjs/ai/node`:
 
 ```ts
 import { Image, Document } from '@rudderjs/ai'
+import { imageFromPath } from '@rudderjs/ai/node'
 
-const img = await Image.fromPath('./screenshot.png')
+const img = await imageFromPath('./screenshot.png')          // Node-only
 const doc = await Document.fromUrl('https://example.com/report.pdf')
 
 await myAgent.prompt('Describe this image and summarize the doc', {

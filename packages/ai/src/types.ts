@@ -242,7 +242,7 @@ export interface TextToSpeechResult {
 }
 
 export interface SpeechToTextOptions {
-  audio: Buffer | string
+  audio: Uint8Array
   model?: string | undefined
   language?: string | undefined
   prompt?: string | undefined

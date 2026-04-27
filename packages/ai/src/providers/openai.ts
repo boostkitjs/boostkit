@@ -399,10 +399,7 @@ class OpenAISttAdapter implements SpeechToTextAdapter {
   async transcribe(options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     const client = await this.getClient()
 
-    const audioBuffer = typeof options.audio === 'string'
-      ? (await import('node:fs')).readFileSync(options.audio)
-      : options.audio
-    const file = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' })
+    const file = new File([options.audio], 'audio.mp3', { type: 'audio/mpeg' })
 
     const params: Record<string, unknown> = {
       model: this.model,

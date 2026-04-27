@@ -873,7 +873,7 @@ describe('AiFake', () => {
 
 // ─── AiProvider ───────────────────────────────────────────
 
-import { AiProvider } from './provider.js'
+import { AiProvider } from './server/provider.js'
 
 describe('AiProvider', () => {
   it('is a ServiceProvider class', () => {

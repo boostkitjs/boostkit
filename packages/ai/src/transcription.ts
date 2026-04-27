@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { AiRegistry } from './registry.js'
 import type { SpeechToTextResult } from './types.js'
 
@@ -6,23 +5,25 @@ import type { SpeechToTextResult } from './types.js'
  * Fluent builder for speech-to-text transcription.
  *
  * @example
- * const result = await Transcription.fromPath('./audio.mp3').generate()
- * const result = await Transcription.fromBuffer(buf).language('en').generate()
+ * const result = await Transcription.fromBytes(bytes).language('en').generate()
+ *
+ * For Node-only path-based loading, see `@rudderjs/ai/node`:
+ *   const t = await transcribeFromPath('./audio.mp3')
  */
 export class Transcription {
   private _model?: string
   private _language?: string
   private _prompt?: string
 
-  private constructor(private readonly _audio: Buffer | string) {}
+  private constructor(private readonly _audio: Uint8Array) {}
 
-  /** Create a Transcription from a file path */
-  static fromPath(path: string): Transcription {
-    return new Transcription(path)
+  /** Create a Transcription from raw audio bytes */
+  static fromBytes(bytes: Uint8Array): Transcription {
+    return new Transcription(bytes)
   }
 
-  /** Create a Transcription from a Buffer */
-  static fromBuffer(buffer: Buffer): Transcription {
+  /** @deprecated Use fromBytes(). Buffer extends Uint8Array, so this is a thin alias. */
+  static fromBuffer(buffer: Uint8Array): Transcription {
     return new Transcription(buffer)
   }
 
@@ -57,14 +58,9 @@ export class Transcription {
       )
     }
 
-    // Resolve audio: if string (path), read into Buffer
-    const audioBuffer = typeof this._audio === 'string'
-      ? readFileSync(this._audio)
-      : this._audio
-
     const adapter = factory.createStt(modelId)
     return adapter.transcribe({
-      audio: audioBuffer,
+      audio: this._audio,
       model: modelId,
       language: this._language,
       prompt: this._prompt,

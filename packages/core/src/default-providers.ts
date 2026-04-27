@@ -94,9 +94,13 @@ export async function defaultProviders(options: DefaultProvidersOptions = {}): P
   for (const entry of entries) {
     if (skip.has(entry.package)) continue
 
+    const importSpecifier = entry.providerSubpath
+      ? `${entry.package}/${entry.providerSubpath.replace(/^\.\//, '')}`
+      : entry.package
+
     let mod: Record<string, unknown>
     try {
-      mod = await resolveOptionalPeer(entry.package)
+      mod = await resolveOptionalPeer(importSpecifier)
     } catch {
       if (!entry.optional) {
         console.warn(
