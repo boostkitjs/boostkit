@@ -195,7 +195,7 @@ Run `pnpm rudder providers:discover` after installing or removing any framework 
 
 **Dev-mode boot log** — when `app.isDevelopment()` and providers were loaded via `defaultProviders()`, the framework prints them grouped by stage right before `[RudderJS] ready`. Missing packages are immediately visible instead of failing silently when first used. Production stays silent.
 
-For third-party package authors writing their own provider, see `docs/guide/auto-discovery.md`.
+For third-party package authors writing their own provider, see `docs/guide/service-providers.md`.
 
 ---
 

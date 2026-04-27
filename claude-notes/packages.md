@@ -168,4 +168,4 @@ When adding a new framework package that ships a service provider, declare it in
 
 After adding the field, users run `pnpm rudder providers:discover` to refresh the manifest. New `*Provider` classes must extend `ServiceProvider` from `@rudderjs/core` and read their config from `config<TConfig>('key')` inside `boot()` (not from a constructor argument). See `packages/cache/src/index.ts` as the reference shape.
 
-For the full third-party-author guide (manifest format, opt-out paths, common errors), see `docs/guide/auto-discovery.md`.
+For the full third-party-author guide (manifest format, opt-out paths, common errors), see `docs/guide/service-providers.md`.
