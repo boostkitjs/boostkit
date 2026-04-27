@@ -1,20 +1,23 @@
 # Validation
 
-RudderJS provides Zod-powered request validation through `@rudderjs/core`. You can validate inline with `validate()`, use middleware factories with `validateWith()`, or extend `FormRequest` for class-based validation.
+RudderJS validates request input with [Zod](https://zod.dev). You can validate inline with `validate()`, attach a schema as middleware with `validateWith()`, or extend `FormRequest` for class-based validation that includes authorization.
 
-## Quick Inline Validation
+`@rudderjs/core` re-exports `z` so you don't need a separate `zod` install.
+
+## Inline validation
+
+The simplest pattern: define a schema, parse the request, get a typed object back.
 
 ```ts
 import { validate, z } from '@rudderjs/core'
-import type { AppRequest, AppResponse } from '@rudderjs/contracts'
 
-router.post('/api/users', async (req: AppRequest, res: AppResponse) => {
+router.post('/api/users', async (req, res) => {
   const data = await validate(
     z.object({
       name:  z.string().min(1),
       email: z.string().email(),
     }),
-    req
+    req,
   )
 
   // data is fully typed: { name: string; email: string }
@@ -23,11 +26,11 @@ router.post('/api/users', async (req: AppRequest, res: AppResponse) => {
 })
 ```
 
-`validate()` merges `req.params`, `req.query`, and `req.body` (in that priority order — params wins ties) before parsing. It throws a `ValidationError` if the data is invalid.
+`validate()` merges `req.params`, `req.query`, and `req.body` (priority: `params` > `query` > `body`) before parsing. It throws `ValidationError` on failure — the framework's exception handler renders that as a structured 422 response automatically.
 
-## `validateWith()` Middleware
+## Reusable middleware
 
-Create reusable validation middleware:
+`validateWith(schema)` returns a middleware that runs before your handler. Use it when the same schema applies to several routes, or when you want validation visible at the route declaration:
 
 ```ts
 import { validateWith, z } from '@rudderjs/core'
@@ -37,23 +40,22 @@ const requireCreateUser = validateWith(
     name:  z.string().min(1),
     email: z.string().email(),
     role:  z.enum(['admin', 'user']).default('user'),
-  })
+  }),
 )
 
-// Use as route middleware
 router.post('/api/users', requireCreateUser, async (req, res) => {
-  // Validation already passed — parse body again to get typed/coerced data
+  // Validation has already passed.
+  // Re-parse to get the typed/coerced data — validateWith() doesn't mutate req.body.
   const data = await validate(schema, req)
-  const user = await User.create(data)
-  return res.status(201).json({ data: user })
+  return res.status(201).json({ data: await User.create(data) })
 })
 ```
 
-> `validateWith()` validates the request and throws `ValidationError` on failure. It does **not** attach parsed data to `req.body` — the original body is left unchanged.
+`validateWith()` is fire-and-forget — it throws on failure and continues otherwise. It does not attach the parsed value to `req`. The convention is to validate twice: once via the middleware (for the early reject), once inside the handler (to get the typed value). The cost is negligible.
 
-## Class-Based `FormRequest`
+## Class-based form requests
 
-For complex validation with authorization logic, extend `FormRequest`:
+For complex shapes, multi-field rules, or when validation needs authorization, extend `FormRequest`:
 
 ```ts
 // app/Http/Requests/CreateUserRequest.ts
@@ -69,97 +71,81 @@ export class CreateUserRequest extends FormRequest {
   }
 
   override authorize(): boolean {
-    // Return false to reject with a 403-equivalent error
-    const user = (this.req as any).user
-    return user?.role === 'admin'
+    return this.req.user?.role === 'admin'
   }
 }
 ```
 
-Use it in a route — pass `req` to `.validate()`:
+Use it in the route:
 
 ```ts
 router.post('/api/users', async (req, res) => {
   const data = await new CreateUserRequest().validate(req)
-
-  // data: { name: string; email: string; role: 'admin' | 'user' }
-  const user = await User.create(data)
-  return res.status(201).json({ data: user })
+  return res.status(201).json({ data: await User.create(data) })
 })
 ```
 
-## Handling Validation Errors
+`authorize()` is synchronous and returns `boolean`. Returning `false` rejects with a 403-equivalent error. Generate stubs with `pnpm rudder make:request CreateUser`.
 
-`validate()` and `FormRequest.validate()` throw a `ValidationError` on failure. Catch it to return a structured error response:
+## Validation errors
 
-```ts
-import { validate, ValidationError, z } from '@rudderjs/core'
+`validate()` and `FormRequest.validate()` throw a `ValidationError`. The framework's error handler catches it and returns a 422 with a structured body:
 
-router.post('/api/users', async (req, res) => {
-  try {
-    const data = await validate(schema, req)
-    // ...
-  } catch (err) {
-    if (err instanceof ValidationError) {
-      return res.status(422).json(err.toJSON())
-      // → { message: 'Validation failed', errors: { email: ['Invalid email'] } }
-    }
-    throw err
+```json
+{
+  "message": "Validation failed",
+  "errors": {
+    "email": ["Invalid email"],
+    "name":  ["String must contain at least 1 character(s)"]
   }
-})
-```
-
-### `ValidationError` shape
-
-```ts
-class ValidationError extends Error {
-  name:    'ValidationError'
-  message: 'Validation failed'
-  errors:  Record<string, string[]>  // field name → error messages
-
-  toJSON(): { message: string; errors: Record<string, string[]> }
 }
 ```
 
 Field paths from nested objects are joined with `.` (e.g. `address.city`). Top-level schema errors (when the schema isn't an object) use the key `'root'`. Authorization failures use `'auth'`.
 
-## Using Zod Directly
-
-`@rudderjs/core` re-exports `z` from Zod — no separate `zod` install needed:
+If you want to handle the error yourself, catch it explicitly:
 
 ```ts
-import { z } from '@rudderjs/core'
+import { validate, ValidationError, z } from '@rudderjs/core'
 
-const UserSchema = z.object({
-  id:    z.string().cuid(),
-  name:  z.string(),
-  email: z.string().email(),
-  role:  z.enum(['admin', 'user']),
+try {
+  const data = await validate(schema, req)
+  // ...
+} catch (err) {
+  if (err instanceof ValidationError) {
+    return res.status(422).json(err.toJSON())
+  }
+  throw err
+}
+```
+
+For framework-wide handling — custom renderers, error reporting — see [Error Handling](/guide/error-handling).
+
+## Coercion and defaults
+
+Zod's `.default(...)`, `.optional()`, and `.coerce.*` work as expected. Use `z.coerce.number()` to accept string-encoded numbers from query strings:
+
+```ts
+const PaginationSchema = z.object({
+  page:    z.coerce.number().int().min(1).default(1),
+  perPage: z.coerce.number().int().min(1).max(100).default(20),
 })
 
-type User = z.infer<typeof UserSchema>
+const { page, perPage } = await validate(PaginationSchema, req)
 ```
 
-## Generating Form Requests
-
-```bash
-pnpm rudder make:request CreateUser
-# → app/Http/Requests/CreateUserRequest.ts
-```
-
-## API Reference
+## API reference
 
 | Export | Description |
-|--------|-------------|
-| `validate(schema, req)` | Validates merged params/query/body, throws `ValidationError` on failure |
-| `validateWith(schema)` | Returns a middleware handler that validates the request; does not mutate `req.body` |
-| `FormRequest` | Base class with `rules()` (required) and `authorize()` (optional, sync) |
-| `ValidationError` | Error with `errors: Record<string, string[]>` and `toJSON()` |
+|---|---|
+| `validate(schema, req)` | Validates merged params/query/body; throws `ValidationError` on failure |
+| `validateWith(schema)` | Returns a middleware handler that validates the request |
+| `FormRequest` | Base class with `rules()` (required) and `authorize()` (optional) |
+| `ValidationError` | `Error` subclass with `errors: Record<string, string[]>` and `toJSON()` |
 | `z` | Re-export of Zod's `z` namespace |
 
-## Notes
+## Pitfalls
 
-- Merge priority: `params` > `query` > `body` — route params win key conflicts
-- `authorize()` is synchronous and returns `boolean`; defaults to `true`
-- `validateWith()` does **not** attach parsed/coerced data to `req.body`
-- `ValidationError.errors` is already a `Record<string, string[]>` — no transformation needed
+- **`validateWith()` doesn't attach to `req.body`.** Re-parse inside the handler with `validate()` to get the typed value, or use `FormRequest` if you only want to write the schema once.
+- **Merge priority surprises.** `params` wins over `body` wins over `query`. If you have `:id` in the path *and* `id` in the body, the path value wins.
+- **`authorize()` is sync.** Don't make it async — the result is read synchronously by `validate()`. For async authorization checks (DB lookup), do them in middleware before the validator runs.
