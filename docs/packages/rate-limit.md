@@ -16,4 +16,4 @@ const authLimit = RateLimit.perMinute(10)
 router.post('/api/login', handler, [authLimit])
 ```
 
-See the [Middleware docs](./core/middleware.md) for full documentation.
+See the [Middleware guide](/guide/middleware) for full documentation.

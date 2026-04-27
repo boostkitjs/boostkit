@@ -64,7 +64,12 @@ export default defineConfig({
           items: [
             { text: 'Routing', link: '/guide/routing' },
             { text: 'Middleware', link: '/guide/middleware' },
+            { text: 'Controllers', link: '/guide/controllers' },
+            { text: 'Requests', link: '/guide/requests' },
+            { text: 'Responses', link: '/guide/responses' },
             { text: 'Validation', link: '/guide/validation' },
+            { text: 'Error Handling', link: '/guide/error-handling' },
+            { text: 'Logging', link: '/guide/logging' },
           ],
         },
         {
@@ -94,14 +99,11 @@ export default defineConfig({
         {
           text: 'Core',
           items: [
-            { text: 'Package Catalog', link: '/packages/' },
             { text: '@rudderjs/core', link: '/packages/core/' },
             { text: '@rudderjs/contracts', link: '/packages/core/contracts' },
             { text: '@rudderjs/support', link: '/packages/core/support' },
             { text: 'DI Container', link: '/packages/core/di' },
-            { text: '@rudderjs/middleware', link: '/packages/core/middleware' },
             { text: 'Rate Limiting & CSRF', link: '/packages/rate-limit' },
-            { text: 'Validation (core)', link: '/packages/core/validation' },
           ],
         },
         {
@@ -115,7 +117,6 @@ export default defineConfig({
         {
           text: 'Server',
           items: [
-            { text: '@rudderjs/router', link: '/packages/server/router' },
             { text: '@rudderjs/server-hono', link: '/packages/server/hono' },
           ],
         },

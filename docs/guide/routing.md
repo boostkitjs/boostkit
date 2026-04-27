@@ -1,84 +1,27 @@
 # Routing
 
-RudderJS supports two routing styles: **fluent** (Laravel-style) and **decorator-based** (NestJS-style). Both use the same global `router` singleton from `@rudderjs/router`.
+Routes are declared as side effects in `routes/web.ts`, `routes/api.ts`, and `routes/console.ts`. The framework loads them lazily on the first matching request. The same global `router` (also exported as `Route`) backs every entry point.
 
-## Route Files
-
-Routes are registered in side-effect files — they run for their side effects and export nothing. They are loaded lazily the first time the app handles an HTTP request:
-
-```ts
-// bootstrap/app.ts
-Application.configure({ ... })
-  .withRouting({
-    api: () => import('../routes/api.js'),
-  })
-```
-
-## Fluent Routing
-
-### Basic Routes
+## Basic routes
 
 ```ts
 // routes/api.ts
 import { router } from '@rudderjs/router'
-import type { AppRequest, AppResponse } from '@rudderjs/contracts'
 
 router.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
-router.post('/api/users', async (req: AppRequest, res: AppResponse) => {
-  const { name, email } = req.body as { name: string; email: string }
-  // ... create user
+router.post('/api/users', async (req, res) => {
+  const user = await User.create(req.body as any)
   return res.status(201).json({ data: user })
 })
 
-router.put('/api/users/:id', async (req, res) => {
-  const { id } = req.params
-  // ...
-})
-
-router.delete('/api/users/:id', async (req, res) => {
-  // ...
-})
+router.put   ('/api/users/:id', updateHandler)
+router.patch ('/api/users/:id', patchHandler)
+router.delete('/api/users/:id', deleteHandler)
 ```
-
-### Route Parameters
-
-Access route parameters via `req.params`:
-
-```ts
-router.get('/api/posts/:slug', async (req, res) => {
-  const { slug } = req.params
-  // ...
-})
-```
-
-### Query Strings
-
-Access query string values via `req.query`:
-
-```ts
-// GET /api/users?role=admin&page=2
-router.get('/api/users', async (req, res) => {
-  const { role, page } = req.query
-  // ...
-})
-```
-
-### Wildcard Catch-All
-
-Use `router.all()` to match any HTTP method:
-
-```ts
-// Catch all unmatched API routes
-router.all('/api/*', (_req, res) => {
-  return res.status(404).json({ message: 'Route not found.' })
-})
-```
-
-### Available Methods
 
 | Method | Description |
-|--------|-------------|
+|---|---|
 | `router.get(path, handler, mw?)` | GET |
 | `router.post(path, handler, mw?)` | POST |
 | `router.put(path, handler, mw?)` | PUT |
@@ -87,124 +30,110 @@ router.all('/api/*', (_req, res) => {
 | `router.all(path, handler, mw?)` | Any method |
 | `router.add(method, path, handler, mw?)` | Explicit method string |
 
-### Middleware on Fluent Routes
+Routes match in registration order. Put catch-alls last:
+
+```ts
+router.all('/api/*', (_req, res) => res.status(404).json({ message: 'Not found' }))
+```
+
+## Route parameters
+
+Path segments prefixed with `:` are captured into `req.params`:
+
+```ts
+router.get('/api/posts/:slug', async (req, res) => {
+  const post = await Post.where('slug', req.params.slug).first()
+  return res.json({ post })
+})
+```
+
+Optional segments end with `?` (`/posts/:category?/:slug`).
+
+## Named routes
+
+Chain `.name()` to assign a name. Pair with `route()` for URL generation:
+
+```ts
+import { router, route } from '@rudderjs/router'
+
+router.get('/users/:id', handler).name('users.show')
+
+route('users.show', { id: 42 })            // → '/users/42'
+route('search', { q: 'hello', page: 2 })   // → '/search?q=hello&page=2'
+```
+
+`route()` substitutes named params from the object and appends unused keys as a query string. Missing required params throw.
+
+## Per-route middleware
 
 Pass middleware as the third argument:
 
 ```ts
-router.get('/protected', handler, [authMiddleware])
-router.post('/admin', handler, [authMiddleware, adminMiddleware])
+import { RequireAuth } from '@rudderjs/auth'
+import { RateLimit } from '@rudderjs/middleware'
+
+router.post('/api/posts', handler, [RequireAuth()])
+
+router.post('/api/auth/sign-in', handler, [
+  RateLimit.perMinute(5).message('Too many login attempts.'),
+])
 ```
 
-## Decorator-Based Routing
+For middleware that should apply to every web or api route, register it on the group instead — see [Middleware](/guide/middleware).
 
-For larger apps, group related routes into controller classes:
+## Signed URLs
+
+Signed URLs append an HMAC-SHA256 `signature` query parameter. Use them for password reset links, file downloads, email-confirmation tokens, anything where access should be gated by URL knowledge alone. The key comes from `process.env.APP_KEY`.
 
 ```ts
-import { Controller, Get, Post, Put, Delete, Middleware, router } from '@rudderjs/router'
-import { Injectable } from '@rudderjs/core'
-import type { AppRequest, AppResponse } from '@rudderjs/contracts'
-import { authMiddleware } from '../Http/Middleware/auth.js'
-import { UserService } from '../Services/UserService.js'
+import { Url } from '@rudderjs/router'
 
-@Controller('/api/users')
-@Injectable()
-class UserController {
-  constructor(private readonly userService: UserService) {}
+// Permanent
+Url.signedRoute('invoice.download', { id: 42 })
 
-  @Get('/')
-  async index(_req: AppRequest, res: AppResponse) {
-    const users = await this.userService.all()
-    return res.json({ data: users })
-  }
+// Expires in 1 hour
+Url.temporarySignedRoute('invoice.download', 3600, { id: 42 })
 
-  @Get('/:id')
-  @Middleware([authMiddleware])
-  async show(req: AppRequest, res: AppResponse) {
-    const user = await this.userService.find(req.params.id as string)
-    if (!user) return res.status(404).json({ message: 'Not found' })
-    return res.json({ data: user })
-  }
-
-  @Post('/')
-  async store(req: AppRequest, res: AppResponse) {
-    const user = await this.userService.create(req.body as any)
-    return res.status(201).json({ data: user })
-  }
-
-  @Put('/:id')
-  async update(req: AppRequest, res: AppResponse) {
-    const user = await this.userService.update(req.params.id as string, req.body as any)
-    return res.json({ data: user })
-  }
-
-  @Delete('/:id')
-  async destroy(req: AppRequest, res: AppResponse) {
-    await this.userService.delete(req.params.id as string)
-    return res.status(204).send('')
-  }
-}
-
-// Register the controller — call this in routes/api.ts
-router.registerController(UserController)
+// Sign an arbitrary path
+Url.sign('/any/path', new Date(Date.now() + 60_000))
 ```
 
-### Available Decorators
-
-| Decorator | Target | Description |
-|-----------|--------|-------------|
-| `@Controller(prefix?)` | class | Marks a class as a controller with a route prefix |
-| `@Get(path)` | method | GET route |
-| `@Post(path)` | method | POST route |
-| `@Put(path)` | method | PUT route |
-| `@Patch(path)` | method | PATCH route |
-| `@Delete(path)` | method | DELETE route |
-| `@Options(path)` | method | OPTIONS route |
-| `@Middleware([...handlers])` | class or method | Apply middleware handlers |
-
-### Middleware Ordering
-
-When `@Middleware` is used on both the class and a method, class middleware runs first:
+Validate signed requests with the `ValidateSignature()` middleware:
 
 ```ts
-@Controller('/api')
-@Middleware([logMiddleware])        // runs first for every route
-class Ctrl {
-  @Get('/private')
-  @Middleware([authMiddleware])     // runs second, only for this route
-  private() {}
-}
+import { ValidateSignature } from '@rudderjs/router'
+
+router.get('/invoice/:id/download', handler, [ValidateSignature()])
+  .name('invoice.download')
 ```
 
-## `AppRequest` and `AppResponse`
+The middleware rejects missing, invalid, or expired signatures with HTTP 403. Comparison is timing-safe.
 
-### `AppRequest`
+| `Url` method | Description |
+|---|---|
+| `Url.signedRoute(name, params?, expiresAt?)` | Signed URL for a named route |
+| `Url.temporarySignedRoute(name, seconds, params?)` | Expiring signed URL |
+| `Url.sign(path, expiresAt?)` | Sign an arbitrary path |
+| `Url.isValidSignature(req)` | Validate a request's signature |
+| `Url.current(req)` | Full current URL |
+| `Url.previous(req, fallback?)` | Referer header or fallback |
+| `Url.setKey(key)` | Override the signing key (for tests) |
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `method` | `string` | HTTP method |
-| `path` | `string` | Request path |
-| `params` | `Record<string, string \| string[]>` | Route parameters |
-| `query` | `Record<string, string \| string[]>` | Query string |
-| `body` | `unknown` | Parsed request body |
-| `headers` | `Record<string, string>` | Request headers |
-| `raw` | `unknown` | Adapter-specific raw request |
+## Decorator controllers
 
-### `AppResponse`
+For routes that share a prefix or middleware, group them into a controller class. See [Controllers](/guide/controllers).
 
-| Method | Description |
-|--------|-------------|
-| `res.json(data)` | JSON response (200) |
-| `res.status(code)` | Set status code (chainable) |
-| `res.send(body)` | Plain text response |
-| `res.redirect(url, code?)` | Redirect response |
-| `res.header(key, value)` | Set a response header (chainable) |
+## Inspecting routes
 
-## Notes
+```bash
+pnpm rudder route:list      # all registered routes, with name + middleware
+```
 
-- Routes are matched in registration order — put catch-alls last
-- `router.all('/api/*', ...)` should be the last route in your API file
-- `router` and `Route` are the same global singleton
-- Decorator controllers require `reflect-metadata` at the entry point
-- Double slashes in composed paths are normalised: `/api` + `/users` → `/api/users`
-- Controllers must be registered with `router.registerController(ControllerClass)`
+The router also exposes a programmatic API: `router.list()` returns every `RouteDefinition`; `router.listNamed()` returns the name → path map.
+
+## Pitfalls
+
+- **Catch-all order.** `router.all('/api/*', ...)` must be the last route declared, or it'll swallow more specific ones.
+- **Decorator controllers without `reflect-metadata`.** Add `import 'reflect-metadata'` once at `bootstrap/app.ts`.
+- **`APP_KEY` not set.** `Url.signedRoute()` and `ValidateSignature()` both throw when no key is configured.
+- **Double slashes.** Path composition normalizes them automatically — `/api` + `/users` is `/api/users`, not `/api//users`.
