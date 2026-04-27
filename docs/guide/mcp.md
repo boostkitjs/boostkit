@@ -1,6 +1,6 @@
-# MCP (Model Context Protocol)
+# MCP
 
-`@rudderjs/mcp` lets your app **expose tools, resources, and prompts** to external AI agents — Claude Code, Cursor, Windsurf, any MCP-compatible client. Agents can then call those tools to query your database, read your docs, kick off jobs, and more, without leaving their chat UI.
+`@rudderjs/mcp` lets your application expose tools, resources, and prompts to external AI agents — Claude Code, Cursor, Windsurf, any MCP-compatible client. Once you register an MCP server in your app, an external agent can query your database, kick off jobs, fetch documents, and run domain-specific commands without leaving its chat UI.
 
 ```ts
 // app/Mcp/Tools/CurrentWeatherTool.ts
@@ -19,15 +19,9 @@ export class CurrentWeatherTool extends McpTool {
 }
 ```
 
-Register it on a server, expose the server at `/mcp/weather`, and an AI agent in Cursor can now call your tool.
+Register the tool on a server, expose the server at `/mcp/weather`, and an AI agent in any MCP client can call it.
 
-::: tip MCP vs @rudderjs/ai
-`@rudderjs/ai` is the **client** side — your app uses an AI agent to do something.
-`@rudderjs/mcp` is the **server** side — an external AI agent uses your app to do something.
-They stack: you can run an `@rudderjs/ai` agent internally that calls an MCP server running in the same process.
-:::
-
----
+> **MCP vs `@rudderjs/ai`.** `@rudderjs/ai` is the client side — your app uses an AI agent to do something. `@rudderjs/mcp` is the server side — an external AI agent uses your app to do something. They compose: an `@rudderjs/ai` agent can call an MCP server running in the same process.
 
 ## Setup
 
@@ -35,292 +29,174 @@ They stack: you can run an `@rudderjs/ai` agent internally that calls an MCP ser
 pnpm add @rudderjs/mcp
 ```
 
-Register the provider — auto-discovered if you use `defaultProviders()`:
+The `McpProvider` is auto-discovered. No config file needed — servers are registered via code.
+
+## The three primitives
+
+An MCP server exposes three kinds of capabilities:
+
+- **Tools** — functions the agent calls (most common)
+- **Resources** — data the agent reads (URIs the agent can fetch)
+- **Prompts** — reusable prompt templates the agent loads
+
+You register the classes, not instances.
 
 ```ts
-// bootstrap/providers.ts
-import { McpProvider } from '@rudderjs/mcp'
+// app/Mcp/WeatherServer.ts
+import { McpServer } from '@rudderjs/mcp'
+import { CurrentWeatherTool } from './Tools/CurrentWeatherTool.js'
+import { ForecastTool } from './Tools/ForecastTool.js'
 
-export default [
-  // ...other providers
-  McpProvider,
-]
-```
-
-No config file needed — servers are registered via code (`Mcp.web()` / `Mcp.local()`, covered below).
-
----
-
-## Your first server
-
-Three building blocks: **tools** (functions the agent calls), **resources** (data the agent reads), **prompts** (reusable prompt templates). You register the classes, not instances.
-
-### Tool
-
-```ts
-// app/Mcp/Tools/CurrentWeatherTool.ts
-import { McpTool, McpResponse, Description } from '@rudderjs/mcp'
-import { z } from 'zod'
-
-@Description('Get current weather for a location.')
-export class CurrentWeatherTool extends McpTool {
-  schema() {
-    return z.object({
-      location: z.string().describe('City name'),
-    })
-  }
-
-  async handle(input: Record<string, unknown>) {
-    const location = input.location as string
-    return McpResponse.text(`Weather in ${location}: sunny, 22°C`)
-  }
-}
-```
-
-The Zod `schema()` drives what the AI agent sees as the tool's input. `@Description` becomes the tool description.
-
-**Structured output** — optional, advertises the response shape:
-
-```ts
-outputSchema() {
-  return z.object({ temperature: z.number(), conditions: z.string() })
-}
-async handle(input) {
-  return McpResponse.json({ temperature: 22, conditions: 'sunny' })
-}
-```
-
-### Resource
-
-Resources expose data the agent can read by URI. Two flavours:
-
-```ts
-// Static URI
-@Description('Weather usage guidelines')
-export class WeatherGuidelines extends McpResource {
-  uri() { return 'weather://guidelines' }
-  async handle() { return 'Always check conditions before...' }
-}
-
-// URI template — {param} placeholders
-@Description('Weather for a specific city')
-export class CityWeatherResource extends McpResource {
-  uri() { return 'weather://city/{name}' }
-
-  async handle(params?: Record<string, string>) {
-    return `Weather in ${params?.name}: sunny, 22°C`
-  }
-}
-```
-
-Template resources auto-register via `ListResourceTemplates` — the agent sees the template, fills in the params, and calls `handle()` with them already extracted.
-
-### Prompt
-
-Prompts are reusable templates the agent can ask for by name:
-
-```ts
-@Description('Describe weather poetically')
-export class DescribeWeatherPrompt extends McpPrompt {
-  arguments() {
-    return z.object({ location: z.string() })
-  }
-
-  async handle(args: Record<string, unknown>): Promise<McpPromptMessage[]> {
-    return [{ role: 'user', content: `Describe weather in ${args.location} poetically.` }]
-  }
-}
-```
-
-### Server
-
-A server bundles tools, resources, and prompts under one name:
-
-```ts
-// app/Mcp/Servers/WeatherServer.ts
-import { McpServer, Name, Version, Instructions } from '@rudderjs/mcp'
-
-@Name('Weather Server')
-@Version('1.0.0')
-@Instructions('Provide weather information and forecasts.')
 export class WeatherServer extends McpServer {
-  protected tools     = [CurrentWeatherTool]
-  protected resources = [WeatherGuidelines, CityWeatherResource]
-  protected prompts   = [DescribeWeatherPrompt]
+  name() { return 'Weather' }
+
+  tools()     { return [CurrentWeatherTool, ForecastTool] }
+  resources() { return [] }
+  prompts()   { return [] }
 }
 ```
-
-**Register classes, not instances** — the runtime instantiates them via the DI container at boot. Constructor parameters are auto-resolved.
-
----
 
 ## Exposing the server
 
-Two transports: **HTTP Streamable** (browsers, remote clients) and **stdio** (local CLIs). Register in a provider's `boot()` or a dedicated module loaded from `routes/`.
+Two transports: **HTTP/SSE (web)** for remote agents, **stdio (local)** for local agents like Claude Desktop. Both register the same server class.
+
+### HTTP/SSE
 
 ```ts
+// routes/api.ts
 import { Mcp } from '@rudderjs/mcp'
-import { WeatherServer } from '../app/Mcp/Servers/WeatherServer.js'
+import { WeatherServer } from '../app/Mcp/WeatherServer.js'
 
-// HTTP — mounted on your app at /mcp/weather
-Mcp.web('/mcp/weather', WeatherServer)
-
-// With middleware
-Mcp.web('/mcp/weather', WeatherServer).middleware([rateLimitMw])
-
-// Local stdio — runnable as a CLI
-Mcp.local('weather', WeatherServer)
+Mcp.web(WeatherServer, '/mcp/weather')
 ```
 
-**HTTP** — an AI client (e.g. Claude Code) connects via:
-```
-https://your-app.com/mcp/weather
-```
+Visit `http://localhost:3000/mcp/weather` to see the SSE endpoint. To gate access, add `.oauth2(...)` (see Authentication below).
 
-**Local** — the client launches the server over stdio:
-```bash
-pnpm rudder mcp:start weather
-```
-
-Useful CLI commands:
-
-```bash
-pnpm rudder mcp:list               # list registered servers
-pnpm rudder mcp:start <name>       # run a local server over stdio
-pnpm rudder mcp:inspector <name>   # launch the MCP Inspector UI
-```
-
----
-
-## Dependency injection in tools
-
-Constructor params are auto-resolved from the DI container:
+### Stdio
 
 ```ts
-@Injectable()
-@Description('Query the database')
-export class DbQueryTool extends McpTool {
-  constructor(private db: DatabaseService) { super() }
+// routes/console.ts
+import { Mcp } from '@rudderjs/mcp'
+import { WeatherServer } from '../app/Mcp/WeatherServer.js'
 
-  schema() { return z.object({ query: z.string() }) }
+Mcp.local(WeatherServer, 'mcp:weather')
+```
 
-  async handle(input: Record<string, unknown>) {
-    const result = await this.db.query(input.query as string)
-    return McpResponse.json(result)
+Then run `pnpm rudder mcp:weather` — Claude Desktop or any stdio MCP client can spawn this process and talk to your server.
+
+## Tools with rich input
+
+Zod schemas drive what the agent sees:
+
+```ts
+@Description('Search posts by query string and tag.')
+export class SearchPostsTool extends McpTool {
+  schema() {
+    return z.object({
+      query: z.string().describe('Full-text search query'),
+      tags:  z.array(z.string()).optional().describe('Filter by tags'),
+      limit: z.number().int().min(1).max(50).default(10),
+    })
+  }
+
+  async handle({ query, tags, limit }) {
+    const posts = await Post.search(query, { tags, limit })
+    return McpResponse.json(posts)
   }
 }
 ```
 
-### Method-level DI (important for Vite/esbuild)
-
-`design:paramtypes` reflection — the normal backbone of method-level DI — is **dropped by esbuild**, which means the reflection-based auto-inject that works under `tsc` silently no-ops under Vite. Use the `@Handle(...)` decorator with explicit tokens:
+For tools that need DI, use `@Handle(Token1, Token2, ...)` to inject deps:
 
 ```ts
-@Handle(GreetingService, Logger)
-async handle(input: Record<string, unknown>, greeter: GreetingService, logger: Logger) {
-  logger.info(greeter.say(input.name as string))
-  return McpResponse.text('ok')
+import { Handle } from '@rudderjs/mcp'
+import { PostService } from '../../Services/PostService.js'
+
+export class SearchPostsTool extends McpTool {
+  schema() { return z.object({ query: z.string() }) }
+
+  @Handle(PostService)
+  async handle({ query }, posts: PostService) {
+    return McpResponse.json(await posts.search(query))
+  }
 }
 ```
 
-Explicit tokens > reflection. Always pass them if you use `@Handle`.
+## Streaming progress
 
----
-
-## OAuth 2.1 protection
-
-Protect an HTTP endpoint with Bearer tokens issued by `@rudderjs/passport`. The `.oauth2()` builder chains validation, scope enforcement, and the RFC 9728 Protected Resource Metadata endpoint that clients use for discovery:
+For long-running tools, stream progress back to the agent:
 
 ```ts
-Mcp.web('/mcp/admin', AdminServer).oauth2({
-  scopes:              ['admin'],                        // required on the token
-  authorizationServers: ['https://auth.example.com'],    // advertised in metadata
-  scopesSupported:      ['admin', 'read', 'write'],      // shown in metadata
+async *handle({ url }) {
+  yield { progress: 0,  message: 'Fetching...' }
+  const html = await Http.get(url)
+  yield { progress: 50, message: 'Parsing...' }
+  const text = parseHtml(html.body)
+  yield { progress: 100, message: 'Done' }
+  return McpResponse.text(text)
+}
+```
+
+`async function*` handlers yield `McpToolProgress` objects and return the final result. The runtime forwards yields as `notifications/progress` when the client supplies a `progressToken`.
+
+## Resources and prompts
+
+```ts
+@Description('Latest weather report')
+export class LatestReport extends McpResource {
+  uri()  { return 'weather://latest' }
+  async read() { return McpResponse.text(await fetchLatestReport()) }
+}
+
+@Description('Compose a weather summary')
+export class WeatherSummaryPrompt extends McpPrompt {
+  schema() { return z.object({ location: z.string() }) }
+  async render({ location }) {
+    return McpResponse.prompt(`Summarize today's weather in ${location} for a casual reader.`)
+  }
+}
+```
+
+Resources can use URI templates: `weather://{city}` accepts `weather://paris` and exposes `city: 'paris'` to `read()`.
+
+## Authentication
+
+Gate HTTP/SSE servers with OAuth 2 + scopes (via `@rudderjs/passport`):
+
+```ts
+Mcp.web(WeatherServer, '/mcp/weather').oauth2({
+  scopes:           ['weather:read'],
+  scopesSupported: ['weather:read', 'weather:write'],
 })
 ```
 
-On auth failure, responses carry a `WWW-Authenticate` header pointing the client at the metadata doc at `/.well-known/oauth-protected-resource<mcp-path>`. Standard MCP client discovery flow just works.
+The framework serves an RFC 9728 protected-resource metadata endpoint at `/.well-known/oauth-protected-resource/mcp/weather` so MCP clients can discover the auth requirements. Bearer tokens missing the required scope get a 403 with `WWW-Authenticate: insufficient_scope`.
 
-Passport must be installed and configured — see the [`@rudderjs/passport` README](https://github.com/rudderjs/rudder/tree/main/packages/passport) for token issuance setup.
+## The inspector
 
----
-
-## Scaffolders
-
-```bash
-pnpm rudder make:mcp-server   Weather
-pnpm rudder make:mcp-tool     CurrentWeather
-pnpm rudder make:mcp-resource WeatherGuidelines
-pnpm rudder make:mcp-prompt   DescribeWeather
-```
-
-Scaffolders land in `app/Mcp/{Servers,Tools,Resources,Prompts}/`.
-
----
+`pnpm rudder mcp:inspector [--port 9100]` boots a zero-dependency dev UI. Open it in a browser, pick one of your registered servers, and call tools / read resources / render prompts directly. In-process invocation means DI works.
 
 ## Testing
 
-`McpTestClient` boots the server in-process — no network, no stdio spawn:
-
 ```ts
 import { McpTestClient } from '@rudderjs/mcp'
-import { WeatherServer } from '../app/Mcp/Servers/WeatherServer.js'
+import { WeatherServer } from '../app/Mcp/WeatherServer.js'
 
 const client = new McpTestClient(WeatherServer)
+const result = await client.callTool('current_weather', { location: 'London' })
 
-// Call a tool
-const result = await client.callTool('current-weather', { location: 'London' })
-
-// Assertions
-client.assertToolExists('current-weather')
-client.assertToolCount(1)
-client.assertResourceExists('weather://guidelines')
-client.assertPromptExists('describe-weather')
-
-// Introspection
-const tools     = await client.listTools()
-const resources = await client.listResources()
-const prompts   = await client.listPrompts()
+expect(result.content[0].text).toContain('London')
 ```
 
----
+`McpTestClient` instantiates the server in-process and exercises the same dispatch path the HTTP transport uses — assertions match production behavior.
 
-## Observability
+## Telescope integration
 
-Every tool call, resource read, and prompt render fires a structured event. If `@rudderjs/telescope` is installed, they land in the dashboard automatically under the **MCP** tab — full input/output, timing, server name, errors.
+Install `@rudderjs/telescope` and tool calls, resource reads, and prompt renders show up in the Telescope UI with input/output, duration, and the request that triggered them. The integration is automatic — the MCP runtime publishes events to the observer registry on `globalThis`, and the Telescope collector subscribes.
 
-For custom logging, subscribe to the observer registry:
+## Pitfalls
 
-```ts
-import { mcpObservers } from '@rudderjs/mcp/observers'
-
-mcpObservers.subscribe((event) => {
-  // event.kind: 'tool.called' | 'tool.failed' | 'resource.read'
-  //           | 'resource.failed' | 'prompt.rendered' | 'prompt.failed'
-  console.log(`[${event.kind}] ${event.serverName}/${event.name} (${event.duration}ms)`)
-})
-```
-
-The registry lives on `globalThis` so it survives Vite SSR module re-evaluation. Observer errors are swallowed inside `emit()` — a broken subscriber cannot break an MCP server.
-
----
-
-## Common pitfalls
-
-- **Register classes, not instances.** `protected tools = [MyTool]` — never `[new MyTool()]`. The runtime instantiates via DI.
-- **`Mcp.web()` / `Mcp.local()` run once at boot.** Put them in a provider's `boot()` or a dedicated registration module loaded from `routes/`, not inside request handlers.
-- **`.oauth2()` needs Passport.** Without `@rudderjs/passport` installed and configured, every request fails `invalid_token`.
-- **Constructor DI works; method DI under Vite needs `@Handle(...)`.** esbuild drops `design:paramtypes`, so `@Handle()` without tokens silently falls back to empty. Always pass explicit tokens.
-- **URI templates only support `{param}`.** No regex, no optional segments. Extracted params are always strings — validate/coerce inside `handle()`.
-- **Output schema must match `handle()` return.** Declaring `outputSchema()` but returning a mismatched shape surfaces a validation error to the client.
-- **`McpResponse.error()` vs throwing.** Use `McpResponse.error(msg)` for expected failures (returns MCP-shaped error). Throw for programmer errors — throws emit a `tool.failed` observer event and surface a generic error to the client.
-- **Don't import `/observers` in app code.** That subpath is meant for Telescope-style collectors. For app-level tool-call logging, use AI middleware or route observability.
-- **Provider boot order.** `McpProvider` registers HTTP routes with the router, so the router provider must boot first. Auto-discovery handles this — don't add `McpProvider` manually before `@rudderjs/router` in a custom provider list.
-
----
-
-## Next Steps
-
-- [AI](/guide/ai) — the client side: run agents that call tools (including tools from your own MCP servers)
-- [Authentication](/guide/rudder) — set up `@rudderjs/passport` for OAuth 2.1 protection
-- [MCP package README](https://github.com/rudderjs/rudder/tree/main/packages/mcp) — full reference: server metadata, transport options, runtime primitives
+- **Forgetting `Mcp.web(...)` or `Mcp.local(...)`.** Defining the server class doesn't expose it. Servers register on import; make sure the file runs (typically by importing it from `routes/api.ts` or `routes/console.ts`).
+- **Method-level decorators stripped.** `@Description` works on classes; `@Handle` works on the `handle` method specifically. Other method-level decorators that rely on `design:paramtypes` are unreliable under Vite — pass tokens explicitly to `@Handle(...)`.
+- **OAuth scope mismatch.** If the client supplies a token without the required scope, the server returns 403 with `WWW-Authenticate: insufficient_scope`. Check the scopes in your IdP's token configuration match the `scopes: [...]` array.
+- **Streaming yields with no `progressToken`.** The runtime drops yields silently when the caller didn't request progress notifications. That's intentional — clients that don't ask shouldn't get spammed. The final return value is always sent.

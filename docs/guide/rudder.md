@@ -1,42 +1,35 @@
 # Rudder Console
 
-RudderJS's Rudder CLI lets you run commands from the terminal. It works similarly to Laravel's Rudder — you define commands in `routes/console.ts` and run them with `pnpm rudder`.
-
-## Running Commands
+Rudder is the framework's CLI. You define commands as classes or inline handlers in `routes/console.ts`, and run them with `pnpm rudder <name>`. The CLI boots the full application before dispatching, so commands have access to the DI container, ORM, services, queues, and everything else.
 
 ```bash
-pnpm rudder --help          # List all available commands
-pnpm rudder db:seed         # Run a specific command
-pnpm rudder make:model Post # Generate a model stub
+pnpm rudder --help
+pnpm rudder db:seed
+pnpm rudder make:model Post
 ```
 
-The CLI **must be run from a directory containing `bootstrap/app.ts`** — it boots the full application before running commands, so providers and services are available.
+The CLI must run from a directory containing `bootstrap/app.ts`. From the playground, scaffolded apps, or your project root — never from a sub-package.
 
-## Defining Commands (Console Routes)
+## Defining commands
 
-Register commands in `routes/console.ts` using the `rudder` singleton:
+Inline commands cover most cases:
 
 ```ts
+// routes/console.ts
 import { rudder } from '@rudderjs/rudder'
+import { User } from '../app/Models/User.js'
 
 rudder.command('db:seed', async () => {
-  const { User } = await import('../app/Models/User.js')
   await User.create({ name: 'Alice', email: 'alice@example.com' })
-  console.log('Seeded users.')
+  console.log('Seeded.')
 }).description('Seed the database with sample data')
-```
 
-Inline command handlers receive positional args as `string[]` and options as a `Record<string, unknown>`:
-
-```ts
-rudder.command('greet {name}', async (args, opts) => {
+rudder.command('greet {name}', async (args) => {
   console.log(`Hello, ${args[0]}!`)
 }).description('Greet a user by name')
 ```
 
-## Class-Based Commands
-
-For complex commands with typed input, output helpers, and interactive prompts, extend `Command`:
+For complex commands with typed input, output helpers, and prompts, extend `Command`:
 
 ```ts
 import { Command } from '@rudderjs/core'
@@ -49,11 +42,9 @@ export class SeedCommand extends Command {
   async handle(): Promise<void> {
     const count = Number(this.option('count') ?? 10)
     this.info(`Seeding ${count} users...`)
-
     for (let i = 0; i < count; i++) {
       await User.create({ name: `User ${i}`, email: `user${i}@example.com` })
     }
-
     this.info('Done!')
   }
 }
@@ -68,21 +59,21 @@ import { SeedCommand } from '../app/Commands/SeedCommand.js'
 rudder.register(SeedCommand)
 ```
 
-## Command Signature Syntax
+## Signature syntax
 
-Signatures use a Laravel-inspired format:
+Signatures encode arguments, options, and inline descriptions in one string:
 
 | Syntax | Description |
-|--------|-------------|
+|---|---|
 | `{name}` | Required argument |
 | `{name?}` | Optional argument |
-| `{name*}` | Variadic argument (array) |
-| `{name=default}` | Argument with default value |
+| `{name*}` | Variadic (array) argument |
+| `{name=default}` | Argument with default |
 | `{--flag}` | Boolean flag |
 | `{--N\|name}` | Flag with shorthand (`-N`) |
-| `{--name=}` | Option that accepts a value |
+| `{--name=}` | Option that takes a value |
 | `{--name=default}` | Option with default value |
-| `{arg : description}` | Inline description (shown in `--help`) |
+| `{arg : description}` | Inline description for `--help` |
 
 ```ts
 readonly signature = 'import:users {file} {--dry-run} {--limit=100}'
@@ -92,104 +83,101 @@ readonly signature = 'import:users {file} {--dry-run} {--limit=100}'
 pnpm rudder import:users users.csv --dry-run --limit=50
 ```
 
-## Command Output Helpers
+## Inside a command
 
-The `Command` base class provides styled output helpers:
-
-```ts
-this.info('Starting...')        // green — success / info
-this.error('Failed!')           // red — error
-this.warn('Skipping row 5')     // yellow — warning
-this.line('Plain output')       // unstyled
-this.comment('Takes a moment')  // dim/grey — secondary info
-this.newLine()                  // blank line
-this.table(
-  ['Name', 'Email'],
-  [['Alice', 'alice@example.com'], ['Bob', 'bob@example.com']],
-)
-```
-
-## Accessing Arguments and Options
-
-Inside `handle()`:
+Inside `handle()` use the `this.argument(...)` / `this.option(...)` accessors and the styled output helpers:
 
 ```ts
-const name    = this.argument('name')    // named argument ('' if missing)
-const count   = this.option('count')     // option value
-const isDry   = this.option('dry-run')   // boolean flag
-const allArgs = this.arguments()         // all args as object
-const allOpts = this.options()           // all options as object
+const name  = this.argument('name')      // '' if missing
+const count = this.option('count')        // value
+const dry   = this.option('dry-run')      // boolean
+
+this.info('Starting...')                  // green
+this.warn('Skipping row 5')               // yellow
+this.error('Failed!')                     // red
+this.line('Plain output')                 // unstyled
+this.comment('Takes a moment')            // dim
+this.table(['Name', 'Email'], [['Alice', 'a@b.com']])
 ```
 
-## Interactive Prompts
+For interactive input:
 
-Class-based commands can prompt the user interactively. All methods throw `CancelledError` on Ctrl+C:
+```ts
+const name = await this.ask('What is your name?', 'World')
+const ok   = await this.confirm('Continue?')
+const env  = await this.choice('Environment', ['local', 'staging', 'production'])
+const pass = await this.secret('Password')
+```
+
+All prompts throw `CancelledError` on Ctrl+C — catch it to handle cancellation gracefully:
 
 ```ts
 import { CancelledError } from '@rudderjs/rudder'
 
-async handle() {
-  try {
-    const name = await this.ask('What is your name?', 'World')
-    const ok   = await this.confirm('Continue?')
-    const env  = await this.choice('Environment', ['local', 'staging', 'production'])
-    const pass = await this.secret('Password')
-  } catch (err) {
-    if (err instanceof CancelledError) {
-      this.warn('Cancelled.')
-      return
-    }
-    throw err
-  }
+try {
+  await this.ask('Name?')
+} catch (err) {
+  if (err instanceof CancelledError) return this.warn('Cancelled.')
+  throw err
 }
 ```
 
-| Method | Description |
-|--------|-------------|
-| `ask(message, default?)` | Free-text input |
-| `confirm(message, default?)` | Yes/no (default: `false`) |
-| `choice(message, choices, default?)` | Selection list |
-| `secret(message)` | Hidden input (password) |
+## Built-in commands
 
-## Provider-Registered Commands
+The framework ships several built-in commands that show up automatically. The set depends on which packages are installed.
 
-Package providers can register commands automatically. For example:
+| Command | Provided by | Purpose |
+|---|---|---|
+| `make:controller`, `make:model`, `make:middleware`, `make:request`, `make:provider`, `make:command`, `make:event`, `make:listener`, `make:mail`, `make:job`, `make:notification` | core | Scaffold boilerplate files |
+| `make:module`, `module:publish` | core | Module scaffolding + Prisma shard merge |
+| `db:push`, `db:generate`, `migrate`, `migrate:fresh`, `migrate:status`, `make:migration`, `db:seed` | orm-prisma / orm-drizzle | Database commands (auto-detects ORM) |
+| `queue:work` | queue | Worker process |
+| `storage:link` | storage | Symlink `public/storage → storage/app/public` |
+| `schedule:work`, `schedule:run`, `schedule:list` | schedule | Task scheduler |
+| `route:list` | router | List all registered routes with name + middleware |
+| `command:list` | rudder | List all registered commands |
+| `vendor:publish` | core | Publish package assets (configs, views, schemas) |
+| `providers:discover` | core | Refresh the provider manifest |
+| `mcp:inspector` | mcp | Dev UI for MCP servers |
 
-- `queue()` provider → `queue:work`
-- `storage()` provider → `storage:link`
-- `scheduler()` provider → `schedule:run`, `schedule:work`, `schedule:list`
+For the full set, run `pnpm rudder --help`.
 
-These appear in `pnpm rudder --help` once the provider is registered in `bootstrap/providers.ts`.
+## `make:*` commands
 
-## Scheduling Commands
-
-Use `@rudderjs/schedule` to run rudder commands on a cron schedule:
-
-```ts
-import { schedule } from '@rudderjs/schedule'
-
-schedule.command('db:sync').daily().description('Sync data daily')
-schedule.call(async () => {
-  await cleanupTempFiles()
-}).everyFiveMinutes()
-```
+Every `make:*` command takes a name and writes a stub:
 
 ```bash
-pnpm rudder schedule:work    # long-running process
-pnpm rudder schedule:run     # run due tasks once (for external cron)
-pnpm rudder schedule:list    # list all scheduled tasks
+pnpm rudder make:controller User             # → app/Http/Controllers/UserController.ts
+pnpm rudder make:model Post                  # → app/Models/Post.ts
+pnpm rudder make:middleware Auth             # → app/Middleware/AuthMiddleware.ts
+pnpm rudder make:request CreateUser          # → app/Http/Requests/CreateUserRequest.ts
+pnpm rudder make:provider App                # → app/Providers/AppServiceProvider.ts
+pnpm rudder make:job SendWelcomeEmail        # → app/Jobs/SendWelcomeEmail.ts
+pnpm rudder make:event UserRegistered        # → app/Events/UserRegistered.ts
+pnpm rudder make:listener SendWelcome        # → app/Listeners/SendWelcome.ts
+pnpm rudder make:mail Welcome                # → app/Mail/WelcomeMail.ts
+pnpm rudder make:notification Welcome        # → app/Notifications/WelcomeNotification.ts
 ```
 
-## Generating Commands
+Pass `--force` to overwrite an existing file. Every generated stub uses your project's framework selection (React for `.tsx`, Vue for `.vue`, etc.) and tsconfig.
+
+## Modules
+
+For larger apps, group a feature's models, services, providers, and Prisma shard under `app/Modules/<Name>/`:
 
 ```bash
-pnpm rudder make:middleware Auth
-# No dedicated make:command yet — extend Command manually and register in routes/console.ts
+pnpm rudder make:module Blog
+# → app/Modules/Blog/{Blog.prisma, BlogService.ts, BlogServiceProvider.ts}
+
+pnpm rudder module:publish
+# Merges every app/Modules/*/*.prisma into prisma/schema/
 ```
 
-## Notes
+`module:publish` keeps Prisma's multi-file schema in sync with module shards — run it after adding a module or editing its `.prisma` file.
 
-- `rudder` singleton is stored on `globalThis.__rudderjs_rudder__` — safe to import from multiple packages without duplicate registries
-- Commands registered in `routes/console.ts` are loaded during boot before any command runs
-- The CLI is a separate package (`@rudderjs/cli`) — it orchestrates boot and command dispatch
-- Use `--force` with `make:*` commands to overwrite existing files
+## Pitfalls
+
+- **Running rudder from a sub-package.** It resolves `bootstrap/app.ts` from `process.cwd()`. Run from the project root.
+- **Forgetting `pnpm rudder providers:discover` after install.** Newly installed framework packages don't load until you refresh the manifest. The scaffolder runs it automatically; manual installs need it explicit.
+- **`make:*` overwriting work.** Without `--force`, the generator refuses to overwrite. With `--force`, it overwrites silently — review the diff before committing.
+- **Slow commands at startup.** The CLI boots the full app for every command. `make:*` and `providers:discover` skip `bootApp()` for speed; if you write a custom command that doesn't need the app, you can do the same — see `@rudderjs/cli`'s source.

@@ -1,149 +1,47 @@
-# Database & Models
+# Database
 
-RudderJS provides a unified `Model` base class that works with any ORM adapter. The adapter handles all database communication — your model code stays the same regardless of whether you use Prisma or Drizzle.
-
----
-
-## Architecture
+Almost every modern web application talks to a database. RudderJS makes that interaction painless through `@rudderjs/orm` — a unified `Model` base class that works with either Prisma or Drizzle as the adapter. The same model code runs against either; the adapter handles all SQL and connection pooling.
 
 ```
 Model (from @rudderjs/orm)
   └── ModelRegistry.getAdapter()
         └── OrmAdapter (interface)
-              ├── PrismaAdapter  (@rudderjs/orm-prisma)
-              └── DrizzleAdapter (@rudderjs/orm-drizzle)
+              ├── PrismaAdapter   (@rudderjs/orm-prisma)
+              └── DrizzleAdapter  (@rudderjs/orm-drizzle)
 ```
 
-`@rudderjs/orm` defines the `Model` base class and `ModelRegistry`. The adapter packages implement the `OrmAdapter` interface and register themselves into the registry during the provider boot phase.
+## Choosing an adapter
 
----
-
-## Choosing a Provider
+Both adapters are first-party and feature-equivalent at the model layer. The choice comes down to schema preference.
 
 | | Prisma | Drizzle |
 |---|---|---|
-| **Schema** | `prisma/schema.prisma` (SDL) | TypeScript schema files |
-| **Migrations** | `prisma migrate dev/deploy` | `drizzle-kit generate/migrate` |
-| **Type safety** | Generated client types | Schema-inferred types |
-| **Relations** | `with()` supported | `with()` is a no-op — use raw Drizzle |
-| **Drivers** | SQLite, PostgreSQL, MySQL, libSQL | SQLite, PostgreSQL, libSQL |
-| **Best for** | Full-featured apps, familiar SQL DX | Lightweight, schema-as-code preference |
+| Schema | `prisma/schema/*.prisma` (SDL) | TypeScript schema files |
+| Migrations | `prisma migrate dev/deploy` | `drizzle-kit generate/migrate` |
+| Type safety | Generated client | Schema-inferred |
+| Relations via `Model.with()` | Supported | No-op (use raw Drizzle) |
+| Drivers | SQLite, PostgreSQL, MySQL, libSQL | SQLite, PostgreSQL, libSQL |
 
-Both adapters work identically from the Model layer. You can switch adapters without changing any Model code.
+For setup details see [Prisma Adapter](/guide/database/prisma) or [Drizzle Adapter](/guide/database/drizzle). The rest of this guide is adapter-neutral.
 
----
+## Quick start
 
-## Prisma Setup
-
-### 1. Install
-
-```bash
-pnpm add @rudderjs/orm @rudderjs/orm-prisma @prisma/client
-pnpm add -D prisma
-```
-
-For SQLite (local development), also install:
-
-```bash
-pnpm add better-sqlite3 @prisma/adapter-better-sqlite3
-pnpm add -D @types/better-sqlite3
-```
-
-### 2. Multi-file Prisma Schema
-
-RudderJS uses a **multi-file schema** layout. Instead of a single `prisma/schema.prisma`, schemas are split into separate files inside a `prisma/schema/` directory:
-
-```
-prisma/
-├── schema/
-│   ├── base.prisma          # generator + datasource
-│   ├── user.prisma          # User model
-│   ├── post.prisma          # Post model
-│   ├── auth.prisma          # Auth models (published by @rudderjs/auth)
-│   └── notification.prisma  # Notification model (published by @rudderjs/notification)
-└── prisma.config.ts         # Points to prisma/schema directory
-```
-
-Each concern lives in its own file. RudderJS packages can publish their own schema files via `pnpm rudder vendor:publish --tag=<pkg>-schema` (see [Schema Publishing](#schema-publishing) below).
-
-### 3. Configure prisma.config.ts
-
-The `prisma.config.ts` file at the project root tells Prisma where to find the schema directory and how to connect:
+Once a model is defined and the database provider is registered, querying is a one-liner:
 
 ```ts
-// prisma.config.ts
-import path from 'node:path'
-import { defineConfig } from 'prisma/config'
+import { User } from '../app/Models/User.js'
 
-export default defineConfig({
-  earlyAccess: true,
-  schema: path.join(__dirname, 'prisma', 'schema'),
-})
+const all       = await User.all()
+const alice     = await User.where('email', 'alice@example.com').first()
+const admins    = await User.where('role', 'admin').orderBy('createdAt', 'DESC').get()
+const created   = await User.create({ name: 'Bob', email: 'bob@example.com' })
 ```
 
-The datasource URL is configured in the `base.prisma` file inside the schema directory, not in `prisma.config.ts`.
+The full Model API — defining models, mass assignment, hidden fields, custom scopes — lives in [Models](/guide/database/models).
 
-### 4. Define your schema
+## Configuration
 
-```prisma
-// prisma/schema/base.prisma
-generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["prismaSchemaFolder"]
-}
-
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-```prisma
-// prisma/schema/user.prisma
-model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-}
-```
-
-```prisma
-// prisma/schema/post.prisma
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  authorId  String
-}
-```
-
-### 5. Push schema + generate client
-
-```bash
-pnpm rudder db:push            # sync schema to the database (no migration file)
-pnpm rudder db:generate        # regenerate the Prisma client
-```
-
-### 5. Register the provider
-
-```ts
-// bootstrap/providers.ts
-import { database } from '@rudderjs/orm-prisma'
-import configs from '../config/index.js'
-
-export default [
-  database(configs.database),   // first — sets up ModelRegistry before other providers boot
-  // ...other providers
-]
-```
-
-`database()` handles connection, `ModelRegistry.set()`, and DI binding (`'prisma'` key) in one call.
-
-A typical `config/database.ts`:
+`config/database.ts` describes the connection. The default driver is `sqlite` for local development:
 
 ```ts
 import { Env } from '@rudderjs/support'
@@ -158,370 +56,82 @@ export default {
 }
 ```
 
----
+Most apps only set `DATABASE_URL` in `.env` and let the rest default.
 
-## Drizzle Setup
+## Unified rudder commands
 
-### 1. Install
-
-```bash
-pnpm add @rudderjs/orm @rudderjs/orm-drizzle drizzle-orm
-pnpm add -D drizzle-kit
-```
-
-Then install the driver for your database:
+The framework wraps both ORMs' migration tooling behind a uniform set of `rudder` commands. They auto-detect which adapter is in use and delegate to the underlying tool:
 
 ```bash
-# SQLite
-pnpm add better-sqlite3 && pnpm add -D @types/better-sqlite3
-
-# PostgreSQL
-pnpm add postgres
-
-# libSQL / Turso
-pnpm add @libsql/client
-```
-
-### 2. Define your schema
-
-```ts
-// database/schema.ts
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-
-export const users = sqliteTable('users', {
-  id:        text('id').primaryKey(),
-  name:      text('name').notNull(),
-  email:     text('email').notNull().unique(),
-  role:      text('role').notNull().default('user'),
-  createdAt: text('created_at').notNull(),
-})
-
-export const posts = sqliteTable('posts', {
-  id:        text('id').primaryKey(),
-  title:     text('title').notNull(),
-  body:      text('body').notNull(),
-  published: integer('published', { mode: 'boolean' }).notNull().default(false),
-  authorId:  text('author_id').notNull(),
-  createdAt: text('created_at').notNull(),
-})
-```
-
-### 3. Configure drizzle-kit
-
-```ts
-// drizzle.config.ts
-import { defineConfig } from 'drizzle-kit'
-
-export default defineConfig({
-  schema:    './database/schema.ts',
-  out:       './database/migrations',
-  dialect:   'sqlite',
-  dbCredentials: { url: process.env.DATABASE_URL ?? 'file:./dev.db' },
-})
-```
-
-### 4. Push schema + generate
-
-```bash
-pnpm exec drizzle-kit push      # sync schema to the database (no migration file)
-```
-
-### 5. Register the provider
-
-```ts
-// app/Providers/DatabaseServiceProvider.ts
-import { ServiceProvider } from '@rudderjs/core'
-import { drizzle } from '@rudderjs/orm-drizzle'
-import { ModelRegistry } from '@rudderjs/orm'
-import * as schema from '../../database/schema.js'
-
-export class DatabaseServiceProvider extends ServiceProvider {
-  async boot(): Promise<void> {
-    const adapter = await drizzle({
-      driver: 'sqlite',
-      url:    process.env.DATABASE_URL ?? 'file:./dev.db',
-      tables: {
-        user: schema.users,
-        post: schema.posts,
-      },
-    }).create()
-
-    await adapter.connect()
-    ModelRegistry.set(adapter)
-    this.app.instance('db', adapter)
-  }
-}
-```
-
-```ts
-// bootstrap/providers.ts
-import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
-
-export default [
-  DatabaseServiceProvider,   // first — sets up ModelRegistry
-  // ...other providers
-]
-```
-
----
-
-## Defining Models
-
-All models extend `Model` from `@rudderjs/orm`:
-
-```ts
-import { Model } from '@rudderjs/orm'
-
-export class User extends Model {
-  // Required: maps to the adapter-specific table/accessor
-  static table = 'user'
-
-  // Optional: primary key column (default: 'id')
-  static primaryKey = 'id'
-
-  // Optional: fields excluded from toJSON() output
-  static hidden: string[] = ['password']
-
-  // Optional: fields allowed for mass assignment
-  static fillable: string[] = ['name', 'email', 'role']
-
-  // Property declarations — define the shape of your data
-  id!:        string
-  name!:      string
-  email!:     string
-  role!:      string
-  createdAt!: Date
-}
-```
-
-### `static table` — adapter mapping
-
-The `table` value means different things per adapter:
-
-| Adapter | `static table` value | Reason |
-|---|---|---|
-| **Prisma** | Lowercase Prisma model name | Prisma accessor is the model name in camelCase/lowercase — `model User` → `prismaClient.user` |
-| **Drizzle** | Key in the `tables: {}` object | The string key you used when registering tables with the adapter |
-
-```ts
-// Prisma: model User → accessor 'user'
-static table = 'user'
-
-// Prisma: model BlogPost → accessor 'blogPost'
-static table = 'blogPost'
-
-// Drizzle: tables: { post: postsTable }
-static table = 'post'
-```
-
-If `static table` is not set, it defaults to the lowercase class name + `s` (e.g. `User` → `users`). Always set it explicitly to avoid surprises.
-
----
-
-## Querying Models
-
-### Fetch all records
-
-```ts
-const users = await User.all()
-```
-
-### Find by primary key
-
-```ts
-const user = await User.find('clx1234...')
-// returns User | null
-```
-
-### Filter with where
-
-```ts
-// Equality
-const admins = await User.where('role', 'admin').get()
-
-// Operator form
-const recent = await User.where('createdAt', '>', new Date('2024-01-01')).get()
-
-// Chain filters
-const result = await User
-  .where('role', 'admin')
-  .where('name', 'like', 'A%')
-  .orderBy('createdAt', 'DESC')
-  .limit(10)
-  .get()
-
-// First match
-const alice = await User.where('email', 'alice@example.com').first()
-```
-
-### Create a record
-
-```ts
-const user = await User.create({
-  id:    crypto.randomUUID(),
-  name:  'Alice',
-  email: 'alice@example.com',
-  role:  'user',
-})
-```
-
-### Update a record
-
-```ts
-const updated = await User.query().update('clx1234...', { role: 'admin' })
-```
-
-### Delete a record
-
-```ts
-await User.query().delete('clx1234...')
-```
-
-### Pagination
-
-```ts
-const page = await User.where('role', 'user').paginate(1, 20)
-
-console.log(page.data)        // User[] — up to 20 records
-console.log(page.total)       // total matching records
-console.log(page.currentPage) // 1
-console.log(page.lastPage)    // total pages
-```
-
-### Count
-
-```ts
-const total = await User.query().count()
-```
-
----
-
-## Unified Database Commands
-
-RudderJS provides a unified set of rudder commands that work with both Prisma and Drizzle. The commands auto-detect which ORM is in use and delegate to the appropriate tool.
-
-```bash
-pnpm rudder migrate              # run pending migrations
-pnpm rudder migrate:fresh        # drop all tables + re-migrate from scratch
+pnpm rudder migrate              # apply pending migrations (production-safe)
+pnpm rudder migrate:fresh        # drop all tables and re-migrate from scratch (dev only)
 pnpm rudder migrate:status       # show migration status
-pnpm rudder make:migration <name> # create a new migration file
-pnpm rudder db:push              # push schema directly (no migration file)
-pnpm rudder db:generate          # regenerate client (Prisma only)
+pnpm rudder make:migration <name>  # create a new migration file
+pnpm rudder db:push              # push schema directly without a migration file (dev only)
+pnpm rudder db:generate          # regenerate the Prisma client (no-op for Drizzle)
+pnpm rudder db:seed              # run the seed command from routes/console.ts
 ```
 
-Under the hood, each command maps to the native ORM tool:
-
-| Rudder Command | Prisma Equivalent | Drizzle Equivalent |
-|---|---|---|
-| `migrate` | `prisma migrate deploy` | `drizzle-kit migrate` |
-| `migrate:fresh` | `prisma migrate reset` | drop all + `drizzle-kit migrate` |
-| `migrate:status` | `prisma migrate status` | `drizzle-kit status` |
-| `make:migration <name>` | `prisma migrate dev --name <name>` | `drizzle-kit generate` |
-| `db:push` | `prisma db push` | `drizzle-kit push` |
-| `db:generate` | `prisma generate` | *(no-op)* |
-
-**Typical development workflow:**
+A typical development loop:
 
 ```bash
-# 1. Edit your schema files (prisma/schema/*.prisma or database/schema.ts)
-
-# 2a. Quick sync (no history, good for local iteration)
+# 1. Edit your schema (prisma/schema/*.prisma or database/schema.ts)
+# 2. Quick sync — no migration file, good for fast iteration
 pnpm rudder db:push
-
-# 2b. OR create a tracked migration (use this when the change is ready)
-pnpm rudder make:migration add_published_to_posts
-
-# 3. Regenerate the client after schema changes (Prisma only)
+# 3. Regenerate Prisma client (Prisma only)
 pnpm rudder db:generate
 ```
 
-**Production deployment:**
+When the change is ready to ship, replace step 2 with a tracked migration:
 
 ```bash
-# Apply all pending migrations — safe to run in CI/CD
+pnpm rudder make:migration add_published_to_posts
 pnpm rudder migrate
 ```
 
-Migration files are stored in `prisma/migrations/` (Prisma) or the `out` directory from `drizzle.config.ts` (Drizzle), and should be committed to version control.
+Production deploys run only `pnpm rudder migrate` — never `db:push` or `migrate:fresh`.
 
----
+## Provider boot order
 
-## Schema Publishing
+The database provider must boot **before any provider whose `boot()` queries models**. The auto-discovery system already orders this correctly — `orm-prisma` (or `orm-drizzle`) sits in the `infrastructure` stage and runs ahead of `feature` providers like queues and notifications. If you list providers manually, put the database first:
 
-RudderJS packages that require database tables can publish their own schema files into your project. This keeps package schemas separate from your application schemas while still allowing Prisma's multi-file schema to merge them all.
-
-```bash
-pnpm rudder vendor:publish --tag=auth-schema          # publishes prisma/schema/auth.prisma
-pnpm rudder vendor:publish --tag=notification-schema   # publishes prisma/schema/notification.prisma
+```ts
+export default [
+  database(configs.database),    // first
+  AppServiceProvider,             // last
+]
 ```
 
-After publishing, run `pnpm rudder db:push` or `pnpm rudder make:migration` to apply the new tables.
+## Schema publishing
 
----
+Packages that ship database tables publish their schema files into your project so Prisma's multi-file schema can pick them up:
 
-## Legacy Prisma/Drizzle Commands
+```bash
+pnpm rudder vendor:publish --tag=auth-schema          # → prisma/schema/auth.prisma
+pnpm rudder vendor:publish --tag=notification-schema   # → prisma/schema/notification.prisma
+```
 
-You can still use the native Prisma and Drizzle CLI commands directly if you prefer, but the unified rudder commands are recommended for consistency.
-
-### Prisma (direct)
-
-| Command | When to use |
-|---|---|
-| `pnpm exec prisma db push` | Development — sync schema instantly |
-| `pnpm exec prisma migrate dev` | Development — create a named migration + apply |
-| `pnpm exec prisma migrate deploy` | Production — apply pending migrations |
-| `pnpm exec prisma migrate reset` | Development — drop + re-migrate |
-
-### Drizzle (direct)
-
-| Command | When to use |
-|---|---|
-| `pnpm exec drizzle-kit push` | Development — sync schema instantly |
-| `pnpm exec drizzle-kit generate` | Generate a migration SQL file |
-| `pnpm exec drizzle-kit migrate` | Apply pending migrations |
-
----
+After publishing, run `pnpm rudder db:push` or create a migration to apply the new tables. Each package's documentation lists the right tag.
 
 ## Seeding
 
-Define seed commands using the rudder registry in `routes/console.ts`:
+Seed scripts live in `routes/console.ts` as rudder commands:
 
 ```ts
 import { rudder } from '@rudderjs/rudder'
 import { User } from '../app/Models/User.js'
-import { Post } from '../app/Models/Post.js'
 
 rudder.command('db:seed', async () => {
-  const alice = await User.create({
-    id:    crypto.randomUUID(),
-    name:  'Alice',
-    email: 'alice@example.com',
-    role:  'admin',
-  })
-
-  await Post.create({
-    id:       crypto.randomUUID(),
-    title:    'Hello World',
-    body:     'My first post.',
-    authorId: alice.id,
-  })
-
+  await User.create({ name: 'Alice', email: 'alice@example.com', role: 'admin' })
   console.log('Database seeded.')
 }).description('Seed the database with sample data')
 ```
 
-Run it:
+Run with `pnpm rudder db:seed`.
 
-```bash
-pnpm rudder db:seed
-```
+## Pitfalls
 
----
-
-## Notes
-
-- Always place the database provider **first** in `bootstrap/providers.ts` — other providers that query models depend on `ModelRegistry` being set during the boot phase.
-- Run `pnpm exec prisma generate` after every schema change — the TypeScript types in your app will be stale until you regenerate the client.
-- For Prisma, `static table` must match the **Prisma accessor name** — the lowercase version of the model name, not the table name in the database. `model BlogPost` → `blogPost`, not `blog_posts`.
-- For Drizzle, `static table` must match the **key** in the `tables: {}` object you pass to `drizzle()`. The key can be anything, but keep it consistent with model names.
-- In production, always use tracked migrations (`prisma migrate deploy` / `drizzle-kit migrate`) rather than push commands — push can cause data loss on destructive changes.
+- **`static table` mismatch.** For Prisma, the value is the **delegate** name (camelCase, e.g. `blogPost`) — not the SQL table name (`blog_posts`). For Drizzle, it's the key in the `tables: {}` object passed to the adapter.
+- **Stale Prisma client after schema change.** Run `pnpm rudder db:generate` (or `pnpm exec prisma generate`) — the TypeScript types in your app go stale until you regenerate.
+- **Records aren't Model instances.** Query results are plain objects without prototype methods. See [Models](/guide/database/models) for the helpers pattern.
+- **`db:push` in production.** Use tracked migrations (`pnpm rudder migrate`) — `db:push` can drop columns silently on destructive changes.

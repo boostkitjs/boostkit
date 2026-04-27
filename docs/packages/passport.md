@@ -278,6 +278,6 @@ Tables in `schema/passport.prisma`:
 
 ## Related
 
-- [`@rudderjs/auth`](./auth/) — session-based web auth (login, register, password reset, Gate/Policy)
-- [`@rudderjs/orm`](./orm/) — ORM for the OAuth models
+- [Authentication guide](/guide/authentication) — session-based web auth
+- [Database guide](/guide/database) — ORM models the OAuth tables build on
 - [OAuth 2.1 draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-10) — the spec Passport targets
