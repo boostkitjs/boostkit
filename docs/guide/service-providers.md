@@ -1,175 +1,188 @@
 # Service Providers
 
-Service providers are the central place to bootstrap and wire up your application's features. They are RudderJS's equivalent of Laravel's service providers.
-
-## Overview
-
-Every significant piece of RudderJS functionality — database connections, queue adapters, cache stores, mailers — is registered through a service provider. When you add a new integration, you typically add one provider class to `bootstrap/providers.ts`.
+Service providers are where your application is bootstrapped. Every significant piece of RudderJS — database connections, queue adapters, cache stores, mailers — is registered through a provider. When you add an integration, you typically add one provider class to `bootstrap/providers.ts`.
 
 ## Lifecycle
 
-Each service provider has two lifecycle hooks:
+Each provider has two hooks:
 
-| Method | Called when | Purpose |
-|--------|-------------|---------|
-| `register()` | Before boot | Bind services/singletons into the DI container |
-| `boot()` | After all `register()` calls | Connect adapters, run setup that depends on other providers |
+| Method | When it runs | Purpose |
+|---|---|---|
+| `register()` | Before any `boot()` | Bind services and singletons into the container |
+| `boot()` | After all providers have registered | Connect adapters, run setup that depends on other providers |
 
-**Important**: Do not call `this.app.make()` in `register()` — other providers may not have registered yet. Use `boot()` for anything that depends on the container being fully populated.
+Do not call `this.app.make()` in `register()` — other providers may not have registered yet. Use `boot()` for anything that depends on the container being fully populated.
 
-## Creating a Provider
+## Creating a provider
 
 Extend `ServiceProvider` from `@rudderjs/core`:
 
 ```ts
 import { ServiceProvider } from '@rudderjs/core'
 import { MyService } from '../Services/MyService.js'
-import { MyDependency } from '../Services/MyDependency.js'
 
 export class AppServiceProvider extends ServiceProvider {
   register(): void {
-    // Bind a factory — new instance on every make()
-    this.app.bind(MyService, () => new MyService())
-
-    // Bind a singleton — same instance on every make()
-    this.app.singleton(MyDependency, () => new MyDependency())
+    this.app.singleton(MyService, () => new MyService())
   }
 
   async boot(): Promise<void> {
-    // Safe to resolve other services here
-    const dep = this.app.make(MyDependency)
     const svc = this.app.make(MyService)
-    await svc.initialize(dep)
+    await svc.initialize()
   }
 }
 ```
 
-## Registering Providers
+`register()` is synchronous; `boot()` may be `async`. Generate a stub with `pnpm rudder make:provider Name`.
 
-List provider classes (not instances) in `bootstrap/providers.ts`:
+## Auto-discovery
+
+Framework providers ship a `rudderjs` field in their `package.json` that tells RudderJS how and when to boot them. The `pnpm rudder providers:discover` command scans `node_modules` for these fields and writes a sorted manifest to `bootstrap/cache/providers.json`. The `defaultProviders()` helper from `@rudderjs/core` reads that manifest at boot.
 
 ```ts
-import type { Application, ServiceProvider } from '@rudderjs/core'
-import { prismaProvider }          from '@rudderjs/orm-prisma'
-import { auth }                    from '@rudderjs/auth'
-import { queue }                   from '@rudderjs/queue'
-import { cache }                   from '@rudderjs/cache'
-import { mail }                    from '@rudderjs/mail'
-import { session }                 from '@rudderjs/session'
-import { notifications }           from '@rudderjs/notification'
-import { DatabaseServiceProvider } from '../app/Providers/DatabaseServiceProvider.js'
-import { AppServiceProvider }      from '../app/Providers/AppServiceProvider.js'
-import configs                     from '../config/index.js'
+// bootstrap/providers.ts
+import { defaultProviders } from '@rudderjs/core'
+import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
 
 export default [
-  prismaProvider(configs.database), // boots first — binds PrismaClient to DI as 'prisma'
-  auth(configs.auth),               // auto-discovers 'prisma' from DI
-  session(configs.session),
-  queue(configs.queue),
-  mail(configs.mail),
-  notifications(),                  // must come after mail()
-  cache(configs.cache),
-  DatabaseServiceProvider,          // must appear before AppServiceProvider — sets ModelRegistry
+  ...(await defaultProviders()),
   AppServiceProvider,
-] satisfies (new (app: Application) => ServiceProvider)[]
+]
 ```
 
-Some packages export **provider factories** (functions that return a provider class) rather than plain classes. The factory takes config and returns a class:
+That is the entire file. Adding a new framework package and re-running `providers:discover` is enough — no imports to add, no array to maintain. The scaffolder runs `providers:discover` automatically when you scaffold with `--install`.
 
-```ts
-// authProvider(config) returns a class extending ServiceProvider
-const AuthProvider = authProvider(configs.auth)
-// → class AuthServiceProvider extends ServiceProvider { ... }
-```
+### The `rudderjs` field
 
-You can use them directly in the array — both class references and instantiated-via-factory classes are valid.
-
-## The `app()` Helper
-
-Inside providers (and anywhere after boot), use `app()` to retrieve the application container:
-
-```ts
-import { app } from '@rudderjs/core'
-
-const service = app().make(UserService)
-```
-
-## Built-in Provider Factories
-
-| Factory | Package | What it registers |
-|---------|---------|------------------|
-| `prismaProvider(config)` | `@rudderjs/orm-prisma` | PrismaClient bound to DI as `'prisma'` |
-| `queue(config)` | `@rudderjs/queue` | Queue adapter, `queue:work` command |
-| `cache(config)` | `@rudderjs/cache` | Cache adapter |
-| `storage(config)` | `@rudderjs/storage` | Storage adapter, `storage:link` command |
-| `mail(config)` | `@rudderjs/mail` | Mail adapter |
-| `events(listenMap)` | `@rudderjs/core` | Event dispatcher, listener registration |
-| `scheduler()` | `@rudderjs/schedule` | Schedule instance, `schedule:*` commands |
-| `auth(config)` | `@rudderjs/auth` | Auth instance, `/api/auth/*` routes |
-| `session(config)` | `@rudderjs/session` | Session driver (cookie/redis), `SessionMiddleware()` factory |
-| `notifications()` | `@rudderjs/notification` | Mail + database channels |
-
-## DatabaseServiceProvider Pattern
-
-The database provider follows a consistent pattern:
-
-```ts
-import { ServiceProvider } from '@rudderjs/core'
-import { prisma } from '@rudderjs/orm-prisma'
-import { ModelRegistry } from '@rudderjs/orm'
-
-export class DatabaseServiceProvider extends ServiceProvider {
-  async boot(): Promise<void> {
-    const adapter = await prisma().create()
-    await adapter.connect()
-
-    // Required — all Model.* static methods route through this
-    ModelRegistry.set(adapter)
-
-    // Optional — inject the raw adapter for custom queries
-    this.app.instance('db', adapter)
+```json
+{
+  "rudderjs": {
+    "provider":     "QueueProvider",
+    "stage":        "feature",
+    "depends":      ["@rudderjs/log"],
+    "optional":     false,
+    "autoDiscover": true
   }
 }
 ```
 
-## Publishing Assets
+| Field | Purpose |
+|---|---|
+| `provider` | The PascalCase class name exported from the package's main entry |
+| `stage` | One of `foundation`, `infrastructure`, `feature`, `monitoring` — coarse boot order |
+| `depends` | Package names that must boot before this one — topo-sorted within the stage |
+| `optional` | If `true`, missing peer is silently skipped. Use for drivers (e.g. one of two ORM packages) |
+| `autoDiscover` | Set to `false` to opt out of discovery — users register manually |
 
-Packages can declare files that users copy into their application with `pnpm rudder vendor:publish`. This is RudderJS's equivalent of Laravel's `vendor:publish`.
+### Stages
+
+Stages give the framework a coarse boot order. Within a stage, `depends` determines fine ordering via topological sort.
+
+| Stage | Examples |
+|---|---|
+| `foundation` | log |
+| `infrastructure` | orm-prisma, session, hash, cache, auth |
+| `feature` | queue, mail, storage, notification, broadcast, sync, ai |
+| `monitoring` | telescope, pulse, horizon |
+
+A `feature` provider is guaranteed to boot after every `infrastructure` provider, no matter what `depends` says. Cross-stage dependencies are tolerated but unnecessary — stage order already enforces them. Circular dependencies throw at sort time with a clear cycle message.
+
+### Multi-driver resolution
+
+When two packages share a common prefix (`@rudderjs/orm-prisma` and `@rudderjs/orm-drizzle`), the loader picks one based on a config key:
+
+```ts
+// config/database.ts
+export default { driver: 'prisma' }
+```
+
+`defaultProviders()` reads `config('database.driver')` and filters out the losers. If the key is unset, the first installed driver wins. If set but unmatched, boot throws.
+
+### Dev-mode boot log
+
+When the app boots in development and `defaultProviders()` was used, RudderJS prints the loaded providers grouped by stage right before `[RudderJS] ready`:
+
+```
+[RudderJS] 19 providers booted
+  ├─ foundation      log
+  ├─ infrastructure  session, hash, auth, cache, orm-prisma
+  ├─ feature         ai, broadcast, sync, mail, queue, storage
+  └─ monitoring      telescope
+```
+
+If you forget to run `providers:discover` after installing a package, the missing entry is visible at every boot — instead of failing silently when first used. Production stays silent.
+
+## Opt-out paths
+
+### Skip a specific provider
+
+```ts
+export default [
+  ...(await defaultProviders({ skip: ['@rudderjs/horizon'] })),
+  AppServiceProvider,
+]
+```
+
+The package stays installed but does not boot. Useful for registering a custom subclass instead.
+
+### Opt a package out at the package level
+
+If your package's `boot()` has side effects users should not trigger by default (e.g. starting a worker), set `autoDiscover: false` in your `package.json`. Users import the class and add it to their providers array explicitly.
+
+### Turn off auto-discovery entirely
+
+Don't call `defaultProviders()`. Import each provider class explicitly:
+
+```ts
+import { LogProvider } from '@rudderjs/log'
+import { CacheProvider } from '@rudderjs/cache'
+import { AuthProvider } from '@rudderjs/auth'
+
+export default [LogProvider, CacheProvider, AuthProvider, AppServiceProvider]
+```
+
+You take ownership of the order yourself.
+
+## Publishing assets
+
+Packages can declare files that users copy into their application with `pnpm rudder vendor:publish` — config stubs, view templates, Prisma shards, anything the consumer needs to own and edit.
 
 Call `this.publishes()` inside `boot()`:
 
 ```ts
-import { ServiceProvider } from '@rudderjs/core'
-
 export class MyPackageServiceProvider extends ServiceProvider {
-  register(): void {}
-
   async boot(): Promise<void> {
     this.publishes({
-      from: new URL('../pages', import.meta.url).pathname, // absolute source path
-      to:   'pages/(panels)',                              // destination relative to app root
-      tag:  'my-package-pages',                           // optional tag for selective publishing
+      from: new URL('../views', import.meta.url).pathname,
+      to:   'app/Views/MyPackage',
+      tag:  'my-package-views',
     })
   }
 }
 ```
 
-Users then run:
+Users run:
 
 ```bash
-pnpm rudder vendor:publish --list                               # see what's available
-pnpm rudder vendor:publish --tag=my-package-pages               # publish by tag
-pnpm rudder vendor:publish --provider=MyPackageServiceProvider  # publish by provider
-pnpm rudder vendor:publish --force                              # overwrite existing files
+pnpm rudder vendor:publish --list
+pnpm rudder vendor:publish --tag=my-package-views
+pnpm rudder vendor:publish --provider=MyPackageServiceProvider
+pnpm rudder vendor:publish --force
 ```
 
-Published files are owned by the user — they can edit them freely. Re-running `vendor:publish` without `--force` skips files that already exist.
+Published files belong to the user — they can edit them freely. Re-running `vendor:publish` without `--force` skips files that already exist.
+
+## Common errors
+
+**`@rudderjs/X listed in the provider manifest but not installed`** — the manifest still references a removed package. Run `pnpm rudder providers:discover` to refresh.
+
+**`Multiple @rudderjs/orm-* drivers installed but config('database.driver') is "..."`** — set `config('database.driver')` to one of the installed packages.
+
+**`<package> declared provider "X" in package.json but no such class is exported`** — the `rudderjs.provider` field doesn't match any export. Check the class name in `src/index.ts`.
 
 ## Tips
 
-- Keep providers focused — one concern per provider
-- Provider files live in `app/Providers/` by convention
-- Generate a stub with `pnpm rudder make:provider Name`
-- The `register()` hook is synchronous; `boot()` can be `async`
-- Providers are classes — they can have constructor parameters injected if you instantiate them manually
-- Use `this.publishes()` in `boot()`, not `register()` — `register()` may be overridden by factory functions
+- Provider files live in `app/Providers/` by convention.
+- Keep providers focused — one concern per provider.
+- Custom providers in `app/Providers/` (your `AppServiceProvider`) don't need a `rudderjs` field — they're not in `node_modules` and you list them explicitly.
+- For tests, the loader gracefully degrades to a minimal built-in registry if no manifest exists.

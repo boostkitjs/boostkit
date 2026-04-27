@@ -42,4 +42,4 @@ Both are native to RudderJS — no third-party auth library required.
 ## Related guides
 
 - [Middleware](/guide/middleware) — how the `web` / `api` groups drive auth middleware installation
-- [Controller Views](/guide/views) — how the scaffolded auth pages plug in via `registerAuthRoutes()`
+- [Frontend](/guide/frontend) — how the scaffolded auth pages plug in via `registerAuthRoutes()`

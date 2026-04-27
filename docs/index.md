@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "RudderJS"
   text: "Node.js Full-Stack Framework"
-  tagline: "Laravel's developer experience, reimagined for the Node.js ecosystem."
+  tagline: "An expressive, batteries-included full-stack framework for TypeScript."
   image:
     src: /logo.png
     alt: RudderJS
@@ -21,8 +21,8 @@ hero:
 
 features:
   - icon: ⚡
-    title: Laravel-Inspired DX
-    details: Familiar patterns — service providers, rudder CLI, Eloquent-style ORM, fluent middleware pipeline — without the PHP runtime.
+    title: Expressive DX
+    details: Service providers, the Rudder CLI, an expressive ORM, fluent middleware groups — convention over configuration, batteries included.
   - icon: 🧩
     title: Modular by Design
     details: Every feature is an optional package. Use only what you need. Zero lock-in to any specific database, queue, or storage engine.

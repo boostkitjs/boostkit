@@ -33,49 +33,59 @@ export default defineConfig({
     sidebar: {
       '/guide/': [
         {
+          text: 'Prologue',
+          items: [
+            { text: 'Release Notes', link: 'https://github.com/rudderjs/rudder/releases' },
+            { text: 'Contributing', link: '/contributing/' },
+          ],
+        },
+        {
           text: 'Getting Started',
           items: [
             { text: 'What is RudderJS?', link: '/guide/' },
             { text: 'Installation', link: '/guide/installation' },
-            { text: 'Your First App', link: '/guide/your-first-app' },
+            { text: 'Configuration', link: '/guide/configuration' },
             { text: 'Directory Structure', link: '/guide/directory-structure' },
-            { text: 'Coming from Next.js', link: '/guide/coming-from-nextjs' },
+            { text: 'Frontend', link: '/guide/frontend' },
+            { text: 'Deployment', link: '/guide/deployment' },
           ],
         },
         {
-          text: 'Core Concepts',
+          text: 'Architecture Concepts',
           items: [
-            { text: 'Configuration', link: '/guide/configuration' },
+            { text: 'Request Lifecycle', link: '/guide/lifecycle' },
+            { text: 'Service Container', link: '/guide/container' },
             { text: 'Service Providers', link: '/guide/service-providers' },
-            { text: 'Provider Auto-Discovery', link: '/guide/auto-discovery' },
-            { text: 'Dependency Injection', link: '/guide/dependency-injection' },
+            { text: 'Facades', link: '/guide/facades' },
+          ],
+        },
+        {
+          text: 'The Basics',
+          items: [
             { text: 'Routing', link: '/guide/routing' },
             { text: 'Middleware', link: '/guide/middleware' },
             { text: 'Validation', link: '/guide/validation' },
-            { text: 'Database & Models', link: '/guide/database' },
-            { text: 'Frontend Pages & SSR', link: '/guide/frontend-pages' },
-            { text: 'Controller Views', link: '/guide/views' },
+          ],
+        },
+        {
+          text: 'Database',
+          items: [
+            { text: 'Getting Started', link: '/guide/database' },
+          ],
+        },
+        {
+          text: 'Digging Deeper',
+          items: [
             { text: 'Rudder Console', link: '/guide/rudder' },
-          ],
-        },
-        {
-          text: 'Real-time',
-          items: [
             { text: 'Broadcasting & Sync', link: '/guide/websockets' },
-          ],
-        },
-        {
-          text: 'AI & MCP',
-          items: [
             { text: 'AI', link: '/guide/ai' },
             { text: 'MCP', link: '/guide/mcp' },
           ],
         },
         {
-          text: 'Production',
+          text: 'Testing',
           items: [
-            { text: 'Testing', link: '/guide/testing' },
-            { text: 'Deployment', link: '/guide/deployment' },
+            { text: 'Getting Started', link: '/guide/testing' },
           ],
         },
       ],

@@ -1,103 +1,86 @@
 # Installation
 
-## Prerequisites
+## Requirements
 
 - **Node.js** 18 or later
-- Any of: **pnpm**, **npm**, **yarn**, or **bun**
+- One of: **pnpm**, **npm**, **yarn**, or **bun**
 
-## Option 1: create-rudder-app (Recommended)
+## Scaffold a new project
 
-The fastest way to start a new RudderJS project is with the official scaffolder. Use whichever package manager you prefer — the installer auto-detects it and adapts all generated files and next-step instructions accordingly:
+The fastest way to start is the `create-rudder-app` scaffolder. It detects your package manager and adapts every generated file accordingly.
 
 ```bash
 pnpm create rudder-app my-app
-# or
-npm create rudder-app@latest my-app
-# or
-yarn create rudder-app my-app
-# or
-bunx create-rudder-app my-app
+# or: npm create rudder-app@latest my-app
+# or: yarn create rudder-app my-app
+# or: bunx create-rudder-app my-app
 ```
 
-The CLI walks you through a series of prompts, adapting follow-up questions based on your choices:
+The scaffolder asks a series of questions, then generates only the code for the choices you made. Selected packages get added to `package.json`, registered in `bootstrap/providers.ts`, and have their config files generated. Unselected packages are excluded entirely — no dead code, no orphan config.
 
-| # | Prompt | Options | Default | Condition |
-|---|--------|---------|---------|-----------|
-| 1 | **Project name** | any string | — | always |
-| 2 | **Database ORM** | Prisma · Drizzle · None | Prisma | always |
-| 3 | **Database driver** | SQLite · PostgreSQL · MySQL | SQLite | only when ORM selected |
-| 4 | **Packages** | Auth · Cache · Queue · Storage · Mail · Notifications · Scheduler · WebSocket · Real-time Collab · AI · MCP · Passport · Localization · Telescope · Boost *(multiselect)* | — | always |
-| 5 | **Include Todo module?** | yes / no | yes | only when a database ORM is selected |
-| 6 | **Frontend frameworks** | React · Vue · Solid *(multiselect)* | React | always |
-| 7 | **Primary framework** | one of the selected | — | only when >1 framework selected |
-| 8 | **Add Tailwind CSS?** | yes / no | yes | always |
-| 9 | **Add shadcn/ui?** | yes / no | yes | only when React + Tailwind |
-| 10 | **Install dependencies?** | yes / no | yes | always |
+| # | Prompt | Notes |
+|---|---|---|
+| 1 | Project name | — |
+| 2 | Database ORM | Prisma · Drizzle · None |
+| 3 | Database driver | SQLite · PostgreSQL · MySQL — only when an ORM is selected |
+| 4 | Packages *(multiselect)* | Auth · Cache · Queue · Storage · Mail · Notifications · Scheduler · WebSocket · Sync · AI · MCP · Passport · Localization · Telescope · Boost |
+| 5 | Include Todo module? | only when an ORM is selected |
+| 6 | Frontend frameworks | React · Vue · Solid (multiselect) |
+| 7 | Primary framework | only when more than one is selected |
+| 8 | Add Tailwind CSS? | — |
+| 9 | Add shadcn/ui? | only when React + Tailwind |
+| 10 | Install dependencies? | — |
 
-Only the packages you select in step 4 get their dependencies added to `package.json`, their service providers registered in `bootstrap/providers.ts`, their config files generated in `config/`, and their schema files published (e.g. `prisma/schema/auth.prisma`). Unselected packages are excluded entirely — no dead code or unused config.
+When the scaffolder finishes it prints the exact next-step commands for your package manager. The shape is always:
 
-After scaffolding, the CLI prints the exact commands for your package manager. For reference:
+```bash
+pnpm rudder migrate    # apply database schema
+pnpm dev               # start the dev server
+```
 
-| Step | pnpm | npm | yarn | bun |
-|------|------|-----|------|-----|
-| Migrate | `pnpm rudder migrate` | `npm run rudder migrate` | `yarn rudder migrate` | `bun rudder migrate` |
-| Dev server | `pnpm dev` | `npm run dev` | `yarn dev` | `bun dev` |
+Your app runs at `http://localhost:3000`.
 
-Your app will be running at `http://localhost:3000`.
+### Frontend combinations
 
-### Framework combinations
+The scaffolder supports any combination of React, Vue, and Solid. The **primary framework** drives the main pages (`pages/index/`, `pages/_error/`); each secondary framework gets a minimal demo at `pages/{fw}-demo/`. When React and Solid coexist, the Vite config automatically routes `.tsx` files to the correct plugin.
 
-The scaffolder supports all combinations of React, Vue, and Solid. The **primary framework** drives all main pages (`pages/index/`, `pages/_error/`, `pages/todos/`). Each **secondary framework** gets a minimal demo page at `pages/{fw}-demo/`.
-
-| Primary | Page extension | Notes |
-|---------|---------------|-------|
-| React | `.tsx` | `jsx: react-jsx` in tsconfig |
-| Vue | `.vue` | No jsx config needed |
+| Primary | Page extension | tsconfig |
+|---|---|---|
+| React | `.tsx` | `jsx: react-jsx` |
+| Vue | `.vue` | — |
 | Solid | `.tsx` | `jsx: preserve` + `jsxImportSource: solid-js` |
 
-When React and Solid are both selected, the Vite config automatically applies `include`/`exclude` rules to each plugin so `.tsx` files are processed by the correct framework.
+### Tailwind & shadcn
 
-### CSS / UI options
+shadcn/ui is offered only when React and Tailwind are both selected.
 
 | Selection | What's generated |
-|-----------|-----------------|
+|---|---|
 | Tailwind + shadcn | `src/index.css` with full shadcn CSS variables |
 | Tailwind only | `src/index.css` with `@import "tailwindcss"` |
-| Neither | No `src/index.css` |
+| Neither | No `src/index.css`; pages use semantic CSS classes |
 
-shadcn/ui is only offered when React and Tailwind are both selected.
+## Manual installation
 
-## Option 2: Manual Installation
+For an existing Vite project, install the foundation packages and wire them up by hand.
 
-If you prefer to set up manually or add RudderJS to an existing Vite project:
-
-### 1. Install the core packages
+### 1. Add the core packages
 
 ```bash
 pnpm add @rudderjs/core @rudderjs/server-hono @rudderjs/router
 pnpm add -D vite typescript
-```
 
-### 2. Add your chosen ORM
-
-For Prisma (recommended for new projects):
-
-```bash
+# Choose your ORM:
 pnpm add @rudderjs/orm @rudderjs/orm-prisma @prisma/client
 pnpm add -D prisma
 ```
 
-For Drizzle:
+### 2. Bootstrap the application
 
-```bash
-pnpm add @rudderjs/orm @rudderjs/orm-drizzle drizzle-orm better-sqlite3
-```
-
-### 3. Bootstrap the application
-
-Create `bootstrap/app.ts`. This is both the bootstrap file **and** the application entry point — `import 'reflect-metadata'` goes here:
+`bootstrap/app.ts` is both the bootstrap file and the application entry point. It must `import 'reflect-metadata'` — that one import enables the entire DI container.
 
 ```ts
+// bootstrap/app.ts
 import 'reflect-metadata'
 import 'dotenv/config'
 import { Application } from '@rudderjs/core'
@@ -115,79 +98,58 @@ export default Application.configure({
     api:      () => import('../routes/api.ts'),
     commands: () => import('../routes/console.ts'),
   })
-  .withMiddleware((_m) => {})
   .create()
 ```
 
-Create `bootstrap/providers.ts`:
-
 ```ts
-import type { Application, ServiceProvider } from '@rudderjs/core'
-import { database } from '@rudderjs/orm-prisma'
+// bootstrap/providers.ts
+import { defaultProviders } from '@rudderjs/core'
 import { AppServiceProvider } from '../app/Providers/AppServiceProvider.js'
-import configs from '../config/index.js'
 
 export default [
-  database(configs.database),  // binds PrismaClient to DI as 'prisma'
+  ...(await defaultProviders()),
   AppServiceProvider,
-] satisfies (new (app: Application) => ServiceProvider)[]
+]
 ```
 
-### 4. Wire Vike to the app
+### 3. Wire Vike
 
-Create `+server.ts` at the project root. This connects Vike to your RudderJS application:
+`+server.ts` at the project root connects Vike to the RudderJS application:
 
 ```ts
-// +server.ts (project root)
+// +server.ts
 import type { Server } from 'vike/types'
 import app from './bootstrap/app.js'
 
-export default {
-  fetch: app.fetch,
-} satisfies Server
+export default { fetch: app.fetch } satisfies Server
 ```
 
-Create `pages/+config.ts`. For a single-framework app, declare the UI renderer here:
+For single-framework apps, declare the renderer in `pages/+config.ts`:
 
 ```ts
-// pages/+config.ts (React)
+// pages/+config.ts
 import type { Config } from 'vike/types'
 import vikeReact from 'vike-react/config'
 
-export default {
-  extends: [vikeReact],
-} satisfies Config
+export default { extends: [vikeReact] } satisfies Config
 ```
 
-For **Vue** replace `vike-react/config` with `vike-vue/config`, for **Solid** use `vike-solid/config`.
+For Vue or Solid replace `vike-react/config` with `vike-vue/config` or `vike-solid/config`. For multiple frameworks, see [Frontend](/guide/frontend).
 
-> **Multiple frameworks?** Keep the renderer out of `pages/+config.ts` and instead add a `+config.ts` inside each page folder extending its own renderer. See [Frontend Pages](/guide/frontend-pages) for details.
-
-### 5. Vite config
-
-```bash
-pnpm add vike @vikejs/hono
-# plus your framework plugin:
-pnpm add -D @vitejs/plugin-react    # React
-pnpm add    vike-vue                # Vue
-pnpm add    vike-solid              # Solid
-```
-
-`vite.config.ts` — include only the plugins for your chosen frameworks:
+### 4. Vite config
 
 ```ts
+// vite.config.ts
 import { defineConfig } from 'vite'
 import rudderjs from '@rudderjs/vite'
-import react from '@vitejs/plugin-react'   // React only
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [rudderjs(), react()],
 })
 ```
 
-### 6. Environment variables
-
-Create a `.env` file at the project root:
+### 5. Environment variables
 
 ```dotenv
 APP_NAME=MyApp
@@ -198,8 +160,10 @@ DATABASE_URL="file:./dev.db"
 AUTH_SECRET=your-32-char-secret-here
 ```
 
-## Next Steps
+Never commit `.env`. Provide `.env.example` as a template.
 
-- [Your First App](/guide/your-first-app) — create your first API route and database model
-- [Configuration](/guide/configuration) — understand the three config layers
-- [Service Providers](/guide/service-providers) — learn the boot lifecycle
+## Next steps
+
+- [Configuration](/guide/configuration) — environment variables, runtime config, framework wiring
+- [Directory Structure](/guide/directory-structure) — what goes where
+- [Service Providers](/guide/service-providers) — register your own services

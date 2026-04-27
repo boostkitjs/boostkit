@@ -1,0 +1,114 @@
+# Facades
+
+Facades give you a static, expressive way to reach the framework's services without resolving them from the container by hand. They are short, memorable functions you can use anywhere in your application code — controllers, services, jobs, listeners — without `import`ing the underlying class.
+
+```ts
+import { app, config, dispatch } from '@rudderjs/core'
+import { auth } from '@rudderjs/auth'
+import { view } from '@rudderjs/view'
+
+const user = await auth().user()
+const port = config('server.port')
+dispatch(new UserRegistered(user))
+return view('dashboard', { user })
+```
+
+Behind every facade is a singleton resolved from the container. The function is just a more ergonomic way to reach it.
+
+## Core helpers
+
+| Helper | Package | Returns | Example |
+|---|---|---|---|
+| `app()` | `@rudderjs/core` | `Application` | `app().make(UserService)` |
+| `resolve<T>(token)` | `@rudderjs/core` | `T` | `resolve(UserService)` |
+| `config(key, fallback?)` | `@rudderjs/core` | typed value | `config('server.port', 3000)` |
+| `dispatch(event)` | `@rudderjs/core` | `Promise<void>` | `dispatch(new UserRegistered(user))` |
+| `report(err)` | `@rudderjs/core` | `void` | `report(new Error('failed'))` |
+| `abort(status, msg?)` | `@rudderjs/core` | throws | `abort(404, 'Not found')` |
+| `abort_if(cond, status)` | `@rudderjs/core` | throws if true | `abort_if(!user, 401)` |
+
+`app()` and `resolve()` both reach the container — `resolve(X)` is shorthand for `app().make(X)`. Use whichever reads better at the call site.
+
+## Domain facades
+
+These facades wrap their package's manager. They are typed so your editor autocompletes the methods.
+
+| Facade | Package | What it wraps |
+|---|---|---|
+| `auth()` | `@rudderjs/auth` | `AuthManager` — the request-scoped auth manager |
+| `Cache` | `@rudderjs/cache` | The configured cache store |
+| `Session` | `@rudderjs/session` | The request-scoped session store |
+| `Log` | `@rudderjs/log` | The configured logger |
+| `Storage` | `@rudderjs/storage` | The configured storage disk |
+| `Mail` | `@rudderjs/mail` | The mailer |
+| `Queue` | `@rudderjs/queue` | The queue dispatcher |
+| `Schedule` | `@rudderjs/schedule` | The cron scheduler |
+| `view(id, props)` | `@rudderjs/view` | Returns a view response — call from a route handler |
+| `trans(key, params?)` | `@rudderjs/localization` | Translate a key in the current locale |
+| `locale()` | `@rudderjs/localization` | The current request's locale |
+
+```ts
+import { Cache } from '@rudderjs/cache'
+import { Log } from '@rudderjs/log'
+import { Session } from '@rudderjs/session'
+
+await Cache.put('user:42', user, 600)
+Log.info('user.created', { userId: user.id })
+await Session.put('flash.success', 'Saved!')
+```
+
+## Request-scoped facades
+
+`auth()` and `Session` both live behind AsyncLocalStorage — they read from the current request's scope. Calling them outside a request (during boot, in a script that bypasses middleware) throws a clear error rather than returning a silent ghost.
+
+```ts
+// ❌ Throws — no request scope
+import { auth } from '@rudderjs/auth'
+
+class AppServiceProvider extends ServiceProvider {
+  async boot() {
+    const user = await auth().user()  // throws: "No auth context"
+  }
+}
+```
+
+```ts
+// ✓ Works — runs inside an HTTP request
+Route.get('/me', async () => {
+  const user = await auth().user()
+  return { user }
+})
+```
+
+For the rationale, see [Request Lifecycle](/guide/lifecycle).
+
+## Why use facades?
+
+Facades exist for ergonomics — they are a thin layer over the container, and the container is always available too. Use facades when:
+
+- The call site reads better as `auth().user()` than `app().make(AuthManager).user()`.
+- The service is request-scoped and the facade enforces "must be inside a request" at the call site.
+
+Use the container directly when:
+
+- You want explicit dependency declaration in a constructor (`constructor(private auth: AuthManager) {}`).
+- You are writing a library and don't want to require consumers to install the facade's package.
+- You are writing tests and prefer to inject mocks via constructors over swapping container bindings.
+
+The two styles compose freely — many RudderJS apps use both, choosing per-call-site.
+
+## Testing with facades
+
+Most facades expose a `fake()` helper that swaps the underlying singleton with an in-memory test double for the duration of the test:
+
+```ts
+import { Cache } from '@rudderjs/cache'
+
+test('caches the user', async () => {
+  Cache.fake()
+  await UserService.warmCache(user)
+  Cache.assertPut('user:42', user)
+})
+```
+
+`fake()` doubles ship with `@rudderjs/cache`, `@rudderjs/queue`, `@rudderjs/mail`, `@rudderjs/notification`, `@rudderjs/storage`, and `@rudderjs/events`. Each test double exposes assertion helpers (`assertPut`, `assertDispatched`, `assertSent`) that match the underlying API.

@@ -11,7 +11,7 @@ Route.get('/dashboard', async () => {
 })
 ```
 
-See the [Controller Views guide](/guide/views) for a tutorial-style walkthrough. This page is the API reference.
+See the [Frontend guide](/guide/frontend) for a tutorial-style walkthrough. This page is the API reference.
 
 ## Installation
 

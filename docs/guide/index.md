@@ -1,94 +1,43 @@
 # What is RudderJS?
 
-RudderJS is a **Laravel-inspired, framework-agnostic Node.js meta-framework** built on top of [Vike](https://vike.dev) and [Vite](https://vitejs.dev). It brings Laravel's developer ergonomics — service providers, dependency injection, an Eloquent-style ORM, an Rudder CLI, queues, scheduling, and more — to the Node.js ecosystem, while staying modular, UI-agnostic, and fully typed.
+RudderJS is a framework-agnostic Node.js full-stack framework built on [Vike](https://vike.dev) and [Vite](https://vitejs.dev). It gives you service providers, dependency injection, an expressive ORM, a CLI generator, queues, scheduling, auth, validation — everything a typical web application needs — in strict TypeScript, while staying modular and UI-agnostic.
 
 ## Philosophy
 
-### Laravel's DX, TypeScript's Safety
+RudderJS favors expressive APIs, convention over configuration, and clear lifecycle hooks. The framework should fade into the background while your app's code stays readable.
 
-Laravel has earned its reputation for developer happiness. RudderJS takes the patterns that make Laravel productive — expressive APIs, convention over configuration, clear lifecycle hooks — and rebuilds them in TypeScript from the ground up, without the PHP runtime or Composer ecosystem.
+Three principles shape every package:
 
-The result: a framework that feels familiar to Laravel developers and safe to TypeScript developers.
+**Modular.** Every feature lives in its own `@rudderjs/*` package. There is no monolithic install. Add `@rudderjs/queue` when you need queues, `@rudderjs/cache` when you need caching. Unused packages are not in your `node_modules`.
 
-### Modular by Design
+**UI-agnostic.** Vike handles SSR and page routing. Pair RudderJS with React, Vue, Solid, multiple at once, or no frontend at all. Pure API mode is first-class.
 
-Every RudderJS feature lives in its own npm package under the `@rudderjs/*` scope. Use only what you need:
+**Deploy anywhere.** RudderJS exposes a standard [WinterCG Fetch handler](https://wintercg.org/). The same `bootstrap/app.ts` runs on Node, Bun, Deno, and Cloudflare Workers without code changes.
 
-```bash
-pnpm add @rudderjs/core @rudderjs/server-hono @rudderjs/orm-prisma
-```
+## What ships in the box
 
-There is no monolithic "install everything" step. Queue support, caching, auth, notifications — all optional, all tree-shakable.
+RudderJS provides everything a typical web application needs:
 
-### Framework-Agnostic UI
+- **HTTP server** with routing, middleware groups, validation, and form requests
+- **DI container** with constructor injection, service providers, and auto-discovery
+- **ORM** with Prisma or Drizzle adapters and an Eloquent-style query API
+- **Auth** with guards, gates, policies, password reset, and email verification
+- **Sessions** backed by HMAC-signed cookies or Redis
+- **Queues** with BullMQ or Inngest, plus a built-in scheduler
+- **Cache** and **storage** with pluggable drivers (Redis, S3, R2, MinIO)
+- **Mail** and **notifications** with multi-channel delivery
+- **AI agents** and **MCP servers** as first-class primitives
+- **Real-time** broadcasting and Y.js-based collaborative sync
+- **Telescope** — request-by-request observability with timeline, query, and event collectors
 
-RudderJS uses [Vike](https://vike.dev) as its SSR and page-routing layer, which means you can pair it with any UI framework:
-
-- **React** — full support via `vike-react`
-- **Vue** — full support via `vike-vue`
-- **Solid** — full support via `vike-solid`
-- **Multiple at once** — the scaffolder lets you select several frameworks; each gets its own pages
-- **No frontend** — pure API mode works out of the box
-
-The `create-rudder-app` scaffolder asks which frameworks you want, which is primary (drives main pages), and whether to include Tailwind CSS and shadcn/ui. Secondary frameworks get minimal demo pages at `pages/{fw}-demo/`.
-
-### Deploy Anywhere
-
-RudderJS exposes a standard [WinterCG Fetch handler](https://wintercg.org/) through `bootstrap/app.ts`. This means you can deploy to **Node.js, Cloudflare Workers, Deno Deploy, Bun**, or any runtime that speaks the Fetch API — without changing your application code.
-
-## What's Included
-
-| Feature | Package | Notes |
-|---------|---------|-------|
-| HTTP server | `@rudderjs/server-hono` | Hono adapter with request logger, CORS, error pages |
-| Routing | `@rudderjs/router` | Fluent + decorator-based, middleware support |
-| Middleware | `@rudderjs/middleware` | Pipeline, CSRF, rate limiting, throttle, CORS |
-| Validation | `@rudderjs/core` | Zod-powered, `FormRequest`, `validate()`, `validateWith()` |
-| DI container | `@rudderjs/core` | `Container`, `@Injectable`, `@Inject` |
-| ORM | `@rudderjs/orm-prisma` / `orm-drizzle` | Prisma or Drizzle adapters |
-| Auth | `@rudderjs/auth` | Laravel-style guards, `Auth` facade, Gate/Policy, password reset, email verification |
-| Sessions | `@rudderjs/session` | Cookie (HMAC) or Redis driver |
-| Queue | `@rudderjs/queue-bullmq` / `queue-inngest` | BullMQ (Redis) or Inngest |
-| Cache | `@rudderjs/cache` | In-memory or Redis |
-| Storage | `@rudderjs/storage` | Local filesystem or S3/R2/MinIO |
-| Mail | `@rudderjs/mail` | Log (dev) or SMTP (Nodemailer) built-in |
-| Events | `@rudderjs/core` | In-process event dispatcher |
-| Scheduling | `@rudderjs/schedule` | Cron-based task scheduler |
-| Notifications | `@rudderjs/notification` | Multi-channel (mail, database) |
-| CLI | `@rudderjs/rudder` / `cli` | `make:*` generators, custom commands |
-
-## Dependency Architecture
-
-RudderJS is structured as a clean DAG — no circular dependencies, so you can use any layer in isolation:
-
-```
-@rudderjs/contracts   (pure types, no runtime)
-       │
-@rudderjs/support     (Env, Collection, helpers)
-@rudderjs/core        (Application, Container, decorators, service providers)
-@rudderjs/middleware  (Pipeline, built-ins, RateLimit)
-@rudderjs/validation  (FormRequest, z)
-       │
-@rudderjs/router      @rudderjs/server-hono
-       │
-@rudderjs/core        (Application, ServiceProvider, bootstrap)
-       │
-@rudderjs/orm    @rudderjs/queue    @rudderjs/cache    @rudderjs/storage
-       │              │           (redis built-in)   (s3 built-in)
- orm-prisma       queue-bullmq
- orm-drizzle      queue-inngest
-       │
-@rudderjs/auth                      @rudderjs/mail   @rudderjs/schedule
-       │
-@rudderjs/notification
-```
+Optional packages — `@rudderjs/passport`, `@rudderjs/sanctum`, `@rudderjs/socialite`, `@rudderjs/boost`, `@rudderjs/telescope` — opt in per project.
 
 ## Status
 
 RudderJS is in **early development**. All packages are functional, the playground is a working full-stack app, and the API is settling. Breaking changes may still occur before v1.0.
 
-## Next Steps
+## Where to next
 
-- [Installation](/guide/installation) — set up your first RudderJS project
-- [Your First App](/guide/your-first-app) — build a working API endpoint in minutes
-- [Package Catalog](/packages/) — explore all available packages
+- [Installation](/guide/installation) — scaffold your first project
+- [Directory Structure](/guide/directory-structure) — get oriented
+- [Request Lifecycle](/guide/lifecycle) — how a request flows through the framework
