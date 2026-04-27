@@ -69,6 +69,40 @@ export interface OrmAdapterProvider {
   create(): OrmAdapter | Promise<OrmAdapter>
 }
 
+/**
+ * Minimal chainable query surface a `ModelLike` exposes via `.query()`.
+ * `QueryBuilder<T>` from this file already structurally satisfies it for
+ * any concrete `T` — invariance in the input positions is widened to
+ * `unknown` here so the contract is consumer-facing rather than tied to
+ * a specific Model type.
+ */
+export interface ModelQuery {
+  where(column: string, value: unknown): ModelQuery
+  where(column: string, operator: WhereOperator, value: unknown): ModelQuery
+  orWhere(column: string, value: unknown): ModelQuery
+  orWhere(column: string, operator: WhereOperator, value: unknown): ModelQuery
+  orderBy(column: string, direction?: 'ASC' | 'DESC'): ModelQuery
+  paginate(page: number, perPage?: number): Promise<{ data: unknown[]; total: number }>
+}
+
+/**
+ * Static surface of an Eloquent-style ORM Model — the contract that
+ * downstream tools (e.g. `@pilotiq/pilotiq` for auto-wired CRUD) target
+ * when they want to call into "the model" without depending on the
+ * `@rudderjs/orm` package directly. `@rudderjs/orm`'s `Model` base
+ * class satisfies this structurally.
+ */
+export interface ModelLike {
+  /** Primary-key column name. Defaults to `'id'`. */
+  primaryKey?: string
+
+  find(id: string | number):                                  Promise<unknown>
+  create(data: Record<string, unknown>):                      Promise<unknown>
+  update(id: string | number, data: Record<string, unknown>): Promise<unknown>
+  delete(id: string | number):                                Promise<void>
+  query():                                                    ModelQuery
+}
+
 // ─── Request & Response ────────────────────────────────────
 
 /**
