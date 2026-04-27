@@ -34,7 +34,7 @@ With the **default choices** (Prisma + SQLite + Auth + Cache + React + Tailwind 
 - **Welcome page at `/`** — controller-returned view, Tailwind + shadcn styled, with Log in / Register links or a signed-in user + Sign out button.
 - **Auth flow that works** — `/login`, `/register`, `/forgot-password`, `/reset-password` pages vendored into `app/Views/Auth/` (so you can customize them freely) and wired to `POST /api/auth/sign-in/email` / `sign-up/email` / `sign-out` / `request-password-reset` / `reset-password` endpoints.
 - **Database ready** — Prisma schema with a `User` + `PasswordResetToken` model, SQLite by default, a `User` ORM model.
-- **Session-based auth** — cookie sessions via `@rudderjs/session`, `AuthMiddleware` applied globally, ghost-user-safe (see the [mental model guide](https://github.com/rudderjs/rudder/blob/main/docs/guide/mental-model.md)).
+- **Session-based auth** — cookie sessions via `@rudderjs/session`, `AuthMiddleware` applied globally, ghost-user-safe (see the [Request Lifecycle guide](https://github.com/rudderjs/rudder/blob/main/docs/guide/lifecycle.md)).
 - **Rate limiting** — 10 req/min on auth endpoints out of the box.
 - **Bootstrap you can read** — `bootstrap/app.ts` in 25 lines, `bootstrap/providers.ts` shows auto-discovery, `config/` has one file per concern.
 - **Rudder CLI** — `pnpm rudder --help` lists framework commands; `routes/console.ts` shows you how to add your own.
@@ -250,7 +250,7 @@ pnpm rudder vendor:publish --tag=auth-views-react   # or auth-views-vue
 ## Related
 
 - **Main framework**: [github.com/rudderjs/rudder](https://github.com/rudderjs/rudder)
-- **Docs**: [Mental model](https://github.com/rudderjs/rudder/blob/main/docs/guide/mental-model.md) · [Provider auto-discovery](https://github.com/rudderjs/rudder/blob/main/docs/guide/auto-discovery.md) · [Your first app](https://github.com/rudderjs/rudder/blob/main/docs/guide/your-first-app.md)
+- **Docs**: [Request Lifecycle](https://github.com/rudderjs/rudder/blob/main/docs/guide/lifecycle.md) · [Service Providers](https://github.com/rudderjs/rudder/blob/main/docs/guide/service-providers.md) · [Installation](https://github.com/rudderjs/rudder/blob/main/docs/guide/installation.md)
 - **Report issues**: [github.com/rudderjs/rudder/issues](https://github.com/rudderjs/rudder/issues)
 
 ---

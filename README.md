@@ -80,7 +80,7 @@ pnpm dev
 
 ## How It Works
 
-> **Coming from Laravel?** Read [the mental-model guide](docs/guide/mental-model.md) first. RudderJS's container is process-scoped, not request-scoped — the one-page explanation prevents the whole class of ghost-user / stale-state bugs.
+> Read the [Request Lifecycle](docs/guide/lifecycle.md) page first if you've used a per-request DI container before. RudderJS's container is process-scoped, not request-scoped — the one-page explanation prevents the whole class of ghost-user / stale-state bugs.
 
 ### 1. Bootstrap — one file wires everything
 
@@ -121,7 +121,7 @@ export default [
 ]
 ```
 
-Run `pnpm rudder providers:discover` after installing or removing packages to refresh the manifest. See [Provider Auto-Discovery](docs/guide/auto-discovery.md) for the full story.
+Run `pnpm rudder providers:discover` after installing or removing packages to refresh the manifest. See [Service Providers](docs/guide/service-providers.md) for the full story.
 
 ### 2. Routes
 
