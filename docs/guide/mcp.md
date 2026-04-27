@@ -192,11 +192,10 @@ expect(result.content[0].text).toContain('London')
 
 ## Telescope integration
 
-Install `@rudderjs/telescope` and tool calls, resource reads, and prompt renders show up in the Telescope UI with input/output, duration, and the request that triggered them. The integration is automatic — the MCP runtime publishes events to the observer registry on `globalThis`, and the Telescope collector subscribes.
+Install `@rudderjs/telescope` and tool calls, resource reads, and prompt renders show up in the Telescope UI with input/output, duration, and the request that triggered them. The MCP runtime publishes events to the observer registry on `globalThis` and the Telescope collector subscribes — no extra wiring.
 
 ## Pitfalls
 
-- **Forgetting `Mcp.web(...)` or `Mcp.local(...)`.** Defining the server class doesn't expose it. Servers register on import; make sure the file runs (typically by importing it from `routes/api.ts` or `routes/console.ts`).
-- **Method-level decorators stripped.** `@Description` works on classes; `@Handle` works on the `handle` method specifically. Other method-level decorators that rely on `design:paramtypes` are unreliable under Vite — pass tokens explicitly to `@Handle(...)`.
-- **OAuth scope mismatch.** If the client supplies a token without the required scope, the server returns 403 with `WWW-Authenticate: insufficient_scope`. Check the scopes in your IdP's token configuration match the `scopes: [...]` array.
-- **Streaming yields with no `progressToken`.** The runtime drops yields silently when the caller didn't request progress notifications. That's intentional — clients that don't ask shouldn't get spammed. The final return value is always sent.
+- **Forgetting `Mcp.web(...)` / `Mcp.local(...)`.** Defining the server class doesn't expose it. Make sure the registration file runs — typically by importing it from `routes/api.ts` or `routes/console.ts`.
+- **Method-level decorators relying on reflection.** `@Description` works on classes; `@Handle` works on `handle()` with explicit tokens. Other method-level decorators that need `design:paramtypes` are unreliable under Vite.
+- **OAuth scope mismatch.** Tokens without the required scope return 403 with `WWW-Authenticate: insufficient_scope`. Match the IdP's token config to `scopes: [...]`.

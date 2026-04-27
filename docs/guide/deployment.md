@@ -1,130 +1,77 @@
 # Deployment
 
-RudderJS apps compile to a standard Node.js server. Build once, deploy anywhere Node.js runs.
+RudderJS exposes a standard WinterCG Fetch handler — the same `bootstrap/app.ts` runs on Node, Bun, Deno, and Cloudflare Workers without code changes. This page covers the common production targets.
 
-## Build for Production
+## Build
 
 ```bash
 pnpm build
 ```
 
-This creates a `dist/` directory with:
+Output:
 
 ```
 dist/
-├── client/          # Static assets (JS, CSS, images)
+├── client/          # static assets — JS, CSS, images
 ├── server/
-│   ├── index.mjs    # Node.js server entry point
-│   ├── chunks/      # Code-split server modules
-│   └── ...
-└── assets.json      # Asset manifest
+│   └── index.mjs    # Node.js server entry
+└── assets.json      # asset manifest
 ```
 
-## Run in Production
+Run with `node ./dist/server/index.mjs`. The server binds to `PORT` (default `3000`).
 
-```bash
-node ./dist/server/index.mjs
-```
+## Environment
 
-That's it. The server starts on the configured port (default `3000`).
+Configure secrets via `.env` (committed `.env.example`, secrets injected at deploy time):
 
-## Environment Variables
-
-Create a `.env` file in your project root (or set variables in your hosting platform):
-
-```bash
-# App
+```dotenv
 APP_NAME=MyApp
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://myapp.com
-APP_KEY=your-32-character-random-secret-key
-
-# Server
+APP_KEY=<32-byte base64 secret>
 PORT=3000
 
-# Database
-DATABASE_URL="postgresql://user:pass@host:5432/mydb"
-
-# Auth
-AUTH_SECRET=your-32-character-auth-secret-here
-
-# Optional — AI
-AI_MODEL=openai/gpt-4o-mini
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-proj-...
-
-# Optional — Redis (for cache, queue, rate limiting)
+DATABASE_URL=postgresql://user:pass@host:5432/mydb
+AUTH_SECRET=<32-byte secret>
 REDIS_URL=redis://localhost:6379
-
-# Optional — Storage (S3)
-S3_BUCKET=my-bucket
-S3_REGION=us-east-1
-S3_ACCESS_KEY_ID=...
-S3_SECRET_ACCESS_KEY=...
-
-# Optional — Mail (SMTP)
-MAIL_HOST=smtp.mailgun.org
-MAIL_PORT=587
-MAIL_USERNAME=...
-MAIL_PASSWORD=...
-MAIL_FROM_ADDRESS=noreply@myapp.com
 ```
 
-**Important:** Never commit `.env` to version control. Add it to `.gitignore`.
+Generate `APP_KEY` and `AUTH_SECRET`:
 
-Generate a secure `APP_KEY`:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-## Database
+Validate critical envs at startup with `defineEnv` (see [Configuration](/guide/configuration)) so misconfigured deploys fail fast instead of throwing on first request.
 
-### Prisma
+## Database migrations
 
-Run migrations before starting the server:
-
-```bash
-npx prisma migrate deploy    # Apply pending migrations
-npx prisma generate          # Regenerate client (if needed)
-```
-
-For initial setup on a new server:
-```bash
-npx prisma migrate deploy
-pnpm rudder db:seed          # Optional — seed initial data
-```
-
-### Drizzle
+Run migrations as part of your deploy, before the server starts:
 
 ```bash
-npx drizzle-kit migrate      # Apply migrations
+pnpm rudder migrate     # Prisma → migrate deploy; Drizzle → drizzle-kit migrate
+pnpm rudder db:seed     # optional, only on first deploy
 ```
 
-## Process Manager
+Never run `db:push` or `migrate:fresh` in production — both can drop columns silently.
 
-Use a process manager to keep the app running and restart on crashes.
+## Process supervision
 
-### PM2
+The Node process must stay up. The two production patterns:
+
+### PM2 (single host)
 
 ```bash
 npm install -g pm2
 
-# Start
-pm2 start dist/server/index.mjs --name myapp
-
-# With environment file
-pm2 start dist/server/index.mjs --name myapp --env production
-
-# Auto-restart on crash, watch memory
 pm2 start dist/server/index.mjs --name myapp --max-memory-restart 500M
-
-# Save and enable startup
-pm2 save
-pm2 startup
+pm2 save && pm2 startup     # auto-start on boot
 ```
 
-### Systemd (Linux)
+For schedulers, run them as a separate PM2 app: `pm2 start dist/server/index.mjs --name scheduler -- pnpm rudder schedule:work`.
+
+### systemd
 
 ```ini
 # /etc/systemd/system/myapp.service
@@ -134,348 +81,111 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
+User=myapp
 WorkingDirectory=/var/www/myapp
-ExecStart=/usr/bin/node dist/server/index.mjs
-Restart=on-failure
-RestartSec=5
 EnvironmentFile=/var/www/myapp/.env
+ExecStart=/usr/bin/node /var/www/myapp/dist/server/index.mjs
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable myapp
-sudo systemctl start myapp
+sudo systemctl enable --now myapp
 ```
 
----
+## Workers and schedulers
 
-## Deploy to Cloud Providers
+Background work runs as separate processes. Always run them under the same supervisor as your web server:
 
-### Docker
+| Process | Command |
+|---|---|
+| Web | `node dist/server/index.mjs` |
+| Queue worker | `pnpm rudder queue:work` |
+| Scheduler | `pnpm rudder schedule:work` |
+
+For BullMQ, run multiple `queue:work` instances per CPU core. For Inngest, the worker is the Inngest service itself — no separate process needed; expose `/api/inngest` as a public route.
+
+## Docker
 
 ```dockerfile
-FROM node:22-alpine AS builder
+# Dockerfile
+FROM node:20-alpine AS build
 WORKDIR /app
-
-# Install dependencies
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
-
-# Copy source and build
 COPY . .
-RUN npx prisma generate
 RUN pnpm build
 
-# Production image
-FROM node:22-alpine
+FROM node:20-alpine
 WORKDIR /app
-
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.env.production ./.env
-
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+ENV NODE_ENV=production
 EXPOSE 3000
 CMD ["node", "dist/server/index.mjs"]
 ```
 
-```bash
-docker build -t myapp .
-docker run -p 3000:3000 --env-file .env myapp
-```
+Multi-stage keeps the final image small. For Prisma, also copy `prisma/` and run `prisma generate` in the build stage.
 
-### Docker Compose
+## Reverse proxy
 
-```yaml
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file: .env
-    depends_on:
-      - db
-      - redis
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: myapp
-      POSTGRES_USER: myapp
-      POSTGRES_PASSWORD: secret
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-volumes:
-  pgdata:
-```
-
-### Railway
-
-1. Push your repo to GitHub
-2. Create a new project on [railway.app](https://railway.app)
-3. Connect your repository
-4. Add a PostgreSQL database (if needed)
-5. Set environment variables in the Railway dashboard
-6. Railway auto-detects the build command. If not, set:
-   - **Build command:** `pnpm install && npx prisma generate && pnpm build`
-   - **Start command:** `node dist/server/index.mjs`
-
-Railway sets `PORT` automatically — RudderJS reads it from the environment.
-
-### Fly.io
-
-```bash
-fly launch
-```
-
-Create `fly.toml`:
-
-```toml
-app = "myapp"
-primary_region = "iad"
-
-[build]
-
-[http_service]
-  internal_port = 3000
-  force_https = true
-
-[env]
-  APP_ENV = "production"
-  NODE_ENV = "production"
-```
-
-Create a Postgres database:
-```bash
-fly postgres create
-fly postgres attach --app myapp
-```
-
-Deploy:
-```bash
-fly deploy
-```
-
-### Render
-
-1. Create a new **Web Service** on [render.com](https://render.com)
-2. Connect your GitHub repo
-3. Set:
-   - **Build command:** `pnpm install && npx prisma generate && pnpm build`
-   - **Start command:** `node dist/server/index.mjs`
-4. Add environment variables in the dashboard
-5. Add a PostgreSQL database from Render's dashboard
-
-### DigitalOcean App Platform
-
-1. Create a new app from your GitHub repo
-2. Set the run command: `node dist/server/index.mjs`
-3. Add a managed PostgreSQL database
-4. Set environment variables
-5. Deploy
-
-### VPS (Ubuntu/Debian)
-
-```bash
-# On your server
-sudo apt update && sudo apt install -y nodejs npm nginx
-
-# Install pnpm
-npm install -g pnpm
-
-# Clone and build
-git clone https://github.com/you/myapp.git /var/www/myapp
-cd /var/www/myapp
-pnpm install
-npx prisma generate
-npx prisma migrate deploy
-pnpm build
-
-# Start with PM2
-pm2 start dist/server/index.mjs --name myapp
-pm2 save && pm2 startup
-```
-
-#### Nginx Reverse Proxy
+Most production setups put nginx (or your platform's equivalent) in front of the Node process — for TLS termination, static-asset caching, rate limiting, and graceful restarts.
 
 ```nginx
-# /etc/nginx/sites-available/myapp
+upstream myapp { server 127.0.0.1:3000; }
+
 server {
-    listen 80;
-    server_name myapp.com;
+  listen 443 ssl http2;
+  server_name myapp.com;
 
-    # WebSocket support
-    location /ws {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400;
-    }
+  ssl_certificate     /etc/letsencrypt/live/myapp.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/myapp.com/privkey.pem;
 
-    # Yjs WebSocket (collaborative editing)
-    location /ws-sync {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400;
-    }
-
-    # Everything else
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+  location / {
+    proxy_pass http://myapp;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
 }
 ```
 
-```bash
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+Set `TRUST_PROXY=true` in `.env` so `req.ip` reads `x-forwarded-for` correctly. The WebSocket-upgrade headers are required for `@rudderjs/broadcast` and `@rudderjs/sync`.
+
+## Edge runtimes
+
+The same `app.fetch` handler runs on Cloudflare Workers, Deno Deploy, and Bun. Some considerations:
+
+- **Cloudflare Workers** — no long-running processes. Queue with Inngest, schedule with platform crons. Native modules (argon2, better-sqlite3) don't load — use bcrypt and a remote database.
+- **Bun** — full Node compatibility for most packages. Run with `bun run dist/server/index.mjs`.
+- **Deno Deploy** — needs `--allow-net --allow-read --allow-env`. Native modules require `--allow-ffi`.
+
+For each, the deploy command is the platform's standard tooling; the application code is unchanged.
+
+## Health and readiness
+
+Add a route that confirms upstream services are reachable:
+
+```ts
+Route.get('/healthz', async (_req, res) => {
+  await app().make<PrismaClient>('prisma').$queryRaw`SELECT 1`
+  return res.json({ ok: true })
+})
 ```
 
-#### SSL with Certbot
+Most platforms (Kubernetes, Cloud Run, Fly.io) hit this endpoint before routing traffic. A 200 means the new instance is ready; anything else triggers a rollback.
 
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d myapp.com
-```
+## Pitfalls
 
----
-
-## WebSocket Considerations
-
-RudderJS uses WebSocket for:
-- **Broadcasting** (`/ws`) — real-time events, notifications
-- **Sync/Yjs** (`/ws-sync`) — collaborative document editing
-
-### Requirements
-
-- Your reverse proxy must support WebSocket upgrade (see Nginx config above)
-- Railway, Fly.io, and Render support WebSocket out of the box
-- If using a load balancer, enable sticky sessions for WebSocket connections
-
-### Health Check
-
-WebSocket endpoints don't respond to HTTP GET — configure health checks on `/` or a custom endpoint, not `/ws`.
-
----
-
-## Queue Workers
-
-If you use `@rudderjs/queue`, start a worker process alongside the web server:
-
-```bash
-# Web server
-node dist/server/index.mjs
-
-# Queue worker (separate process)
-pnpm rudder queue:work
-```
-
-With PM2:
-```bash
-pm2 start dist/server/index.mjs --name web
-pm2 start "pnpm rudder queue:work" --name worker
-```
-
-With Docker Compose, add a worker service:
-```yaml
-  worker:
-    build: .
-    command: pnpm rudder queue:work
-    env_file: .env
-    depends_on:
-      - redis
-```
-
----
-
-## Scheduler
-
-If you use `@rudderjs/schedule`, start the scheduler process:
-
-```bash
-pnpm rudder schedule:work
-```
-
-With PM2:
-```bash
-pm2 start "pnpm rudder schedule:work" --name scheduler
-```
-
----
-
-## Static Assets
-
-The `dist/client/` directory contains hashed static assets. In production:
-
-- Serve them with long cache headers (`Cache-Control: public, max-age=31536000, immutable`)
-- Optionally serve from a CDN (set `APP_URL` to your CDN origin)
-- Nginx can serve static files directly:
-
-```nginx
-location /assets {
-    alias /var/www/myapp/dist/client/assets;
-    expires 1y;
-    add_header Cache-Control "public, immutable";
-}
-```
-
----
-
-## Storage (File Uploads)
-
-If using `@rudderjs/storage` with the local adapter:
-
-- The `storage/` directory must be writable by the Node.js process
-- Create a symlink from `public/storage` to `storage/app/public` for public file access:
-
-```bash
-ln -s ../storage/app/public public/storage
-```
-
-For production, prefer S3 storage — it works across multiple instances and doesn't rely on local disk.
-
----
-
-## Checklist
-
-Before deploying:
-
-- [ ] `APP_ENV=production` and `APP_DEBUG=false`
-- [ ] `APP_KEY` set to a random 32+ character string
-- [ ] `AUTH_SECRET` set to a random 32+ character string
-- [ ] Database migrations applied (`npx prisma migrate deploy`)
-- [ ] `.env` is NOT in version control
-- [ ] API keys and secrets are set in your hosting platform's environment
-- [ ] WebSocket paths (`/ws`, `/ws-sync`) are proxied with upgrade support
-- [ ] Queue worker running (if using queues)
-- [ ] Scheduler running (if using scheduled tasks)
-- [ ] SSL configured (HTTPS)
-- [ ] Storage directory writable or S3 configured
+- **`pnpm build` skipped.** Running `tsx` in production works but starts cold every request. Always build first.
+- **Forgetting `pnpm rudder providers:discover`.** The provider manifest must exist at boot. The build doesn't generate it — add it to your deploy script before `pnpm build`.
+- **`APP_DEBUG=true` shipping to production.** Stack traces leak path and dependency info. Hard-set `APP_DEBUG=false` in production environments.
+- **Single instance for everything.** Run web, queue worker, and scheduler as separate supervised processes. Bundling them in one process means a queue spike degrades request handling.
+- **No reverse proxy.** Node serves TLS poorly compared to nginx, and you lose static-asset caching. Even on edge platforms, the platform itself is the proxy.

@@ -189,28 +189,18 @@ Hook into model lifecycle events to enforce invariants, transform data, or cance
 
 ```ts
 class ArticleObserver {
-  creating(data) {
-    data.slug = slugify(data.title)
-    return data    // transformed data replaces input
-  }
-
-  deleting(id) {
-    if (id === protectedId) return false   // false cancels
-  }
+  creating(data) { data.slug = slugify(data.title); return data }
+  deleting(id)   { if (id === protectedId) return false }
 }
 
 Article.observe(ArticleObserver)
 ```
 
-Events: `creating` / `created`, `updating` / `updated`, `deleting` / `deleted`, `restoring` / `restored`. The `*ing` events can return a new value to transform, or `false` to cancel. Post-events fire after the operation succeeds.
-
-> Events fire only for the static methods (`Model.create()`, `Model.update()`, `Model.delete()`). `Model.query().create()` bypasses observers — it goes straight to the adapter.
-
-For inline hooks use `Model.on('creating', fn)`.
+Events: `creating` / `created`, `updating` / `updated`, `deleting` / `deleted`, `restoring` / `restored`. The `*ing` events can return a new value to transform, or `false` to cancel. Post-events fire after the operation succeeds. Observers fire only for static methods (`Model.create()`, `Model.update()`); `Model.query().create()` bypasses them. For inline hooks use `Model.on('creating', fn)`.
 
 ## Pitfalls
 
-- **Bracket access on records.** `record['column']` on a query result is fine (it's a plain object). `record.column` works too. But calling `.method()` on a record fails — there's no prototype.
+- **Calling methods on query results.** Records are plain objects without prototype. `record.column` works; `record.method()` doesn't. Put behavior in helpers (see [Records vs. instances](#records-vs-instances)).
 - **Mass assignment without `fillable`.** When `fillable` is unset, every key is accepted. Forgetting to set it on a model that takes user input is a vulnerability.
 - **Forgetting to register the adapter.** `Model.*` static methods throw `[RudderJS ORM] No adapter registered`. The database provider must boot before any model query runs — see [Database](/guide/database).
 - **`Model.query().create()` skipping observers.** Use `Model.create()` (and the other static methods) when you need observer hooks.

@@ -1,20 +1,16 @@
-# @rudderjs/socialite
+# Socialite
 
-OAuth authentication with built-in providers for GitHub, Google, Facebook, and Apple. Extensible with custom providers.
+OAuth-based social authentication for RudderJS. Built-in providers for GitHub, Google, Facebook, and Apple, plus an extension point for custom OAuth providers. Use it to add "Sign in with ..." buttons to your app without hand-writing OAuth flows.
 
-## Installation
+## Install
 
 ```bash
 pnpm add @rudderjs/socialite
 ```
 
-## Setup
-
-### 1. Add services config
-
 ```ts
 // config/services.ts
-import { Env } from '@rudderjs/core'
+import { Env } from '@rudderjs/support'
 
 export default {
   github: {
@@ -31,131 +27,121 @@ export default {
 }
 ```
 
-### 2. Register provider
+The provider is auto-discovered. No external dependencies — every built-in provider uses native `fetch`.
+
+## Routes
+
+The OAuth dance is two routes per provider — one to start, one to receive the callback:
 
 ```ts
-// bootstrap/providers.ts
-import { socialite } from '@rudderjs/socialite'
-import configs from '../config/index.js'
-
-export default [
-  // ...other providers
-  socialite(configs.services),
-]
-```
-
-## Socialite Facade
-
-### `Socialite.driver(name)`
-
-Get or create a provider instance by name. Returns a `SocialiteProvider` with the following methods:
-
-```ts
+// routes/web.ts
 import { Socialite } from '@rudderjs/socialite'
 
-// Redirect to OAuth provider (returns a 302 Response)
-const response = Socialite.driver('github').redirect()
+Route.get('/auth/github', () => Socialite.driver('github').redirect())
 
-// Get redirect URL without redirecting
-const url = Socialite.driver('github').getRedirectUrl()
+Route.get('/auth/github/callback', async (req) => {
+  const user = await Socialite.driver('github').user(req)
 
-// Pass optional state parameter
-const url = Socialite.driver('github').getRedirectUrl('random-state-string')
-```
+  // Find or create your User by user.getEmail() / user.getId()
+  const local = await User.firstOrCreate({ email: user.getEmail() }, {
+    name:        user.getName() ?? user.getNickname(),
+    avatar:      user.getAvatar(),
+    githubId:    user.getId(),
+  })
 
-### `provider.user(code)`
-
-Exchange the authorization code for an access token and fetch the authenticated user:
-
-```ts
-// routes/api.ts
-router.get('/auth/github/callback', async (req) => {
-  const code = req.query.code
-  const user = await Socialite.driver('github').user(code)
-
-  // user.getId()       — provider-specific unique ID
-  // user.getName()     — full name (nullable)
-  // user.getEmail()    — email address (nullable)
-  // user.getAvatar()   — avatar URL (nullable)
-  // user.getNickname() — username/handle (nullable)
-  // user.token         — access token
-  // user.refreshToken  — refresh token (nullable)
-  // user.getRaw()      — raw API response
+  await Auth.login(local)
+  return Response.redirect('/')
 })
 ```
 
-You can also pass a request object with a `query` property:
+`Socialite.driver(name).redirect()` returns a 302 `Response`. `Socialite.driver(name).user(req)` exchanges the authorization code for tokens and fetches the user profile.
+
+## The user object
 
 ```ts
 const user = await Socialite.driver('github').user(req)
+
+user.getId()        // provider-specific unique ID
+user.getName()      // full name (may be null)
+user.getEmail()     // email (may be null — depends on provider + scopes)
+user.getAvatar()    // avatar URL (may be null)
+user.getNickname()  // username / handle (may be null)
+user.token          // OAuth access token
+user.refreshToken   // OAuth refresh token (may be null)
+user.expiresIn      // seconds until expiry (may be null)
+user.getRaw()       // raw provider response
 ```
 
-### `provider.getUserByToken(token)`
-
-Fetch the user directly from an access token (useful for mobile apps or token-based flows):
+For mobile apps or other flows where you already have an access token, `getUserByToken(token)` skips the code-exchange step:
 
 ```ts
 const user = await Socialite.driver('github').getUserByToken(accessToken)
 ```
 
-### `provider.getAccessToken(code)`
-
-Exchange the authorization code for tokens without fetching the user:
+If you only need the tokens (no user fetch):
 
 ```ts
-const { accessToken, refreshToken, expiresIn } = await Socialite.driver('github').getAccessToken(code)
+const { accessToken, refreshToken, expiresIn } =
+  await Socialite.driver('github').getAccessToken(code)
 ```
-
-## SocialUser Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `getId()` | `string` | Provider-specific unique user ID |
-| `getName()` | `string \| null` | Full name |
-| `getEmail()` | `string \| null` | Email address |
-| `getAvatar()` | `string \| null` | Avatar URL |
-| `getNickname()` | `string \| null` | Username or handle |
-| `.token` | `string` | OAuth access token |
-| `.refreshToken` | `string \| null` | OAuth refresh token |
-| `.expiresIn` | `number \| null` | Token expiry in seconds |
-| `getRaw()` | `Record<string, unknown>` | Raw provider API response |
 
 ## Scopes
 
-Each provider defines sensible default scopes. Override or extend them:
+Each provider has sensible defaults. Override per-call:
 
 ```ts
-// Replace all scopes
-Socialite.driver('google').setScopes(['openid', 'email'])
-
-// Add to existing scopes
-Socialite.driver('github').withScopes(['repo', 'gist'])
+Socialite.driver('google').setScopes(['openid', 'email'])      // replace
+Socialite.driver('github').withScopes(['repo', 'gist'])        // append
 ```
 
-## Custom Providers
+| Provider | Default scopes |
+|---|---|
+| `github` | `user:email` |
+| `google` | `openid`, `profile`, `email` |
+| `facebook` | `email` |
+| `apple` | `name`, `email` |
 
-Register a custom OAuth provider with `Socialite.extend()`:
+## State parameter
+
+Pass a state string for CSRF protection — generate it before redirect, store it in the session, verify on callback:
+
+```ts
+const state = crypto.randomUUID()
+await Session.put('oauth.state', state)
+
+const url = Socialite.driver('github').getRedirectUrl(state)
+return Response.redirect(url)
+```
+
+```ts
+// callback
+const expected = await Session.pull('oauth.state')
+if (req.query.state !== expected) abort(400, 'State mismatch')
+```
+
+State isn't generated automatically — apps that need CSRF protection on the OAuth flow should follow this pattern.
+
+## Custom providers
+
+Extend `SocialiteProvider` to wire any OAuth 2.0 service:
 
 ```ts
 import { Socialite, SocialiteProvider, SocialUser } from '@rudderjs/socialite'
-import type { SocialiteProviderConfig } from '@rudderjs/socialite'
 
 class GitLabProvider extends SocialiteProvider {
-  protected defaultScopes(): string[] { return ['read_user'] }
-  protected authUrl():  string { return 'https://gitlab.com/oauth/authorize' }
-  protected tokenUrl(): string { return 'https://gitlab.com/oauth/token' }
-  protected userUrl():  string { return 'https://gitlab.com/api/v4/user' }
+  protected defaultScopes() { return ['read_user'] }
+  protected authUrl()       { return 'https://gitlab.com/oauth/authorize' }
+  protected tokenUrl()      { return 'https://gitlab.com/oauth/token' }
+  protected userUrl()       { return 'https://gitlab.com/api/v4/user' }
 
-  protected mapToUser(data: Record<string, unknown>, token: string, refreshToken: string | null): SocialUser {
+  protected mapToUser(data, token, refreshToken) {
     return new SocialUser({
-      id:       String(data['id']),
-      name:     data['name'] as string,
-      email:    data['email'] as string,
-      avatar:   data['avatar_url'] as string,
-      nickname: data['username'] as string,
-      token,
-      refreshToken,
-      raw: data,
+      id:       String(data.id),
+      name:     data.name,
+      email:    data.email,
+      avatar:   data.avatar_url,
+      nickname: data.username,
+      token, refreshToken, raw: data,
     })
   }
 }
@@ -163,19 +149,9 @@ class GitLabProvider extends SocialiteProvider {
 Socialite.extend('gitlab', (config) => new GitLabProvider(config))
 ```
 
-Then configure it in `config/services.ts`:
+Add the matching config block to `config/services.ts` and you're done.
 
-```ts
-export default {
-  gitlab: {
-    clientId:     Env.get('GITLAB_CLIENT_ID', ''),
-    clientSecret: Env.get('GITLAB_CLIENT_SECRET', ''),
-    redirectUrl:  'http://localhost:3000/auth/gitlab/callback',
-  },
-}
-```
-
-## Configuration
+## Provider config shape
 
 ```ts
 interface SocialiteProviderConfig {
@@ -184,24 +160,11 @@ interface SocialiteProviderConfig {
   redirectUrl:  string
   scopes?:      string[]
 }
-
-// Top-level config is a record of provider name → config
-type SocialiteConfig = Record<string, SocialiteProviderConfig>
 ```
 
-## Built-in Providers
+## Pitfalls
 
-| Provider | Auth URL | Default Scopes |
-|---|---|---|
-| `github` | `github.com/login/oauth/authorize` | `user:email` |
-| `google` | `accounts.google.com/o/oauth2/v2/auth` | `openid`, `profile`, `email` |
-| `facebook` | `facebook.com/v18.0/dialog/oauth` | `email` |
-| `apple` | `appleid.apple.com/auth/authorize` | `name`, `email` |
-
-## Notes
-
-- All providers use the standard OAuth 2.0 authorization code flow.
-- `redirect()` returns a standard `Response` object with a 302 redirect.
-- The `state` parameter is optional but recommended for CSRF protection.
-- Provider instances are cached per name — calling `Socialite.driver('github')` twice returns the same instance.
-- No external dependencies required.
+- **Email missing.** GitHub doesn't expose primary email when only `user:email` is granted *and* the user marks all emails as private. Handle the `null` case in your sign-up flow — fall back to nickname-based account creation, or prompt for email.
+- **Apple's first-login quirk.** Apple sends `name` only on the first authorization. Persist it on first login; subsequent logins won't include it.
+- **No state parameter.** Without CSRF state, an attacker can complete an OAuth flow and bind a victim's social identity to their own session. Always generate, store, and verify state.
+- **Driver instance caching.** `Socialite.driver('github')` returns the same instance on repeat calls — `setScopes()` mutates that shared instance. For per-route customization, capture the instance per call site.

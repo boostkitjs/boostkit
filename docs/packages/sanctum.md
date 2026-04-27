@@ -1,213 +1,141 @@
-# @rudderjs/sanctum
+# Sanctum
 
-API token authentication for stateless API routes — create, validate, and revoke personal access tokens with abilities.
+API token authentication for stateless API routes — create, validate, and revoke personal access tokens with abilities. Lighter than Passport: no OAuth, no JWT, just opaque bearer tokens you issue and verify yourself.
 
-## Installation
+Use Sanctum when:
+
+- You need API tokens but don't need OAuth's third-party-app flows
+- You're building a first-party SPA or mobile app talking to your own API
+- You want simple ability-scoped tokens without RSA key management
+
+Use [Passport](/packages/passport) when you need third-party OAuth clients, JWTs verifiable without a server call, or device-flow authentication.
+
+## Install
 
 ```bash
 pnpm add @rudderjs/sanctum
 ```
-
-## Setup
-
-1. Create a config file at `config/sanctum.ts`:
 
 ```ts
 // config/sanctum.ts
 import type { SanctumConfig } from '@rudderjs/sanctum'
 
 export default {
-  expiration:  null,   // token lifetime in minutes (null = no expiry)
-  tokenPrefix: '',     // optional prefix for generated tokens
+  expiration:  null,    // token lifetime in minutes (null = no expiry)
+  tokenPrefix: '',      // optional prefix on generated tokens
 } satisfies SanctumConfig
 ```
 
-2. Register the provider in `bootstrap/providers.ts`. The `sanctum()` provider must come after `auth()`:
+The provider is auto-discovered. Sanctum requires `@rudderjs/auth` — register order is enforced by auto-discovery (`auth` → `sanctum`).
 
-```ts
-// bootstrap/providers.ts
-import { auth } from '@rudderjs/auth'
-import { sanctum } from '@rudderjs/sanctum'
-import configs from '../config/index.js'
-
-export default [
-  // ...other providers
-  auth(configs.auth),
-  sanctum(configs.sanctum),   // must come after auth()
-]
-```
-
-3. Add the `PersonalAccessToken` model to your Prisma schema:
-
-```prisma
-// prisma/schema.prisma
-
-model PersonalAccessToken {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  token       String   @unique   // SHA-256 hash
-  abilities   String?             // JSON array
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
-
-  @@map("personal_access_tokens")
-  @@index([userId])
-}
-```
-
-After adding the model, regenerate the Prisma client and push the schema:
+Add the `PersonalAccessToken` table to your Prisma schema:
 
 ```bash
-pnpm exec prisma generate
-pnpm exec prisma db push
+pnpm rudder vendor:publish --tag=sanctum-schema
+pnpm rudder migrate
 ```
 
-## Issuing Tokens
-
-Use the `Sanctum` class to create tokens for a user:
+## Issuing tokens
 
 ```ts
-import { router } from '@rudderjs/router'
 import { app } from '@rudderjs/core'
 import type { Sanctum } from '@rudderjs/sanctum'
 
 router.post('/api/tokens', async (req, res) => {
   const sanctum = app().make<Sanctum>('sanctum')
 
-  const { accessToken, plainTextToken } = await sanctum.createToken(
-    req.user.id,           // userId
-    'api-token',           // token name
-    ['read', 'write'],     // abilities (omit for all abilities)
+  const { plainTextToken } = await sanctum.createToken(
+    req.user.id,
+    'cli-token',
+    ['read', 'write'],   // abilities; omit for unrestricted
   )
 
-  // Return the plain-text token — it cannot be retrieved again
+  // plainTextToken is shown ONCE — only the SHA-256 hash is persisted
   return res.json({ token: plainTextToken })
 })
 ```
 
-The returned `plainTextToken` has the format `{id}|{randomHex}`. Only the SHA-256 hash is stored in the database.
+The token shape is `{id}|{randomHex}`. Treat it like a password: surface it once, never recover it.
 
-## Middleware
+## Protecting routes
 
-### `SanctumMiddleware()`
-
-Authenticates the request via the `Authorization: Bearer` header. Attaches `req.user` and the token record if valid. Does not block unauthenticated requests:
+`RequireToken()` validates the `Authorization: Bearer` header. With ability arguments, it also enforces scope:
 
 ```ts
-// bootstrap/app.ts
-import { SanctumMiddleware } from '@rudderjs/sanctum'
-
-Application.configure({ ... })
-  .withMiddleware((m) => {
-    m.use(SanctumMiddleware())
-  })
-  .create()
-```
-
-### `RequireToken(...abilities)`
-
-Requires a valid Bearer token. Returns `401` if the token is missing or invalid. Optionally checks for specific abilities, returning `403` if the token lacks a required ability:
-
-```ts
-import { router } from '@rudderjs/router'
 import { RequireToken } from '@rudderjs/sanctum'
 
-// Require any valid token
-router.get('/api/profile', RequireToken(), async (req, res) => {
-  return res.json({ user: req.user })
-})
+// Any valid token
+router.get('/api/profile', RequireToken(), async (req) => ({ user: req.user }))
 
-// Require specific abilities
-router.delete('/api/posts/:id', RequireToken('posts:delete'), async (req, res) => {
-  // token must have the 'posts:delete' ability
-  await deletePost(req.params.id)
-  return res.json({ deleted: true })
-})
+// Token must include the 'posts:delete' ability
+router.delete('/api/posts/:id', RequireToken('posts:delete'), deletePost)
 ```
 
-## Token Abilities
+Returns 401 for missing or invalid tokens, 403 when the token lacks a required ability.
 
-Abilities are string-based permissions attached to each token. A token with `null` abilities (the default) can do everything. A token with `['*']` also has all abilities:
+For a non-blocking auth check (attach `req.user` if present, allow anonymous otherwise), use `SanctumMiddleware()` instead:
+
+```ts
+import { SanctumMiddleware } from '@rudderjs/sanctum'
+
+m.api(SanctumMiddleware())
+```
+
+## Abilities
+
+Abilities are string permissions per token. Tokens with `null` or `['*']` abilities can do everything; otherwise the token only authorizes its listed abilities.
 
 ```ts
 const sanctum = app().make<Sanctum>('sanctum')
 
-// Create a read-only token
-const { plainTextToken } = await sanctum.createToken(userId, 'read-only', ['read'])
-
-// Check if a token has an ability
-const can = sanctum.tokenCan(token, 'write') // false
+const can = sanctum.tokenCan(token, 'write')   // boolean
 ```
 
-## Managing Tokens
+Adopt a convention like `posts:read`, `posts:write`, `admin` and treat unknown abilities as denied.
+
+## Managing tokens
 
 ```ts
 const sanctum = app().make<Sanctum>('sanctum')
 
-// List all tokens for a user
-const tokens = await sanctum.userTokens(userId)
-
-// Revoke a specific token
-await sanctum.revokeToken(tokenId)
-
-// Revoke all tokens for a user
-await sanctum.revokeAllTokens(userId)
+await sanctum.userTokens(userId)         // list
+await sanctum.revokeToken(tokenId)       // revoke one
+await sanctum.revokeAllTokens(userId)    // revoke all for a user
 ```
 
-## Token Guard
+Build an account-page UI on top of these — name + creation date + revoke button is the typical shape.
 
-The `TokenGuard` implements the `Guard` interface from `@rudderjs/auth`, enabling Sanctum to integrate with the auth system:
+## Token guard
+
+`TokenGuard` implements `@rudderjs/auth`'s `Guard` interface, so Sanctum slots into the auth manager when you want a non-default guard:
 
 ```ts
 import { TokenGuard } from '@rudderjs/sanctum'
 
 const guard = new TokenGuard(sanctum, bearerToken)
 
-const user = await guard.user()        // Authenticatable | null
-const check = await guard.check()      // boolean
-const token = guard.currentToken()     // PersonalAccessToken | null
-const can   = guard.tokenCan('read')   // boolean
+const user  = await guard.user()
+const ok    = await guard.check()
+const token = guard.currentToken()
+const can   = guard.tokenCan('read')
 ```
 
-## Configuration
+## Storage
+
+The default `MemoryTokenRepository` is in-process and resets on restart — fine for tests, useless for production. Pass a custom repository to the provider:
 
 ```ts
-interface SanctumConfig {
-  /** Domains allowed for SPA cookie auth (default: []) */
-  stateful?: string[]
-  /** Token expiration in minutes (null = no expiry, default: null) */
-  expiration?: number | null
-  /** Prefix for generated tokens (default: '') */
-  tokenPrefix?: string
-}
-```
-
-## Token Repository
-
-By default, Sanctum uses `MemoryTokenRepository` (suitable for development and testing). For production, pass a custom `TokenRepository` implementation to the `sanctum()` provider:
-
-```ts
-// bootstrap/providers.ts
 import { sanctum } from '@rudderjs/sanctum'
 import { PrismaTokenRepository } from '../app/Repositories/PrismaTokenRepository.js'
 
-export default [
-  auth(configs.auth),
-  sanctum(configs.sanctum, new PrismaTokenRepository()),
-]
+sanctum(configs.sanctum, new PrismaTokenRepository())
 ```
 
 The `TokenRepository` interface:
 
 ```ts
 interface TokenRepository {
-  create(data: {
-    userId: string; name: string; token: string;
-    abilities?: string[] | null; expiresAt?: Date | null;
-  }): Promise<PersonalAccessToken>
-
+  create(data: { userId: string; name: string; token: string; abilities?: string[] | null; expiresAt?: Date | null }): Promise<PersonalAccessToken>
   findByToken(hashedToken: string): Promise<PersonalAccessToken | null>
   findByUserId(userId: string): Promise<PersonalAccessToken[]>
   updateLastUsed(id: string, date: Date): Promise<void>
@@ -216,26 +144,23 @@ interface TokenRepository {
 }
 ```
 
-## API Reference
+A Prisma-backed implementation is ~30 lines — see the package source for a reference.
 
-| Export | Description |
-|---|---|
-| `Sanctum` | Core class — `createToken()`, `validateToken()`, `tokenCan()`, `userTokens()`, `revokeToken()`, `revokeAllTokens()` |
-| `TokenGuard` | Guard implementation — stateless token-based auth via `Guard` interface |
-| `SanctumMiddleware()` | Middleware — authenticates via Bearer token, sets `req.user` (non-blocking) |
-| `RequireToken(...abilities)` | Middleware — requires valid token + optional ability check (401/403) |
-| `TokenRepository` | Interface — implement for custom token storage backends |
-| `MemoryTokenRepository` | Built-in in-memory token store (dev/testing only) |
-| `PersonalAccessToken` | Type — token record shape |
-| `NewAccessToken` | Type — `{ accessToken, plainTextToken }` returned by `createToken()` |
-| `SanctumConfig` | Configuration interface |
-| `sanctum(config?, tokenRepository?)` | Provider factory — returns a `ServiceProvider` class |
+## Configuration
 
-## Notes
+```ts
+interface SanctumConfig {
+  stateful?:    string[]      // domains allowed for SPA cookie auth (default: [])
+  expiration?:  number | null // minutes; null = no expiry
+  tokenPrefix?: string        // optional prefix on generated tokens
+}
+```
 
-- `sanctum()` must appear after `auth()` in `bootstrap/providers.ts` — it resolves the user provider from the auth manager at boot time.
-- Plain-text tokens are returned once from `createToken()` and never stored. Only the SHA-256 hash is persisted.
-- `MemoryTokenRepository` is used by default and resets on server restart. Implement `TokenRepository` with your database for production use.
-- Expired tokens (past `expiresAt`) are rejected during validation but not automatically deleted from storage.
-- `RequireToken()` with no arguments requires any valid token. Pass ability strings to enforce granular permissions.
-- Tokens with `null` abilities have unrestricted access. Use `['*']` for the same effect when you want to be explicit.
+`stateful` is for first-party SPAs that share a domain with the API — those requests authenticate via the session cookie instead of a Bearer token. Set this to your SPA's domain(s) when applicable.
+
+## Pitfalls
+
+- **`MemoryTokenRepository` in production.** Tokens disappear on restart. Implement `TokenRepository` against your database before going live.
+- **Plain-text token leaking.** It comes back from `createToken()` once. Never log it, never persist it server-side beyond the response.
+- **Tokens with `null` abilities.** They have unrestricted access. Either explicitly require abilities (`RequireToken('admin')`) or be sure that's what you want.
+- **Expired tokens not auto-deleted.** Past-`expiresAt` tokens are rejected at validation but stay in the table. Run a periodic cleanup job (`sanctum.purgeExpired()` if you implement it on your repository).
