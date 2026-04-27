@@ -26,6 +26,7 @@
     "dev": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/templates.test.js; rm -rf dist-test",
+    "smoke": "tsx scripts/smoke.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

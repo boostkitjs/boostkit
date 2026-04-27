@@ -16,12 +16,16 @@ export interface DefaultProvidersOptions {
   skip?: string[]
 }
 
-/** Cached list of the entries that were loaded most recently — used by the dev-mode boot log. */
-let _lastLoadedEntries: ProviderEntry[] = []
+// Cached on globalThis (not a module-level let) because Vite SSR can isolate the
+// writer (bootstrap/providers.ts) and the reader (Application._bootstrapProviders())
+// into different module instances — the read would see [] and the boot log would
+// silently not print. Same pattern as __rudderjs_app__, __rudderjs_telescope_recording__.
+const LAST_LOADED_KEY = '__rudderjs_last_loaded_providers__'
+type GlobalWithEntries = typeof globalThis & { [LAST_LOADED_KEY]?: ProviderEntry[] }
 
 /** @internal — read by Application._bootstrapProviders() to print the dev-mode boot log. */
 export function getLastLoadedProviderEntries(): ProviderEntry[] {
-  return _lastLoadedEntries
+  return (globalThis as GlobalWithEntries)[LAST_LOADED_KEY] ?? []
 }
 
 /**
@@ -115,7 +119,7 @@ export async function defaultProviders(options: DefaultProvidersOptions = {}): P
     loaded.push(entry)
   }
 
-  _lastLoadedEntries = loaded
+  ;(globalThis as GlobalWithEntries)[LAST_LOADED_KEY] = loaded
   return providers
 }
 
