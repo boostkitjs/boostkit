@@ -424,7 +424,9 @@ export async function mountHttpTransport(
 
     // New session — create transport + server pair. Detach is captured in a
     // closure so onsessionclosed can call it without holding the SDK ref.
-    let detach: (() => void) | undefined
+    // Initialize to a noop so the first real assignment counts as a
+    // reassignment for ESLint's prefer-const rule.
+    let detach: () => void = () => {}
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: sessionIdGen,
       onsessioninitialized: (id: string) => {
@@ -432,7 +434,7 @@ export async function mountHttpTransport(
       },
       onsessionclosed: (id: string) => {
         sessions.delete(id)
-        detach?.()
+        detach()
       },
     })
 
