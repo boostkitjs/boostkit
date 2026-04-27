@@ -1,5 +1,16 @@
 # @rudderjs/horizon
 
+## 3.0.3
+
+### Patch Changes
+
+- Updated dependencies [f0b3bae]
+- Updated dependencies [be10c83]
+  - @rudderjs/core@0.1.2
+  - @rudderjs/contracts@0.2.0
+  - @rudderjs/middleware@0.0.14
+  - @rudderjs/router@0.3.1
+
 ## 3.0.2
 
 ### Patch Changes
