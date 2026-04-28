@@ -39,6 +39,10 @@ rudderjs/
 │   │                   #   HasApiTokens mixin, passport:keys/client/purge CLI commands
 │   ├── socialite/      # OAuth — Socialite facade, SocialUser, 4 built-in providers (GitHub, Google,
 │   │                   #   Facebook, Apple), extensible
+│   ├── cashier-paddle/  # Paddle billing — Billable mixin, SubscriptionResource (cancel/swap/pause),
+│   │                    #   signed webhook receiver, Checkout sessions (overlay + inline + guest),
+│   │                    #   single charges, refunds, price previews, React components
+│   │                    #   (CheckoutButton/InlineCheckout/PaddleScript), cashier:install/webhook/sync CLI
 │   ├── storage/        # Storage facade, LocalAdapter + S3Adapter (built-in)
 │   │                   #   S3 driver requires optional dep: @aws-sdk/client-s3
 │   ├── schedule/       # Task scheduler — schedule singleton, scheduler() factory
@@ -108,6 +112,7 @@ rudderjs/
 | `@rudderjs/sanctum` | 0.0.1 | API tokens — Sanctum class, TokenGuard, SanctumMiddleware(), RequireToken(), SHA-256 hashed tokens with abilities |
 | `@rudderjs/passport` | 0.0.1 | OAuth 2 server (Laravel Passport equivalent) — JWT (RS256), authorization code + PKCE, client credentials, refresh token, device authorization grants; `registerPassportRoutes()` for 8 `/oauth/*` endpoints; `BearerMiddleware`/`RequireBearer`/`scope()` middleware; `HasApiTokens` mixin for personal access tokens; `passport:keys`/`passport:client`/`passport:purge` CLI commands |
 | `@rudderjs/socialite` | 0.0.1 | OAuth — Socialite facade, SocialUser, 4 built-in providers (GitHub, Google, Facebook, Apple), extensible |
+| `@rudderjs/cashier-paddle` | 1.0.0 | Paddle billing — `Billable(Model)` mixin, `SubscriptionResource` (cancel/swap/pause/resume/quantity/charge), Checkout sessions (overlay/inline/guest), single charges + refunds + credits, `previewPrices()`, signed webhook receiver (raw-body capture + HMAC verify, idempotent), 7 framework events (`cashier.subscription.{created,updated,paused,canceled}`, etc.), React drop-ins (CheckoutButton/InlineCheckout/PaddleScript), `cashier:install`/`cashier:webhook`/`cashier:sync` CLI |
 | `@rudderjs/storage` | 0.0.2 | Storage facade, LocalAdapter + S3Adapter built-in (needs `@aws-sdk/client-s3`) |
 | `@rudderjs/schedule` | 0.0.6 | Task scheduler, schedule:run/work/list, sub-minute (`everyFiveSeconds`..`everyThirtySeconds`), hooks (`before`/`after`/`onSuccess`/`onFailure`), `withoutOverlapping(expiresAt)`, `evenInMaintenanceMode()`, `onOneServer()` (cache-backed distributed lock) |
 | `@rudderjs/cache` | 0.0.2 | Cache facade, MemoryAdapter + RedisAdapter built-in (needs `ioredis`), `Cache.fake()` (FakeCacheAdapter: assertSet/assertGet/assertForgotten/assertFlushed) |

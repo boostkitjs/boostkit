@@ -434,7 +434,7 @@ const svc = resolve<UserService>(UserService)
 
 ---
 
-## Packages (45)
+## Packages (46)
 
 > **45 first-party packages** across 9 categories — everything from DI and routing to AI agents, real-time CRDT, and production monitoring. All under one monorepo, all opt-in.
 
@@ -464,7 +464,7 @@ const svc = resolve<UserService>(UserService)
 | `@rudderjs/orm-prisma` | Prisma adapter (SQLite, PostgreSQL, MySQL) |
 | `@rudderjs/orm-drizzle` | Drizzle adapter (SQLite, PostgreSQL, libSQL) |
 
-### Auth & Security (6)
+### Auth & Security (7)
 | Package | Description |
 |---|---|
 | `@rudderjs/hash` | Password hashing (bcrypt, argon2) |
@@ -473,6 +473,7 @@ const svc = resolve<UserService>(UserService)
 | `@rudderjs/sanctum` | API token authentication with abilities |
 | `@rudderjs/passport` | OAuth 2 server (JWT RS256) — auth code + PKCE, client credentials, refresh, device code |
 | `@rudderjs/socialite` | OAuth providers (GitHub, Google, Facebook, Apple) |
+| `@rudderjs/cashier-paddle` | Paddle billing — Billable mixin, subscriptions, signed webhooks, checkout, refunds, price previews |
 
 ### Infrastructure (11)
 | Package | Description |
