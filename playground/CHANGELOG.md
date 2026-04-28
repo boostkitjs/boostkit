@@ -1,5 +1,14 @@
 # rudderjs-playground
 
+## 0.0.19
+
+### Patch Changes
+
+- Updated dependencies [2caae8c]
+  - @rudderjs/ai@0.1.0
+  - @rudderjs/core@0.1.3
+  - @rudderjs/telescope@9.0.0
+
 ## 0.0.18
 
 ### Patch Changes
