@@ -44,8 +44,8 @@ export { FormRequest, ValidationError, validate, validateWith, z } from './valid
 
 // ─── Rudder ───────────────────────────────────────────────
 
-export { rudder, Rudder, CommandRegistry, CommandBuilder, Command, CancelledError, parseSignature } from '@rudderjs/rudder'
-export type { ConsoleHandler, CommandArgDef, CommandOptDef, ParsedSignature } from '@rudderjs/rudder'
+export { rudder, Rudder, CommandRegistry, CommandBuilder, Command, CancelledError, parseSignature } from '@rudderjs/console'
+export type { ConsoleHandler, CommandArgDef, CommandOptDef, ParsedSignature } from '@rudderjs/console'
 
 // ─── Support ───────────────────────────────────────────────
 

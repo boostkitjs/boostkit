@@ -156,7 +156,7 @@ export class PassportProvider extends ServiceProvider {
 
       // Register make:* scaffolder for passport
       try {
-        const { registerMakeSpecs } = await import('@rudderjs/rudder')
+        const { registerMakeSpecs } = await import('@rudderjs/console')
         registerMakeSpecs({
           command:     'make:passport-client',
           description: 'Create a new OAuth client seeder',

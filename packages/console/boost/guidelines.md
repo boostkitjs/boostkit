@@ -1,4 +1,4 @@
-# @rudderjs/rudder
+# @rudderjs/console
 
 ## Overview
 
@@ -9,7 +9,7 @@ Command registry + class-based command primitives for the RudderJS CLI. Apps reg
 ### Functional commands
 
 ```ts
-import { Rudder } from '@rudderjs/rudder'
+import { Rudder } from '@rudderjs/console'
 // Or re-exported via @rudderjs/core: import { rudder } from '@rudderjs/core'
 
 Rudder.command('greet {name}', (args) => {
@@ -26,7 +26,7 @@ Rudder.command('post:publish {id} {--dry-run}', async (args) => {
 ### Class-based commands
 
 ```ts
-import { Command, Rudder } from '@rudderjs/rudder'
+import { Command, Rudder } from '@rudderjs/console'
 
 class PingCommand extends Command {
   readonly signature   = 'ping {--N|name=world}'
@@ -88,7 +88,7 @@ Rudder.command('my:scaffold', async () => { /* ... */ })
 ### `registerMakeSpecs` for scaffolders
 
 ```ts
-import { registerMakeSpecs } from '@rudderjs/rudder'
+import { registerMakeSpecs } from '@rudderjs/console'
 
 registerMakeSpecs({
   command:     'make:my-thing',
@@ -120,10 +120,10 @@ Standard pattern for `make:*` commands. Skips app boot automatically.
 ## Key Imports
 
 ```ts
-import { Rudder, Command, registerMakeSpecs, CliError, CancelledError } from '@rudderjs/rudder'
+import { Rudder, Command, registerMakeSpecs, CliError, CancelledError } from '@rudderjs/console'
 
 // Re-exported via core (same instance)
 import { rudder } from '@rudderjs/core'
 
-import type { CommandSignature, CommandHandler } from '@rudderjs/rudder'
+import type { CommandSignature, CommandHandler } from '@rudderjs/console'
 ```

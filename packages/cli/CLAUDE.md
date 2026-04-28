@@ -8,7 +8,7 @@ The `rudder` CLI — Laravel Artisan equivalent. Commander.js-based runner that 
 - `src/errors.ts` — `CliError` class
 - `src/commands/make.ts` — Router for CLI-owned + package-contributed `make:*` scaffolders
 - `src/commands/make/` — 10 CLI-owned generators: controller, model, job, middleware, request, provider, command, event, listener, mail
-- `src/commands/make/_shared.ts` — Legacy `registerMake()` helper (MakeSpec now lives in `@rudderjs/rudder`)
+- `src/commands/make/_shared.ts` — Legacy `registerMake()` helper (MakeSpec now lives in `@rudderjs/console`)
 - `src/commands/command-list.ts` — `command:list` tabular output
 - `src/commands/providers-discover.ts` — Thin wrapper; scanning logic lives in `@rudderjs/core`
 - `src/commands/vendor-publish.ts` — Publishes provider assets
@@ -20,7 +20,7 @@ The `rudder` CLI — Laravel Artisan equivalent. Commander.js-based runner that 
 - **Package command loading**: `loadPackageCommands()` eagerly imports command modules from `@rudderjs/ai`, `@rudderjs/mcp`, `@rudderjs/orm`, `@rudderjs/router` via dynamic subpath imports (try/catch if not installed)
 - **Skip-boot commands**: `make:*`, `providers:discover`, `module:publish` skip `bootApp()` — faster + avoids chicken-and-egg
 - **Two command styles**: inline via `rudder.command()` or class-based extending `Command`
-- **MakeSpec pattern**: `@rudderjs/rudder` provides `MakeSpec` interface, `registerMakeSpecs()`, `executeMakeSpec()`. Packages export specs, CLI collects them.
+- **MakeSpec pattern**: `@rudderjs/console` provides `MakeSpec` interface, `registerMakeSpecs()`, `executeMakeSpec()`. Packages export specs, CLI collects them.
 - **App discovery**: walks up directory tree to find `bootstrap/app.ts`, changes cwd to app root
 
 ## Command Ownership

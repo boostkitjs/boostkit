@@ -279,7 +279,7 @@ RudderJS Framework
 │    ├── @rudderjs/router             Decorator routing, route(), signed URLs
 │    ├── @rudderjs/view               Laravel-style view('id', props) controller responses
 │    ├── @rudderjs/server-hono        Hono HTTP adapter, production WS upgrade
-│    ├── @rudderjs/rudder             Command registry, base class
+│    ├── @rudderjs/console             Command registry, base class
 │    └── @rudderjs/core               Application, Container, ServiceProvider, Events
 │         ├── DI: @Injectable, @Inject
 │         ├── Errors: abort(), HttpException
@@ -324,7 +324,7 @@ RudderJS Framework
 │    └── @rudderjs/testing            TestCase, TestResponse, RefreshDatabase, WithFaker
 │
 ├─── CLI
-│    ├── @rudderjs/rudder             Command registry, base class
+│    ├── @rudderjs/console             Command registry, base class
 │    └── @rudderjs/cli                CLI runner — dispatches make:*, queue:*, mail:*, mcp:*, passport:*, db:*, etc.
 │
 ├─── Scaffolding

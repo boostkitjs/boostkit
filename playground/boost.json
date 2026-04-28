@@ -28,7 +28,7 @@
     "@rudderjs/queue",
     "@rudderjs/queue-bullmq",
     "@rudderjs/router",
-    "@rudderjs/rudder",
+    "@rudderjs/console",
     "@rudderjs/schedule",
     "@rudderjs/server-hono",
     "@rudderjs/session",

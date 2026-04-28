@@ -179,9 +179,9 @@ describe('make:command — stub()', () => {
     assert.ok(out.includes("'send-emails"))
   })
 
-  it('imports Command from @rudderjs/rudder', () => {
+  it('imports Command from @rudderjs/console', () => {
     const out = commandStub('SendEmails')
-    assert.ok(out.includes("from '@rudderjs/rudder'"))
+    assert.ok(out.includes("from '@rudderjs/console'"))
   })
 
   it('single word command stays lowercase', () => {

@@ -85,7 +85,7 @@ Telescope records 19 entry types via the observer-registry pattern — each peer
 | `cache` | CacheCollector | `@rudderjs/cache` | Cache hits, misses, writes, forgets |
 | `schedule` | ScheduleCollector | `@rudderjs/schedule` | Scheduled task execution with output |
 | `model` | ModelCollector | `@rudderjs/orm` | Model create/update/delete with dirty attributes diff |
-| `command` | CommandCollector | `@rudderjs/rudder` | CLI command invocations with args, duration, exit code |
+| `command` | CommandCollector | `@rudderjs/console` | CLI command invocations with args, duration, exit code |
 | `http` | HttpCollector | `@rudderjs/http` | Outgoing HTTP requests with timing, headers, response body |
 | `gate` | GateCollector | `@rudderjs/auth` | Authorization decisions — ability, allowed/denied, resolution path (ability/policy/before), timing |
 | `ai` | AiCollector | `@rudderjs/ai` | Agent runs — model, prompt, tool calls, token usage, middleware timing, streamed chunks |

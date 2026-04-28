@@ -1,7 +1,7 @@
 import type { Collector, TelescopeStorage } from '../types.js'
 import { createEntry } from '../storage.js'
 
-/** Mirrors `@rudderjs/rudder`'s CommandObservation type — duplicated locally so the collector compiles even when the optional peer is absent. */
+/** Mirrors `@rudderjs/console`'s CommandObservation type — duplicated locally so the collector compiles even when the optional peer is absent. */
 interface CommandObservation {
   name:     string
   args:     Record<string, unknown>
@@ -14,12 +14,12 @@ interface CommandObservation {
 
 /**
  * Records every `rudder` CLI invocation by subscribing to the
- * `commandObservers` registry exported from `@rudderjs/rudder`. The CLI
+ * `commandObservers` registry exported from `@rudderjs/console`. The CLI
  * runner emits one observation per command (success or failure) including
  * name, parsed args/opts, duration, exit code, and any thrown error.
  *
  * Self-contained: no app middleware, no router involvement. The collector
- * just subscribes once at boot. If `@rudderjs/rudder` is not installed
+ * just subscribes once at boot. If `@rudderjs/console` is not installed
  * (impossible in practice since telescope depends on it transitively),
  * the import quietly fails and no commands are recorded.
  */
@@ -31,12 +31,12 @@ export class CommandCollector implements Collector {
 
   async register(): Promise<void> {
     try {
-      const { commandObservers } = await import('@rudderjs/rudder') as {
+      const { commandObservers } = await import('@rudderjs/console') as {
         commandObservers: { subscribe: (fn: (obs: CommandObservation) => void) => void }
       }
       commandObservers.subscribe((obs) => this.record(obs))
     } catch {
-      // @rudderjs/rudder not available — skip
+      // @rudderjs/console not available — skip
     }
   }
 

@@ -59,19 +59,19 @@
   },
   "peerDependencies": {
     "@rudderjs/router": "workspace:^",
-    "@rudderjs/rudder": "workspace:^"
+    "@rudderjs/console": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@rudderjs/router": {
       "optional": true
     },
-    "@rudderjs/rudder": {
+    "@rudderjs/console": {
       "optional": true
     }
   },
   "devDependencies": {
     "@rudderjs/router": "workspace:^",
-    "@rudderjs/rudder": "workspace:^",
+    "@rudderjs/console": "workspace:^",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
   },

@@ -38,7 +38,7 @@
   },
   "peerDependencies": {
     "@rudderjs/router": "workspace:^",
-    "@rudderjs/rudder": "workspace:^",
+    "@rudderjs/console": "workspace:^",
     "@rudderjs/log": "workspace:^",
     "@rudderjs/orm": "workspace:^",
     "@rudderjs/cache": "workspace:^",
@@ -55,7 +55,7 @@
     "@rudderjs/mcp": "workspace:^"
   },
   "peerDependenciesMeta": {
-    "@rudderjs/rudder": {
+    "@rudderjs/console": {
       "optional": true
     },
     "@rudderjs/log": {
@@ -102,7 +102,7 @@
     "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
-    "@rudderjs/rudder": "workspace:^",
+    "@rudderjs/console": "workspace:^",
     "@rudderjs/broadcast": "workspace:^",
     "@rudderjs/sync": "workspace:^",
     "@rudderjs/http": "workspace:^",

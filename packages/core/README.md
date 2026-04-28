@@ -69,7 +69,7 @@ export default Application.configure({
 - `report(err)` — report an error to the configured reporter
 - `report_if(condition, err)` — conditional report
 - `setExceptionReporter(fn)` — override the global reporter (wired automatically by `@rudderjs/log`)
-- Re-exports from `@rudderjs/rudder`, `@rudderjs/support`, and `@rudderjs/contracts` types plus built-in DI and Events primitives
+- Re-exports from `@rudderjs/console`, `@rudderjs/support`, and `@rudderjs/contracts` types plus built-in DI and Events primitives
 
 ## Configuration
 

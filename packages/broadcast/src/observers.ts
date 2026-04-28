@@ -97,7 +97,7 @@ export class BroadcastObserverRegistry {
   reset(): void { this.observers = [] }
 }
 
-// Process-wide singleton, like `commandObservers` in `@rudderjs/rudder`.
+// Process-wide singleton, like `commandObservers` in `@rudderjs/console`.
 const _g = globalThis as Record<string, unknown>
 if (!_g['__rudderjs_broadcast_observers__']) {
   _g['__rudderjs_broadcast_observers__'] = new BroadcastObserverRegistry()

@@ -16,7 +16,7 @@ Inline commands cover most cases:
 
 ```ts
 // routes/console.ts
-import { rudder } from '@rudderjs/rudder'
+import { rudder } from '@rudderjs/console'
 import { User } from '../app/Models/User.js'
 
 rudder.command('db:seed', async () => {
@@ -53,7 +53,7 @@ export class SeedCommand extends Command {
 Register it:
 
 ```ts
-import { rudder } from '@rudderjs/rudder'
+import { rudder } from '@rudderjs/console'
 import { SeedCommand } from '../app/Commands/SeedCommand.js'
 
 rudder.register(SeedCommand)
@@ -112,7 +112,7 @@ const pass = await this.secret('Password')
 All prompts throw `CancelledError` on Ctrl+C — catch it to handle cancellation gracefully:
 
 ```ts
-import { CancelledError } from '@rudderjs/rudder'
+import { CancelledError } from '@rudderjs/console'
 
 try {
   await this.ask('Name?')

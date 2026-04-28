@@ -1,4 +1,6 @@
-# @rudderjs/rudder
+# @rudderjs/console
+
+> Renamed from `@rudderjs/rudder` on 2026-04-28. Version history continues from the `@rudderjs/rudder` line. The `@rudderjs/rudder` package on npm has been deprecated with a pointer here.
 
 ## 0.0.3
 

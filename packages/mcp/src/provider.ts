@@ -42,7 +42,7 @@ export class McpProvider extends ServiceProvider {
       const { resolveOptionalPeer } = await import('@rudderjs/core')
       const { registerMakeSpecs } = await resolveOptionalPeer<{
         registerMakeSpecs: (...specs: unknown[]) => void
-      }>('@rudderjs/rudder')
+      }>('@rudderjs/console')
       const { makeMcpServerSpec } = await import('./commands/make-mcp-server.js')
       const { makeMcpToolSpec } = await import('./commands/make-mcp-tool.js')
       const { makeMcpResourceSpec } = await import('./commands/make-mcp-resource.js')

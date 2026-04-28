@@ -45,7 +45,7 @@
     "@rudderjs/queue": "workspace:*",
     "@rudderjs/queue-bullmq": "workspace:*",
     "@rudderjs/router": "workspace:*",
-    "@rudderjs/rudder": "workspace:*",
+    "@rudderjs/console": "workspace:*",
     "@rudderjs/schedule": "workspace:*",
     "@rudderjs/server-hono": "workspace:*",
     "@rudderjs/session": "workspace:*",
