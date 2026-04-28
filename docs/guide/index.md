@@ -14,6 +14,25 @@ Three principles shape every package:
 
 **Deploy anywhere.** RudderJS exposes a standard [WinterCG Fetch handler](https://wintercg.org/). The same `bootstrap/app.ts` runs on Node, Bun, Deno, and Cloudflare Workers without code changes.
 
+## Why RudderJS?
+
+Modern Node.js forces a tradeoff: **great DX in a framework-locked box** (Next.js), **freedom with weeks of wiring** (Express / Hono), or **structure without fullstack views** (NestJS / AdonisJS).
+
+RudderJS refuses the tradeoff. It's batteries-included, modular, UI-agnostic, and fullstack-first — with AI and real-time as first-class primitives, not afterthoughts.
+
+| | Next.js | NestJS | AdonisJS | RudderJS |
+|---|---|---|---|---|
+| **Philosophy** | Component-first | Angular-style DI | Full MVC port | Service-oriented, modular |
+| **Build tool** | Webpack / Turbopack | Webpack / esbuild | Webpack (stencil) | **Vite** |
+| **UI framework** | React only | API only | Edge templates / Inertia | React, Vue, Solid, or none |
+| **SSR views from controllers** | N/A | ✗ | Inertia adapter | ✓ **native — no Inertia, no JSON envelope** |
+| **DI container** | None | Class-based IoC | IoC | Service Providers + ALS request scope |
+| **AI-native** | ✗ | ✗ | ✗ | ✓ 11 providers, agents, streaming, MCP |
+| **Real-time collab** | ✗ | ✗ | ✗ | ✓ Yjs CRDT + WebSocket on same port |
+| **Modularity** | All-in | All-in | Preset-based | **Pay-as-you-go** — 45 opt-in packages |
+
+The shape: one DI container, one CLI, one mental model. Routes return `view()`. Models query the database. Jobs queue work. Agents call tools. The same TypeScript ergonomics from the HTTP edge to the database row.
+
 ## What ships in the box
 
 RudderJS provides everything a typical web application needs:
