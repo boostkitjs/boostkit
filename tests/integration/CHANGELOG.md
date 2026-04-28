@@ -1,5 +1,12 @@
 # @rudderjs/integration-tests
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [2caae8c]
+  - @rudderjs/core@0.1.3
+
 ## 0.0.8
 
 ### Patch Changes
