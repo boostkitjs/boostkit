@@ -1,5 +1,17 @@
 # @rudderjs/telescope
 
+## 9.0.1
+
+### Patch Changes
+
+- Updated dependencies [8411cd5]
+  - @rudderjs/console@0.0.4
+  - @rudderjs/core@0.1.4
+  - @rudderjs/ai@0.1.1
+  - @rudderjs/broadcast@0.0.9
+  - @rudderjs/sync@0.2.1
+  - @rudderjs/mcp@3.1.1
+
 ## 9.0.0
 
 ### Patch Changes
