@@ -81,6 +81,10 @@ rudderjs/
 │   │                       #   RequireToken(), SHA-256 hashed tokens with abilities
 │   ├── socialite/          # OAuth — Socialite facade, SocialUser, 4 built-in providers
 │   │                       #   (GitHub, Google, Facebook, Apple), extensible
+│   ├── cashier-paddle/     # Paddle billing — Billable mixin, SubscriptionResource (cancel/swap/pause),
+│   │                       #   signed webhook receiver (raw-body + HMAC verify, idempotent), Checkout
+│   │                       #   sessions (overlay/inline/guest), single charges, refunds, previewPrices(),
+│   │                       #   React drop-ins, cashier:install/webhook/sync CLI
 │   ├── session/            # HTTP session: SessionInstance, Session facade (AsyncLocalStorage)
 │   │                       #   CookieDriver (HMAC-SHA256) + RedisDriver, SessionMiddleware() factory
 │   ├── storage/            # Storage facade, LocalAdapter + S3Adapter (built-in)
@@ -300,7 +304,8 @@ RudderJS Framework
 │    ├── @rudderjs/crypt              AES-256-CBC encryption
 │    ├── @rudderjs/auth               Guards, Providers, Gates, PasswordBroker
 │    ├── @rudderjs/sanctum            API tokens, TokenGuard
-│    └── @rudderjs/socialite          OAuth (GitHub, Google, Facebook, Apple)
+│    ├── @rudderjs/socialite          OAuth (GitHub, Google, Facebook, Apple)
+│    └── @rudderjs/cashier-paddle     Paddle billing (Billable mixin, subscriptions, webhooks)
 │
 ├─── Communication
 │    ├── @rudderjs/mail               Mailable, SMTP, Failover, Markdown, Mail.fake()

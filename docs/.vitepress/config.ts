@@ -129,6 +129,7 @@ export default defineConfig({
           text: 'Packages',
           items: [
             { text: 'Boost', link: '/packages/boost' },
+            { text: 'Cashier Paddle', link: '/packages/cashier-paddle' },
             { text: 'Passport', link: '/packages/passport' },
             { text: 'Sanctum', link: '/packages/sanctum' },
             { text: 'Socialite', link: '/packages/socialite' },
