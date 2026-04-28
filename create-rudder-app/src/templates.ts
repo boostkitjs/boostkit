@@ -131,9 +131,8 @@ export function getTemplates(ctx: TemplateContext): Record<string, string> {
   files['env.d.ts']           = envDts()
 
   if (ctx.packages.auth && ctx.orm) files['app/Models/User.ts'] = userModel()
-  if (ctx.packages.auth) files['app/Controllers/AuthController.ts'] = authController()
+  if (ctx.packages.auth) files['app/Http/Controllers/AuthController.ts'] = authController()
   files['app/Providers/AppServiceProvider.ts']  = appServiceProvider(ctx)
-  files['app/Middleware/RequestIdMiddleware.ts'] = requestIdMiddleware()
 
   if (ctx.packages.mcp) {
     files['app/Mcp/EchoServer.ts'] = mcpEchoServer()
@@ -1471,8 +1470,7 @@ function bootstrapApp(ctx: TemplateContext): string {
     "import 'dotenv/config'",
     "import { Application } from '@rudderjs/core'",
     "import { hono } from '@rudderjs/server-hono'",
-    "import { RateLimit, fromClass } from '@rudderjs/middleware'",
-    "import { RequestIdMiddleware } from '../app/Middleware/RequestIdMiddleware.ts'",
+    "import { RateLimit } from '@rudderjs/middleware'",
     "import configs from '../config/index.ts'",
     "import providers from './providers.ts'",
   ]
@@ -1497,9 +1495,6 @@ export default Application.configure({
     commands: () => import('../routes/console.ts'),
   })
   .withMiddleware((m) => {
-    // Global — runs on every request
-    m.use(fromClass(RequestIdMiddleware))
-
     // Per-group — separate rate-limit budgets for web pages and api calls
     m.web(RateLimit.perMinute(120))
     m.api(RateLimit.perMinute(60))
@@ -2083,7 +2078,7 @@ import {
   type AuthUserModelLike,
 } from '@rudderjs/auth'
 import { Hash } from '@rudderjs/hash'
-import { User } from '../Models/User.ts'
+import { User } from '../../Models/User.ts'
 
 // Per-IP + per-path rate limit — sign-in attempts don't exhaust the sign-up
 // or password-reset budget for the same client.
@@ -2119,27 +2114,6 @@ export class AuthController extends BaseAuthController {
   protected userModel      = User as unknown as AuthUserModelLike
   protected hash           = Hash
   protected passwordBroker = broker
-}
-`
-}
-
-function requestIdMiddleware(): string {
-  return `import { Middleware } from '@rudderjs/middleware'
-import type { AppRequest, AppResponse } from '@rudderjs/contracts'
-
-/**
- * Attaches a unique X-Request-Id header to every response.
- * Useful for distributed tracing and log correlation.
- *
- * Registered globally in bootstrap/app.ts via withMiddleware().
- */
-export class RequestIdMiddleware extends Middleware {
-  async handle(req: AppRequest, res: AppResponse, next: () => Promise<void>): Promise<void> {
-    const id = req.headers['x-request-id'] ?? crypto.randomUUID()
-    ;(req as unknown as Record<string, unknown>)['requestId'] = id
-    await next()
-    res.header('X-Request-Id', id)
-  }
 }
 `
 }
@@ -2286,7 +2260,7 @@ function routesWeb(ctx: TemplateContext): string {
     imports.push(`import { CsrfMiddleware } from '@rudderjs/middleware'`)
     imports.push(`import { registerAuthRoutes } from '@rudderjs/auth/routes'`)
     imports.push(`import { auth } from '@rudderjs/auth'`)
-    imports.push(`import { AuthController } from '../app/Controllers/AuthController.ts'`)
+    imports.push(`import { AuthController } from '../app/Http/Controllers/AuthController.ts'`)
   }
 
   // ── middleware chain shared with auth routes + welcome ─
@@ -2304,7 +2278,7 @@ const webMw = [CsrfMiddleware()]
   // GET view pages come from `registerAuthRoutes`; the POST submit handlers
   // come from `AuthController` (extends @rudderjs/auth's BaseAuthController).
   // Both live in routes/web.ts so they inherit SessionMiddleware + AuthMiddleware
-  // from the web group. Customize the flow by editing app/Controllers/AuthController.ts.
+  // from the web group. Customize the flow by editing app/Http/Controllers/AuthController.ts.
   const authBlock = hasAuth
     ? `
 // GET pages — login/register/forgot-password/reset-password
@@ -2312,7 +2286,7 @@ const webMw = [CsrfMiddleware()]
 registerAuthRoutes(Route, { middleware: webMw })
 
 // POST handlers — sign-in/email, sign-up/email, sign-out, password reset.
-// Edit app/Controllers/AuthController.ts to customize.
+// Edit app/Http/Controllers/AuthController.ts to customize.
 Route.registerController(AuthController)
 `
     : ''
