@@ -4,7 +4,7 @@ import { view } from '@rudderjs/view'
 import { config, resolve } from '@rudderjs/core'
 import { auth } from '@rudderjs/auth'
 import { registerAuthRoutes } from '@rudderjs/auth/routes'
-import { AuthController } from '../app/Controllers/AuthController.js'
+import { AuthController } from '../app/Http/Controllers/AuthController.js'
 import { TodoService } from '../app/Modules/Todo/TodoService.js'
 
 

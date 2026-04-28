@@ -229,7 +229,7 @@ export class User extends Model {
 ### 5. Controllers (decorator routing)
 
 ```ts
-// app/Controllers/UserController.ts
+// app/Http/Controllers/UserController.ts
 import { Controller, Get, Post, Middleware } from '@rudderjs/router'
 import { RateLimit } from '@rudderjs/middleware'
 import type { AppRequest, AppResponse } from '@rudderjs/contracts'
@@ -254,7 +254,7 @@ Register the controller once in your routes file:
 ```ts
 // routes/api.ts
 import { Route } from '@rudderjs/router'
-import { UserController } from '../app/Controllers/UserController.js'
+import { UserController } from '../app/Http/Controllers/UserController.js'
 
 Route.registerController(UserController)
 ```

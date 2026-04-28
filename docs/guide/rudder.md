@@ -148,15 +148,15 @@ Every `make:*` command takes a name and writes a stub:
 
 ```bash
 pnpm rudder make:controller User             # → app/Http/Controllers/UserController.ts
-pnpm rudder make:model Post                  # → app/Models/Post.ts
-pnpm rudder make:middleware Auth             # → app/Middleware/AuthMiddleware.ts
+pnpm rudder make:middleware Auth             # → app/Http/Middleware/AuthMiddleware.ts
 pnpm rudder make:request CreateUser          # → app/Http/Requests/CreateUserRequest.ts
+pnpm rudder make:model Post                  # → app/Models/Post.ts
 pnpm rudder make:provider App                # → app/Providers/AppServiceProvider.ts
 pnpm rudder make:job SendWelcomeEmail        # → app/Jobs/SendWelcomeEmail.ts
 pnpm rudder make:event UserRegistered        # → app/Events/UserRegistered.ts
 pnpm rudder make:listener SendWelcome        # → app/Listeners/SendWelcome.ts
 pnpm rudder make:mail Welcome                # → app/Mail/WelcomeMail.ts
-pnpm rudder make:notification Welcome        # → app/Notifications/WelcomeNotification.ts
+pnpm rudder make:command Backup              # → app/Commands/BackupCommand.ts
 ```
 
 Pass `--force` to overwrite an existing file. Every generated stub uses your project's framework selection (React for `.tsx`, Vue for `.vue`, etc.) and tsconfig.

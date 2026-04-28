@@ -9,14 +9,13 @@ my-app/
 │   └── providers.ts        # Ordered service providers
 ├── config/                 # Typed config objects (read .env via Env)
 ├── app/
+│   ├── Http/
+│   │   ├── Controllers/    # Decorator-based controllers
+│   │   ├── Middleware/     # Custom HTTP middleware
+│   │   └── Requests/       # Form-request validators
 │   ├── Models/             # ORM models — extend Model
-│   ├── Services/           # Business logic — bound in providers
 │   ├── Providers/          # Service provider classes
-│   ├── Middleware/         # Custom middleware
-│   ├── Jobs/               # Queue jobs — extend Job
-│   ├── Notifications/      # Notification classes
-│   ├── Views/              # Controller-returned views (`view('id', props)`)
-│   └── Http/Requests/      # Form-request validators
+│   └── Views/              # Controller-returned views (`view('id', props)`)
 ├── routes/
 │   ├── api.ts              # API routes — router.get/post/all()
 │   ├── web.ts              # Web routes — controller views, redirects, guards
@@ -29,6 +28,8 @@ my-app/
 ├── tsconfig.json
 └── .env
 ```
+
+A fresh `pnpm create rudder-app` scaffold ships only the directories above. Other conventional folders — `Jobs/`, `Services/`, `Events/`, `Listeners/`, `Mail/`, `Commands/`, `Notifications/` — get created the first time you run the matching `make:*` command. See [Rudder Console](/guide/rudder) for the full list.
 
 ## Key directories
 
@@ -58,16 +59,18 @@ export default {
 
 Your application code, organized by concern.
 
-| Folder | Contains |
-|---|---|
-| `Models/` | ORM model classes — one per file, extend `Model` |
-| `Services/` | Pure business logic — injected via the DI container |
-| `Providers/` | Service providers wiring up dependencies |
-| `Middleware/` | Custom middleware classes |
-| `Jobs/` | Queue jobs extending `Job` |
-| `Notifications/` | Notification classes |
-| `Views/` | Controller-returned views — see [Frontend](/guide/frontend) |
-| `Http/Requests/` | Form-request validation classes |
+| Folder | Created by | Contains |
+|---|---|---|
+| `Http/Controllers/` | scaffolder + `make:controller` | Decorator-based controllers |
+| `Http/Middleware/` | scaffolder + `make:middleware` | Custom HTTP middleware classes |
+| `Http/Requests/` | `make:request` | Form-request validators |
+| `Models/` | scaffolder (with auth) + `make:model` | ORM model classes |
+| `Providers/` | scaffolder + `make:provider` | Service providers wiring up dependencies |
+| `Views/` | scaffolder + vendor:publish | Controller-returned views — see [Frontend](/guide/frontend) |
+| `Jobs/` | `make:job` | Queue jobs extending `Job` |
+| `Events/` / `Listeners/` | `make:event` / `make:listener` | Event classes + their listeners |
+| `Mail/` | `make:mail` | Mailable classes |
+| `Commands/` | `make:command` | Custom rudder CLI commands |
 
 PascalCase filenames in `Views/` map to kebab-case ids: `AdminUsers.tsx` → `admin-users`. Nested directories use dotted ids: `Auth/Login.tsx` → `auth.login`.
 
@@ -117,9 +120,11 @@ For larger apps, organize features into self-contained modules under `app/Module
 app/
 └── Modules/
     └── Blog/
-        ├── Blog.prisma             # merged by module:publish
-        ├── BlogService.ts
-        └── BlogServiceProvider.ts
+        ├── BlogSchema.ts           # Zod input/output schemas + types
+        ├── BlogService.ts          # @Injectable service
+        ├── BlogServiceProvider.ts  # routes + DI bindings
+        ├── Blog.test.ts            # smoke test
+        └── Blog.prisma             # merged by module:publish
 ```
 
-Generate one with `pnpm rudder make:module Blog`, then `pnpm rudder module:publish` merges the module's Prisma shard into the main schema. Modules are an organizational convention — the framework treats `app/Modules/Blog/` no differently from `app/Services/`. The benefit is keeping a feature's models, services, providers, and routes co-located.
+Generate one with `pnpm rudder make:module Blog`, then `pnpm rudder module:publish` merges the module's Prisma shard into the main schema. Modules are an organizational convention — the framework treats `app/Modules/Blog/` no differently from a regular folder. The benefit is keeping a feature's schema, service, provider, test, and Prisma model co-located.
