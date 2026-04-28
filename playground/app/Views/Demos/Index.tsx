@@ -35,6 +35,12 @@ const demos: Demo[] = [
     href:        '/demos/live',
     packages:    ['@rudderjs/sync'],
   },
+  {
+    title:       'Billing',
+    description: 'Paddle checkout + subscription state. Click a plan to open the overlay; webhook handlers update the row in paddle_subscriptions.',
+    href:        '/demos/billing',
+    packages:    ['@rudderjs/cashier-paddle'],
+  },
 ]
 
 export default function DemosIndex() {

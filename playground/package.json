@@ -25,6 +25,7 @@
     "@rudderjs/boost": "workspace:*",
     "@rudderjs/broadcast": "workspace:*",
     "@rudderjs/cache": "workspace:*",
+    "@rudderjs/cashier-paddle": "workspace:*",
     "@rudderjs/contracts": "workspace:*",
     "@rudderjs/core": "workspace:*",
     "@rudderjs/hash": "workspace:*",

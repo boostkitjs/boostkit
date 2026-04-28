@@ -4,8 +4,11 @@ import { view } from '@rudderjs/view'
 import { config, resolve } from '@rudderjs/core'
 import { auth } from '@rudderjs/auth'
 import { registerAuthRoutes } from '@rudderjs/auth/routes'
+import { registerCashierRoutes, Cashier } from '@rudderjs/cashier-paddle'
 import { AuthController } from '../app/Http/Controllers/AuthController.js'
+import { BillingController, billingDemoProps, billingSubscriptionsProps } from '../app/Http/Controllers/BillingController.js'
 import { TodoService } from '../app/Modules/Todo/TodoService.js'
+import { User } from '../app/Models/User.js'
 
 
 // GET view pages — /login, /register, /forgot-password, /reset-password
@@ -13,6 +16,16 @@ registerAuthRoutes(Route)
 
 // POST handlers — sign-in/email, sign-up/email, sign-out, password reset.
 Route.registerController(AuthController)
+
+// Paddle webhook receiver — POST /paddle/webhook (standalone, no web/api group).
+registerCashierRoutes(Route)
+
+// Billing demo controller — POST /api/billing/checkout, GET/POST /api/billing/subscriptions/*.
+Route.registerController(BillingController)
+
+// Cashier needs to know which Model represents the billable for webhook
+// dispatch — set it once at boot via the User class.
+Cashier.useBillableModel(User)
 
 // Read RudderJS version from @rudderjs/core's package.json at boot time.
 const _require = createRequire(import.meta.url)
@@ -61,6 +74,31 @@ Route.get('/demos/ws', async () => view('demos.ws'))
 Route.get('/demos/todos', async () => {
   const todos = await resolve<TodoService>(TodoService).findAll()
   return view('demos.todos', { todos })
+})
+
+// GET /demos/billing — Paddle checkout demo (@rudderjs/cashier-paddle).
+Route.get('/demos/billing', async () => {
+  const mock = !Cashier.apiKey() || !Cashier.clientSideToken() || !Cashier.webhookSecret()
+  const current = await auth().user() as { id: string; email: string; name: string } | null
+
+  let subRecord = null
+  if (current) {
+    const u = Object.assign(new User(), current)
+    const sub = await u.subscription()
+    subRecord = sub?.record ?? null
+  }
+  return view('demos.billing', billingDemoProps(mock, !!current, subRecord))
+})
+
+// GET /demos/billing/subscriptions — list/manage existing subscriptions.
+Route.get('/demos/billing/subscriptions', async () => {
+  const mock = !Cashier.apiKey() || !Cashier.clientSideToken() || !Cashier.webhookSecret()
+  const current = await auth().user() as { id: string } | null
+  if (!current) return view('demos.billing-subscriptions', billingSubscriptionsProps(mock, []))
+
+  const u = Object.assign(new User(), current)
+  const subs = await u.subscriptions()
+  return view('demos.billing-subscriptions', billingSubscriptionsProps(mock, subs))
 })
 
 // GET /session/demo — increments a visit counter across requests

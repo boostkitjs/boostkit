@@ -8,6 +8,7 @@ import storage  from './storage.js'
 import auth     from './auth.js'
 import hash     from './hash.js'
 import passport from './passport.js'
+import cashier  from './cashier.js'
 import session  from './session.js'
 import sync     from './sync.js'
 import ai       from './ai.js'
@@ -17,7 +18,7 @@ import pulse    from './pulse.js'
 import horizon  from './horizon.js'
 import localization from './localization.js'
 
-const configs = { app, server, database, queue, mail, cache, storage, auth, hash, passport, session, sync, ai, log, telescope, pulse, horizon, localization }
+const configs = { app, server, database, queue, mail, cache, storage, auth, hash, passport, cashier, session, sync, ai, log, telescope, pulse, horizon, localization }
 
 export type Configs = typeof configs
 

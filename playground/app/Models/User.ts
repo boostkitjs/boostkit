@@ -1,9 +1,10 @@
 import { Model, type ModelObserver } from '@rudderjs/orm'
 import { HasApiTokens } from '@rudderjs/passport'
+import { Billable } from '@rudderjs/cashier-paddle'
 import { dispatch } from '@rudderjs/core'
 import { UserRegistered } from '../Events/UserRegistered.js'
 
-export class User extends HasApiTokens(Model) {
+export class User extends Billable(HasApiTokens(Model)) {
   static table = 'user'
   static hidden = ['password', 'rememberToken']
 
