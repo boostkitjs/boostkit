@@ -22,12 +22,8 @@ export async function runSync(args: string[]): Promise<void> {
 
   const client = await paddle()
 
-  let customers     = 0
-  let subscriptions = 0
-  let transactions  = 0
-
   // ─── Customers ────────────────────────────────────────
-  customers = await pageThrough(client.customers, sinceArg, async (rec) => {
+  const customers = await pageThrough(client.customers, sinceArg, async (rec) => {
     const frag = fromCustomerUpdated({ data: rec as Record<string, unknown> })
     if (!frag) return
     const Customer = await Cashier.customerModel()
@@ -40,7 +36,7 @@ export async function runSync(args: string[]): Promise<void> {
   })
 
   // ─── Subscriptions ────────────────────────────────────
-  subscriptions = await pageThrough(client.subscriptions, sinceArg, async (rec) => {
+  const subscriptions = await pageThrough(client.subscriptions, sinceArg, async (rec) => {
     const frag = fromSubscriptionEvent({ data: rec as Record<string, unknown> })
     if (!frag) return
     const Subscription = await Cashier.subscriptionModel()
@@ -57,7 +53,7 @@ export async function runSync(args: string[]): Promise<void> {
   })
 
   // ─── Transactions ─────────────────────────────────────
-  transactions = await pageThrough(client.transactions, sinceArg, async (rec) => {
+  const transactions = await pageThrough(client.transactions, sinceArg, async (rec) => {
     const frag = fromTransactionEvent({ data: rec as Record<string, unknown> })
     if (!frag) return
     const Transaction = await Cashier.transactionModel()
