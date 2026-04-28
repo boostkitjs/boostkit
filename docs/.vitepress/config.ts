@@ -88,8 +88,6 @@ export default defineConfig({
             { text: 'Rate Limiting', link: '/guide/rate-limiting' },
             { text: 'Sync', link: '/guide/sync' },
             { text: 'Task Scheduling', link: '/guide/scheduling' },
-            { text: 'AI', link: '/guide/ai' },
-            { text: 'MCP', link: '/guide/mcp' },
           ],
         },
         {
@@ -108,6 +106,14 @@ export default defineConfig({
             { text: 'Models', link: '/guide/database/models' },
             { text: 'Prisma Adapter', link: '/guide/database/prisma' },
             { text: 'Drizzle Adapter', link: '/guide/database/drizzle' },
+          ],
+        },
+        {
+          text: 'AI',
+          items: [
+            { text: 'AI',    link: '/guide/ai' },
+            { text: 'MCP',   link: '/guide/mcp' },
+            { text: 'Boost', link: '/packages/boost' },
           ],
         },
         {
