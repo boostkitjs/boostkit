@@ -17,7 +17,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Guide', link: '/guide/', activeMatch: '/guide/' },
-      { text: 'Packages', link: '/packages/boost', activeMatch: '/packages/' },
+      { text: 'Packages', link: '/packages/', activeMatch: '/packages/' },
       { text: 'Contributing', link: '/contributing/', activeMatch: '/contributing/' },
       {
         text: 'v0.1.0',
@@ -128,6 +128,7 @@ export default defineConfig({
         {
           text: 'Packages',
           items: [
+            { text: 'Overview', link: '/packages/' },
             { text: 'Boost', link: '/packages/boost' },
             { text: 'Cashier Paddle', link: '/packages/cashier-paddle' },
             { text: 'Passport', link: '/packages/passport' },
