@@ -8,7 +8,7 @@ export function stub(name: string): string {
     .replace(/([A-Z])/g, (m, l, i) => (i === 0 ? l : `-${l}`))
     .toLowerCase()
 
-  return `import { Command } from '@rudderjs/rudder'
+  return `import { Command } from '@rudderjs/console'
 
 export class ${name} extends Command {
   readonly signature   = '${kebab} {--force : Force the operation}'

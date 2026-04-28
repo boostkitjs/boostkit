@@ -199,7 +199,7 @@ See [`@rudderjs/view`](./packages/view) for the full reference.
 ```ts
 // routes/console.ts
 import { Cache } from '@rudderjs/cache'
-import { Rudder }  from '@rudderjs/rudder'
+import { Rudder }  from '@rudderjs/console'
 import { Schedule } from '@rudderjs/schedule'
 
 Rudder.command('db:seed', async () => {
@@ -444,7 +444,7 @@ const svc = resolve<UserService>(UserService)
 | `@rudderjs/core` | Application bootstrap, DI container, Events, ServiceProvider lifecycle |
 | `@rudderjs/router` | Fluent + decorator-based HTTP routing |
 | `@rudderjs/middleware` | Pipeline, CORS, logger, CSRF, rate limiting |
-| `@rudderjs/rudder` | Rudder CLI registry, Command base class |
+| `@rudderjs/console` | Rudder CLI registry, Command base class |
 | `@rudderjs/cli` | CLI runner — dispatches `make:*` and domain commands (`queue:*`, `mail:*`, `mcp:*`, `passport:*`, `db:*`, `storage:*`, …) shipped by their owning packages |
 | `@rudderjs/support` | Env, Collection, ConfigRepository, helpers |
 | `@rudderjs/contracts` | Shared TypeScript types (no runtime) |

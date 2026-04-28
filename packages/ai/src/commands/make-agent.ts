@@ -1,4 +1,4 @@
-import type { MakeSpec } from '@rudderjs/rudder'
+import type { MakeSpec } from '@rudderjs/console'
 
 export const makeAgentSpec: MakeSpec = {
   command:     'make:agent',

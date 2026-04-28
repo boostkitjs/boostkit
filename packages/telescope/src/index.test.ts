@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { MemoryStorage, createEntry, TelescopeRegistry, Telescope, CommandCollector, BroadcastCollector, SyncCollector, HttpCollector, GateCollector, DumpCollector } from './index.js'
-import { commandObservers } from '@rudderjs/rudder'
+import { commandObservers } from '@rudderjs/console'
 import { broadcastObservers } from '@rudderjs/broadcast'
 import { syncObservers } from '@rudderjs/sync'
 import { httpObservers } from '@rudderjs/http/observers'

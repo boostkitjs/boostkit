@@ -7,7 +7,7 @@ import { moduleCommand } from './commands/module.js'
 import { vendorPublishCommand } from './commands/vendor-publish.js'
 import { providersDiscoverCommand } from './commands/providers-discover.js'
 import { commandListCommand } from './commands/command-list.js'
-import { rudder, parseSignature, CancelledError, commandObservers, type CommandObservation } from '@rudderjs/rudder'
+import { rudder, parseSignature, CancelledError, commandObservers, type CommandObservation } from '@rudderjs/console'
 import { CliError } from './errors.js'
 
 const C = {
@@ -121,7 +121,7 @@ async function observeCommand(
  * resolve them at compile time (these packages are optional).
  */
 async function loadPackageCommands(): Promise<void> {
-  const { registerMakeSpecs, rudder } = await import('@rudderjs/rudder')
+  const { registerMakeSpecs, rudder } = await import('@rudderjs/console')
 
   // Helper: import a subpath from a package, swallow if not installed
   const tryImport = (pkg: string, subpath: string): Promise<Record<string, unknown>> =>
@@ -131,7 +131,7 @@ async function loadPackageCommands(): Promise<void> {
     // @rudderjs/ai → make:agent
     async () => {
       const mod = await tryImport('@rudderjs/ai', 'commands/make-agent')
-      registerMakeSpecs(mod['makeAgentSpec'] as import('@rudderjs/rudder').MakeSpec)
+      registerMakeSpecs(mod['makeAgentSpec'] as import('@rudderjs/console').MakeSpec)
     },
     // @rudderjs/mcp → make:mcp-*
     async () => {
@@ -142,10 +142,10 @@ async function loadPackageCommands(): Promise<void> {
         tryImport('@rudderjs/mcp', 'commands/make-mcp-prompt'),
       ])
       registerMakeSpecs(
-        server['makeMcpServerSpec'] as import('@rudderjs/rudder').MakeSpec,
-        tool['makeMcpToolSpec'] as import('@rudderjs/rudder').MakeSpec,
-        resource['makeMcpResourceSpec'] as import('@rudderjs/rudder').MakeSpec,
-        prompt['makeMcpPromptSpec'] as import('@rudderjs/rudder').MakeSpec,
+        server['makeMcpServerSpec'] as import('@rudderjs/console').MakeSpec,
+        tool['makeMcpToolSpec'] as import('@rudderjs/console').MakeSpec,
+        resource['makeMcpResourceSpec'] as import('@rudderjs/console').MakeSpec,
+        prompt['makeMcpPromptSpec'] as import('@rudderjs/console').MakeSpec,
       )
     },
     // @rudderjs/orm → migrate, migrate:fresh, migrate:status, make:migration, db:push, db:generate

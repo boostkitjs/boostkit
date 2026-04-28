@@ -1,17 +1,17 @@
-# @rudderjs/rudder
+# @rudderjs/console
 
 Command registry and class-based command primitives for the RudderJS CLI.
 
 ## Installation
 
 ```bash
-pnpm add @rudderjs/rudder
+pnpm add @rudderjs/console
 ```
 
 ## Quick Start
 
 ```ts
-import { Rudder, Command } from '@rudderjs/rudder'
+import { Rudder, Command } from '@rudderjs/console'
 
 // Functional command
 Rudder.command('greet {name}', (args) => {
@@ -62,7 +62,7 @@ Command signatures describe arguments and options in a Laravel-style DSL:
 Global singleton registry (both names refer to the same instance):
 
 ```ts
-import { rudder, Rudder } from '@rudderjs/rudder'
+import { rudder, Rudder } from '@rudderjs/console'
 ```
 
 #### `Rudder.command(name, handler)`
@@ -207,7 +207,7 @@ async handle() {
 Thrown when the user cancels an interactive prompt (Ctrl+C).
 
 ```ts
-import { CancelledError } from '@rudderjs/rudder'
+import { CancelledError } from '@rudderjs/console'
 
 try {
   const answer = await this.ask('Name?')
@@ -226,7 +226,7 @@ Parses a command signature string into a structured `ParsedSignature` object.
 Throws if the signature does not start with a valid command name.
 
 ```ts
-import { parseSignature } from '@rudderjs/rudder'
+import { parseSignature } from '@rudderjs/console'
 
 const parsed = parseSignature('users:create {name} {email?} {--force} {--role=admin}')
 // parsed.name → 'users:create'

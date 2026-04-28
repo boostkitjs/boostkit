@@ -263,7 +263,7 @@ function packageJson(ctx: TemplateContext): string {
 
   // Base framework deps (always included)
   const deps: Record<string, string> = {
-    '@rudderjs/rudder':      'latest',
+    '@rudderjs/console':      'latest',
     '@rudderjs/vite':         'latest',
     '@rudderjs/contracts':    'latest',
     '@rudderjs/core':         'latest',
@@ -2360,7 +2360,7 @@ function welcomeExt(fw: 'react' | 'vue' | 'solid'): string {
 }
 
 function routesConsole(): string {
-  return `import { rudder } from '@rudderjs/rudder'
+  return `import { rudder } from '@rudderjs/console'
 
 rudder.command('inspire', () => {
   const quotes = [

@@ -88,7 +88,7 @@ export class AiProvider extends ServiceProvider {
 
     // Register make:agent scaffolder
     try {
-      const { registerMakeSpecs } = await import('@rudderjs/rudder')
+      const { registerMakeSpecs } = await import('@rudderjs/console')
       const { makeAgentSpec } = await import('../commands/make-agent.js')
       registerMakeSpecs(makeAgentSpec)
     } catch { /* rudder not available */ }

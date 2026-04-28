@@ -89,7 +89,7 @@ export class SyncObserverRegistry {
   reset(): void { this.observers = [] }
 }
 
-// Process-wide singleton, like commandObservers in @rudderjs/rudder
+// Process-wide singleton, like commandObservers in @rudderjs/console
 // and broadcastObservers in @rudderjs/broadcast.
 const _g = globalThis as Record<string, unknown>
 if (!_g['__rudderjs_sync_observers__']) {

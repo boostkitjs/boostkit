@@ -1,4 +1,4 @@
-import { Command } from '@rudderjs/rudder'
+import { Command } from '@rudderjs/console'
 
 export class Greet extends Command {
   readonly signature   = 'greet {name : Person to greet} {--shout : Uppercase output} {--lang=en : Language code}'

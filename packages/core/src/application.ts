@@ -2,7 +2,7 @@ import { Container, ContextualBindingBuilder, container } from './di.js'
 import { ServiceProvider } from './service-provider.js'
 import { Env, ConfigRepository, setConfigRepository } from '@rudderjs/support'
 import type { ServerAdapterProvider, ServerAdapter, FetchHandler, MiddlewareHandler, AppRequest } from '@rudderjs/contracts'
-import { rudder } from '@rudderjs/rudder'
+import { rudder } from '@rudderjs/console'
 import { ValidationError } from './validation.js'
 import {
   HttpException,

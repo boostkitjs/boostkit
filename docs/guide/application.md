@@ -84,7 +84,7 @@ Common framework primitives are re-exported from `@rudderjs/core` so most apps n
 
 | Re-export | Source |
 |---|---|
-| `rudder`, `Rudder`, `Command`, `parseSignature` | `@rudderjs/rudder` |
+| `rudder`, `Rudder`, `Command`, `parseSignature` | `@rudderjs/console` |
 | `Container`, `container`, `Injectable`, `Inject` | core DI |
 | `Listener`, `EventDispatcher`, `dispatch`, `events` | core Events |
 | `FormRequest`, `ValidationError`, `validate`, `z` | core Validation |

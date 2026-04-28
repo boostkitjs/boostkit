@@ -64,12 +64,12 @@ importers:
         specifier: ^4.0.0
         version: 4.3.6
     devDependencies:
+      '@rudderjs/console':
+        specifier: workspace:^
+        version: link:../console
       '@rudderjs/core':
         specifier: workspace:^
         version: link:../core
-      '@rudderjs/rudder':
-        specifier: workspace:^
-        version: link:../rudder
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.35
@@ -184,12 +184,12 @@ importers:
       '@clack/prompts':
         specifier: ^1.0.0
         version: 1.0.1
+      '@rudderjs/console':
+        specifier: workspace:^
+        version: link:../console
       '@rudderjs/core':
         specifier: workspace:^
         version: link:../core
-      '@rudderjs/rudder':
-        specifier: workspace:^
-        version: link:../rudder
       chalk:
         specifier: ^5.0.0
         version: 5.6.2
@@ -219,6 +219,22 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/console:
+    dependencies:
+      '@clack/prompts':
+        specifier: ^1.0.0
+        version: 1.0.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/context:
     dependencies:
       '@rudderjs/core':
@@ -243,15 +259,15 @@ importers:
 
   packages/core:
     dependencies:
+      '@rudderjs/console':
+        specifier: workspace:^
+        version: link:../console
       '@rudderjs/contracts':
         specifier: workspace:^
         version: link:../contracts
       '@rudderjs/router':
         specifier: workspace:^
         version: link:../router
-      '@rudderjs/rudder':
-        specifier: workspace:^
-        version: link:../rudder
       '@rudderjs/support':
         specifier: workspace:^
         version: link:../support
@@ -429,12 +445,12 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
     devDependencies:
+      '@rudderjs/console':
+        specifier: workspace:^
+        version: link:../console
       '@rudderjs/router':
         specifier: workspace:^
         version: link:../router
-      '@rudderjs/rudder':
-        specifier: workspace:^
-        version: link:../rudder
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.35
@@ -584,9 +600,9 @@ importers:
         specifier: workspace:^
         version: link:../orm
     devDependencies:
-      '@rudderjs/rudder':
+      '@rudderjs/console':
         specifier: workspace:^
-        version: link:../rudder
+        version: link:../console
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.35
@@ -726,22 +742,6 @@ importers:
       '@types/reflect-metadata':
         specifier: ^0.1.0
         version: 0.1.0
-      tsx:
-        specifier: ^4.0.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-
-  packages/rudder:
-    dependencies:
-      '@clack/prompts':
-        specifier: ^1.0.0
-        version: 1.0.1
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
       tsx:
         specifier: ^4.0.0
         version: 4.21.0
@@ -952,15 +952,15 @@ importers:
       '@rudderjs/broadcast':
         specifier: workspace:^
         version: link:../broadcast
+      '@rudderjs/console':
+        specifier: workspace:^
+        version: link:../console
       '@rudderjs/http':
         specifier: workspace:^
         version: link:../http
       '@rudderjs/mcp':
         specifier: workspace:^
         version: link:../mcp
-      '@rudderjs/rudder':
-        specifier: workspace:^
-        version: link:../rudder
       '@rudderjs/support':
         specifier: workspace:^
         version: link:../support
@@ -1065,6 +1065,9 @@ importers:
       '@rudderjs/cache':
         specifier: workspace:*
         version: link:../packages/cache
+      '@rudderjs/console':
+        specifier: workspace:*
+        version: link:../packages/console
       '@rudderjs/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
@@ -1122,9 +1125,6 @@ importers:
       '@rudderjs/router':
         specifier: workspace:*
         version: link:../packages/router
-      '@rudderjs/rudder':
-        specifier: workspace:*
-        version: link:../packages/rudder
       '@rudderjs/schedule':
         specifier: workspace:*
         version: link:../packages/schedule

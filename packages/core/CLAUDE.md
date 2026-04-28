@@ -33,5 +33,5 @@ pnpm test       # tsx --test
 ## Pitfalls
 
 - `reflect-metadata` must be imported at the app entry point, not here
-- Re-exports `@rudderjs/rudder`, `@rudderjs/support`, `@rudderjs/contracts` — changes there affect this package's public API
+- Re-exports `@rudderjs/console`, `@rudderjs/support`, `@rudderjs/contracts` — changes there affect this package's public API
 - `AsyncLocalStorage` is lazy-loaded inside functions — never import `node:async_hooks` at top level

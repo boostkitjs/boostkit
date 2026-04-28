@@ -118,7 +118,7 @@ After publishing, run `pnpm rudder db:push` or create a migration to apply the n
 Seed scripts live in `routes/console.ts` as rudder commands:
 
 ```ts
-import { rudder } from '@rudderjs/rudder'
+import { rudder } from '@rudderjs/console'
 import { User } from '../app/Models/User.js'
 
 rudder.command('db:seed', async () => {

@@ -1,5 +1,5 @@
 import type { Command as CommanderCommand } from 'commander'
-import { rudder, parseSignature } from '@rudderjs/rudder'
+import { rudder, parseSignature } from '@rudderjs/console'
 
 const C = {
   green:  (s: string) => `\x1b[32m${s}\x1b[0m`,

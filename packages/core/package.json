@@ -37,7 +37,7 @@
     "test": "tsc -p tsconfig.test.json && node --test dist-test/*.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT"
   },
   "dependencies": {
-    "@rudderjs/rudder": "workspace:^",
+    "@rudderjs/console": "workspace:^",
     "@rudderjs/contracts": "workspace:^",
     "@rudderjs/router": "workspace:^",
     "@rudderjs/support": "workspace:^",

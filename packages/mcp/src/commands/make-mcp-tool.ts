@@ -1,4 +1,4 @@
-import type { MakeSpec } from '@rudderjs/rudder'
+import type { MakeSpec } from '@rudderjs/console'
 
 export const makeMcpToolSpec: MakeSpec = {
   command:     'make:mcp-tool',

@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import chalk from 'chalk'
-import { getMakeSpecs, executeMakeSpec } from '@rudderjs/rudder'
+import { getMakeSpecs, executeMakeSpec } from '@rudderjs/console'
 import { makeController } from './make/controller.js'
 import { makeModel } from './make/model.js'
 import { makeJob } from './make/job.js'
