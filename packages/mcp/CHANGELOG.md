@@ -1,5 +1,13 @@
 # @rudderjs/mcp
 
+## 3.1.1
+
+### Patch Changes
+
+- Updated dependencies [8411cd5]
+  - @rudderjs/console@0.0.4
+  - @rudderjs/core@0.1.4
+
 ## 3.1.0
 
 ### Minor Changes
