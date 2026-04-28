@@ -179,6 +179,37 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
+  packages/cashier-paddle:
+    dependencies:
+      '@paddle/paddle-node-sdk':
+        specifier: ^1.0.0
+        version: 1.10.0
+      '@rudderjs/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@rudderjs/core':
+        specifier: workspace:^
+        version: link:../core
+      '@rudderjs/orm':
+        specifier: workspace:^
+        version: link:../orm
+    devDependencies:
+      '@rudderjs/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@rudderjs/router':
+        specifier: workspace:^
+        version: link:../router
+      '@rudderjs/view':
+        specifier: workspace:^
+        version: link:../view
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/cli:
     dependencies:
       '@clack/prompts':
@@ -1065,6 +1096,9 @@ importers:
       '@rudderjs/cache':
         specifier: workspace:*
         version: link:../packages/cache
+      '@rudderjs/cashier-paddle':
+        specifier: workspace:*
+        version: link:../packages/cashier-paddle
       '@rudderjs/console':
         specifier: workspace:*
         version: link:../packages/console
@@ -3113,6 +3147,9 @@ packages:
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
+
+  '@paddle/paddle-node-sdk@1.10.0':
+    resolution: {integrity: sha512-7HEl8UmPbICxTyGx/z6ZOss71K/GTS1EnEJ324IQWIo0ijTw6m9z+QpD8Tpje+08TDi0aesbBTtZq4X4HTFVkw==}
 
   '@phc/format@1.0.0':
     resolution: {integrity: sha512-m7X9U6BG2+J+R1lSOdCiITLLrxm+cWlNI3HUFA92oLO77ObGNzaKdh8pMLqdZcshtkKuV84olNNXDfMc4FezBQ==}
@@ -10407,6 +10444,13 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.5.1(@opentelemetry/api@1.9.0)
+
+  '@paddle/paddle-node-sdk@1.10.0':
+    dependencies:
+      lodash: 4.17.21
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
 
   '@phc/format@1.0.0':
     optional: true

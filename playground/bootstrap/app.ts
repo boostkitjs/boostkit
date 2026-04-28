@@ -25,7 +25,9 @@ export default Application.configure({
 
     // Per-group middleware
     m.web(RateLimit.perMinute(120))
-    m.web(CsrfMiddleware())
+    // Paddle webhooks live in the web group (registered in routes/web.ts)
+    // but arrive without a CSRF token — Paddle is the sender, not a browser form.
+    m.web(CsrfMiddleware({ exclude: ['/paddle/webhook'] }))
     m.api(RateLimit.perMinute(60))
 
     // Session + AuthMiddleware are auto-installed on the web group by the

@@ -1,0 +1,82 @@
+{
+  "name": "@rudderjs/cashier-paddle",
+  "version": "1.0.0",
+  "description": "Paddle billing for RudderJS — port of Laravel Cashier Paddle (Billable mixin, subscriptions, webhooks, checkout).",
+  "rudderjs": {
+    "provider": "CashierPaddleProvider",
+    "stage": "feature",
+    "depends": [
+      "@rudderjs/auth",
+      "@rudderjs/orm-prisma"
+    ]
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rudderjs/rudder",
+    "directory": "packages/cashier-paddle"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "schema",
+    "views"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./routes": {
+      "import": "./dist/routes.js",
+      "types": "./dist/routes.d.ts"
+    },
+    "./views/react/CheckoutButton": "./views/react/CheckoutButton.tsx",
+    "./views/react/InlineCheckout": "./views/react/InlineCheckout.tsx",
+    "./views/react/PaddleScript":   "./views/react/PaddleScript.tsx",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/index.test.js; EXIT=$?; rm -rf dist-test; exit $EXIT"
+  },
+  "dependencies": {
+    "@rudderjs/contracts": "workspace:^",
+    "@rudderjs/core": "workspace:^",
+    "@rudderjs/orm": "workspace:^"
+  },
+  "peerDependencies": {
+    "@paddle/paddle-node-sdk": "^1.0.0",
+    "@rudderjs/auth": "workspace:^",
+    "@rudderjs/router": "workspace:^",
+    "@rudderjs/view": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@paddle/paddle-node-sdk": {
+      "optional": true
+    },
+    "@rudderjs/auth": {
+      "optional": false
+    },
+    "@rudderjs/router": {
+      "optional": false
+    },
+    "@rudderjs/view": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@rudderjs/auth": "workspace:^",
+    "@rudderjs/router": "workspace:^",
+    "@rudderjs/view": "workspace:^",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "author": "Suleiman Shahbari"
+}
