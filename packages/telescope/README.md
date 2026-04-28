@@ -2,6 +2,8 @@
 
 Debug assistant for RudderJS — records requests, queries, jobs, exceptions, logs, mail, notifications, events, cache operations, scheduled tasks, model changes, CLI commands, outgoing HTTP requests, authorization decisions, WebSocket lifecycle, Yjs CRDT events, and `dump()`/`dd()` calls.
 
+> **About the version number.** Telescope is currently at v9.x. The high major doesn't reflect 9 ground-up rewrites — it's the result of Changesets peer-bump cascades across the `@rudderjs/*` workspace, where a major bump in any peer ripples through dependents. The public API has been stable since v6.
+
 ## Installation
 
 ```bash
