@@ -172,6 +172,35 @@ pnpm rudder vendor:publish --force
 
 Published files belong to the user — they can edit them freely. Re-running `vendor:publish` without `--force` skips files that already exist.
 
+## Dynamic provider registration
+
+Providers can register other providers at runtime via `this.app.register()`. This lets a module bring its own sub-providers without the user touching `bootstrap/providers.ts`:
+
+```ts
+import { ServiceProvider } from '@rudderjs/core'
+import { ReportingServiceProvider } from '../Modules/Reporting/ReportingServiceProvider.js'
+
+export class AppServiceProvider extends ServiceProvider {
+  async boot() {
+    await this.app.register(ReportingServiceProvider)
+
+    // Conditionally register based on config
+    if (this.app.make<{ get(k: string): unknown }>('config').get('reporting.enabled')) {
+      await this.app.register(SomeOptionalProvider)
+    }
+  }
+}
+```
+
+| Scenario | Behaviour |
+|---|---|
+| Called **before** `bootstrap()` | `register()` runs immediately; `boot()` runs later during normal bootstrap |
+| Called **after** `bootstrap()` | Both `register()` and `boot()` run immediately |
+| Duplicate provider class | Silently skipped (by class reference or class name) |
+| Boot error | Wrapped with provider name context, same as initial providers |
+
+Same shape as Laravel's `$this->app->register(Provider::class)`.
+
 ## Common errors
 
 **`@rudderjs/X listed in the provider manifest but not installed`** — the manifest still references a removed package. Run `pnpm rudder providers:discover` to refresh.

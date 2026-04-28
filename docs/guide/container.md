@@ -135,6 +135,21 @@ class UserController {
 router.registerController(UserController)
 ```
 
+## Container API reference
+
+All mutating methods return `this` for fluent chaining. Tokens can be a `string`, `symbol`, or class constructor (keyed by class name).
+
+| Method | Description |
+|---|---|
+| `bind(token, factory)` | Factory binding — new instance on every `make()`. Factory receives the container as its argument. |
+| `singleton(token, factory)` | Singleton — factory runs once; result cached for subsequent calls. |
+| `instance(token, value)` | Registers a pre-built value. Always returns the same object reference. |
+| `alias(from, to)` | Maps the string `from` to `to`. `make(from)` resolves `to`. |
+| `make<T>(token)` | Resolves the token. If the token is an `@Injectable` class with no explicit binding, auto-resolves via constructor metadata. Throws if no binding is found. |
+| `has(token)` | `true` if the token (or its alias target) has a binding or instance registered. |
+| `forget(token)` | Removes the binding and any cached singleton instance. |
+| `reset()` | Clears all bindings, instances, and aliases. |
+
 ## Tips
 
 - Always import `reflect-metadata` once at the entry point. Install it as a regular dependency, not a devDependency.

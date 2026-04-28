@@ -51,10 +51,11 @@ export default defineConfig({
         {
           text: 'Architecture Concepts',
           items: [
+            { text: 'Application',       link: '/guide/application' },
             { text: 'Request Lifecycle', link: '/guide/lifecycle' },
             { text: 'Service Container', link: '/guide/container' },
             { text: 'Service Providers', link: '/guide/service-providers' },
-            { text: 'Facades', link: '/guide/facades' },
+            { text: 'Facades',           link: '/guide/facades' },
           ],
         },
         {
