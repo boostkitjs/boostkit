@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/cashier-paddle",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Paddle billing for RudderJS — port of Laravel Cashier Paddle (Billable mixin, subscriptions, webhooks, checkout).",
   "rudderjs": {
     "provider": "CashierPaddleProvider",
@@ -35,7 +35,7 @@
     },
     "./views/react/CheckoutButton": "./views/react/CheckoutButton.tsx",
     "./views/react/InlineCheckout": "./views/react/InlineCheckout.tsx",
-    "./views/react/PaddleScript":   "./views/react/PaddleScript.tsx",
+    "./views/react/PaddleScript": "./views/react/PaddleScript.tsx",
     "./package.json": "./package.json"
   },
   "scripts": {

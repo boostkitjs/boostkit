@@ -1,5 +1,12 @@
 # rudderjs-playground
 
+## 0.0.21
+
+### Patch Changes
+
+- Updated dependencies [7bf4e46]
+  - @rudderjs/cashier-paddle@1.0.1
+
 ## 0.0.20
 
 ### Patch Changes
