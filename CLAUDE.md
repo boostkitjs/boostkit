@@ -16,7 +16,7 @@ This file provides guidance to Claude Code when working in this repository.
 - **Language**: TypeScript (strict, ESM, NodeNext)
 - **npm scope**: `@rudderjs/*`
 - **GitHub**: https://github.com/rudderjs/rudder
-- **Status**: Early development
+- **Status**: 1.0 graduated 2026-04-29 (29 framework packages → 1.0.0; see `docs/plans/2026-04-28-1x-graduation.md`)
 
 ---
 
