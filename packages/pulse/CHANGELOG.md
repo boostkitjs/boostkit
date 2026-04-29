@@ -1,5 +1,19 @@
 # @rudderjs/pulse
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [cd38418]
+  - @rudderjs/cache@1.0.0
+  - @rudderjs/contracts@1.0.0
+  - @rudderjs/core@1.0.0
+  - @rudderjs/log@1.0.0
+  - @rudderjs/middleware@1.0.0
+  - @rudderjs/orm@1.0.0
+  - @rudderjs/router@1.0.0
+  - @rudderjs/queue@4.0.0
+
 ## 4.0.3
 
 ### Patch Changes

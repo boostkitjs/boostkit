@@ -1,5 +1,14 @@
 # @rudderjs/sanctum
 
+## 6.0.0
+
+### Patch Changes
+
+- Updated dependencies [cd38418]
+  - @rudderjs/contracts@1.0.0
+  - @rudderjs/core@1.0.0
+  - @rudderjs/auth@4.0.0
+
 ## 5.0.1
 
 ### Patch Changes
