@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/mail",
-  "version": "0.0.11",
+  "version": "1.0.0",
   "rudderjs": {
     "provider": "MailProvider",
     "stage": "feature"

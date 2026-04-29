@@ -1,5 +1,12 @@
 # @rudderjs/orm-drizzle
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [cd38418]
+  - @rudderjs/contracts@1.0.0
+
 ## 0.0.9
 
 ### Patch Changes

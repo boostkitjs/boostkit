@@ -1,5 +1,17 @@
 # @rudderjs/auth
 
+## 4.0.0
+
+### Patch Changes
+
+- Updated dependencies [cd38418]
+  - @rudderjs/contracts@1.0.0
+  - @rudderjs/core@1.0.0
+  - @rudderjs/hash@1.0.0
+  - @rudderjs/router@1.0.0
+  - @rudderjs/session@1.0.0
+  - @rudderjs/view@1.0.0
+
 ## 3.2.1
 
 ### Patch Changes

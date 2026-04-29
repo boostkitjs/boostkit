@@ -1,6 +1,6 @@
 {
   "name": "@rudderjs/broadcast",
-  "version": "0.0.9",
+  "version": "1.0.0",
   "rudderjs": {
     "provider": "BroadcastingProvider",
     "stage": "feature"

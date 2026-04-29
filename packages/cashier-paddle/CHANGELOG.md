@@ -1,5 +1,17 @@
 # @rudderjs/cashier-paddle
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies [cd38418]
+  - @rudderjs/contracts@1.0.0
+  - @rudderjs/core@1.0.0
+  - @rudderjs/orm@1.0.0
+  - @rudderjs/router@1.0.0
+  - @rudderjs/view@1.0.0
+  - @rudderjs/auth@4.0.0
+
 ## 1.0.1
 
 ### Patch Changes
